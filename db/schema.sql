@@ -1384,3 +1384,23 @@ CREATE INDEX IF NOT EXISTS idx_notification_deliveries_batch
     ON notification_deliveries(batch_id) WHERE batch_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_notification_deliveries_channel
     ON notification_deliveries(channel_id, id DESC);
+
+CREATE TABLE IF NOT EXISTS audit_jobs (
+    id UUID PRIMARY KEY,
+    request_hash TEXT NOT NULL,
+    expected_sha256 TEXT NOT NULL,
+    artifact BYTEA,
+    actual_sha256 TEXT,
+    state TEXT NOT NULL DEFAULT 'queued'
+        CHECK (state IN ('queued', 'running', 'succeeded', 'cancelled', 'failed')),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    lease_id UUID,
+    available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deadline_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '10 minutes'),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    finished_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_audit_jobs_available
+    ON audit_jobs (available_at, created_at) WHERE state IN ('queued', 'running');
+CREATE INDEX IF NOT EXISTS idx_audit_jobs_deadline
+    ON audit_jobs (deadline_at) WHERE state IN ('queued', 'running');
