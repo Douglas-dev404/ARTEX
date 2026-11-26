@@ -13,74 +13,74 @@ import (
 	"github.com/Autumn-27/artex/db"
 )
 
-// 发现页「导出」用的渲染:把一批 findings 表行渲染成汇总 Markdown、单条 Markdown、
-// 或 CSV。JSON 由 server 层直接用 DTO 序列化,不在此处。
+// Renderização usada pela "exportação" da página de achados: converte um lote de linhas da tabela findings em Markdown consolidado, Markdown individual
+// ou CSV. O JSON é serializado diretamente a partir do DTO pela camada server, não aqui.
 
-// sortFindingsForExport 按严重等级降序、再按时间倒序排,与汇总报告的分组一致。
+// sortFindingsForExport ordena por severidade decrescente e depois por data decrescente, consistente com o agrupamento do relatório consolidado.
 func sortFindingsForExport(fs []*db.DBFinding) {
 	sort.SliceStable(fs, func(i, j int) bool {
 		ri, rj := sevRank[fs[i].Severity], sevRank[fs[j].Severity]
 		if ri != rj {
-			return ri < rj // sevRank 越小越严重
+			return ri < rj // quanto menor o sevRank, mais grave
 		}
 		return fs[i].CreatedAt.After(fs[j].CreatedAt)
 	})
 }
 
-// findingTitle 取漏洞可读标题:名称 → 类别 → 「未分类」。
+// findingTitle obtém o título legível da vulnerabilidade: nome → categoria → "Sem categoria".
 func findingTitle(f *db.DBFinding) string {
-	return nz(f.Name, nz(f.VulnClass, "未分类"))
+	return nz(f.Name, nz(f.VulnClass, "Sem categoria"))
 }
 
-// FindingsMarkdown 把一批 findings 整合成一份汇总报告(摘要 + 按严重等级分组,
-// 每条含类别/状态/所属任务/证据/详细报告)。
+// FindingsMarkdown consolida um lote de findings em um único relatório (resumo + agrupamento por severidade,
+// cada item com categoria/status/tarefa/evidência/relatório detalhado).
 func FindingsMarkdown(fs []*db.DBFinding, generatedAt time.Time) string {
 	items := append([]*db.DBFinding(nil), fs...)
 	sortFindingsForExport(items)
 
 	var b strings.Builder
-	b.WriteString("# 漏洞发现汇总报告\n\n")
-	fmt.Fprintf(&b, "- **生成时间**：%s\n", generatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(&b, "- **发现总数**：%d 个\n\n", len(items))
+	b.WriteString("# Relatório Consolidado de Vulnerabilidades\n\n")
+	fmt.Fprintf(&b, "- **Gerado em**: %s\n", generatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "- **Total de achados**: %d\n\n", len(items))
 
-	// 摘要:各严重等级计数。
+	// Resumo: contagem por severidade.
 	counts := map[string]int{}
 	for _, f := range items {
 		counts[f.Severity]++
 	}
-	b.WriteString("## 摘要\n\n")
-	b.WriteString("| 严重等级 | 数量 |\n| --- | --- |\n")
+	b.WriteString("## Resumo\n\n")
+	b.WriteString("| Severidade | Quantidade |\n| --- | --- |\n")
 	for _, s := range []struct{ key, label string }{
-		{"critical", "严重"}, {"high", "高危"}, {"medium", "中危"}, {"low", "低危"},
+		{"critical", "Crítica"}, {"high", "Alta"}, {"medium", "Média"}, {"low", "Baixa"},
 	} {
 		fmt.Fprintf(&b, "| %s | %d |\n", s.label, counts[s.key])
 	}
 	b.WriteString("\n")
 
 	if len(items) == 0 {
-		b.WriteString("_无匹配的漏洞。_\n")
+		b.WriteString("_Nenhuma vulnerabilidade correspondente._\n")
 		return b.String()
 	}
 
-	b.WriteString("## 漏洞明细\n\n")
+	b.WriteString("## Detalhamento das vulnerabilidades\n\n")
 	for i, f := range items {
 		fmt.Fprintf(&b, "### %d. [%s] %s\n\n", i+1, strings.ToUpper(nz(f.Severity, "info")), findingTitle(f))
 		if f.VulnClass != "" {
-			fmt.Fprintf(&b, "- **类别**：%s\n", f.VulnClass)
+			fmt.Fprintf(&b, "- **Categoria**: %s\n", f.VulnClass)
 		}
-		fmt.Fprintf(&b, "- **状态**：%s\n", nz(f.Status, "pending"))
+		fmt.Fprintf(&b, "- **Status**: %s\n", nz(f.Status, "pending"))
 		if desc := strings.TrimSpace(f.TaskDescription); desc != "" {
-			fmt.Fprintf(&b, "- **所属任务**：%s\n", desc)
+			fmt.Fprintf(&b, "- **Tarefa**: %s\n", desc)
 		}
-		fmt.Fprintf(&b, "- **发现时间**：%s\n\n", f.CreatedAt.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(&b, "- **Descoberto em**: %s\n\n", f.CreatedAt.Format("2006-01-02 15:04:05"))
 		if s := strings.TrimSpace(f.Summary); s != "" {
 			fmt.Fprintf(&b, "%s\n\n", s)
 		}
 		if e := strings.TrimSpace(f.Evidence); e != "" {
-			fmt.Fprintf(&b, "**证据：**\n\n```\n%s\n```\n\n", e)
+			fmt.Fprintf(&b, "**Evidência:**\n\n```\n%s\n```\n\n", e)
 		}
 		if rep := strings.TrimSpace(f.Report); rep != "" {
-			b.WriteString("**详细报告：**\n\n")
+			b.WriteString("**Relatório detalhado:**\n\n")
 			b.WriteString(rep)
 			b.WriteString("\n\n")
 		}
@@ -90,28 +90,28 @@ func FindingsMarkdown(fs []*db.DBFinding, generatedAt time.Time) string {
 	return b.String()
 }
 
-// SingleFindingMarkdown 渲染单条漏洞为一份独立 Markdown(用于「一漏洞一文件」打包)。
+// SingleFindingMarkdown renderiza uma única vulnerabilidade como um Markdown independente (para o pacote "uma vulnerabilidade por arquivo").
 func SingleFindingMarkdown(f *db.DBFinding, generatedAt time.Time) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# [%s] %s\n\n", strings.ToUpper(nz(f.Severity, "info")), findingTitle(f))
 	if f.VulnClass != "" {
-		fmt.Fprintf(&b, "- **类别**：%s\n", f.VulnClass)
+		fmt.Fprintf(&b, "- **Categoria**: %s\n", f.VulnClass)
 	}
-	fmt.Fprintf(&b, "- **严重等级**：%s\n", nz(f.Severity, "info"))
-	fmt.Fprintf(&b, "- **状态**：%s\n", nz(f.Status, "pending"))
+	fmt.Fprintf(&b, "- **Severidade**: %s\n", nz(f.Severity, "info"))
+	fmt.Fprintf(&b, "- **Status**: %s\n", nz(f.Status, "pending"))
 	if desc := strings.TrimSpace(f.TaskDescription); desc != "" {
-		fmt.Fprintf(&b, "- **所属任务**：%s\n", desc)
+		fmt.Fprintf(&b, "- **Tarefa**: %s\n", desc)
 	}
-	fmt.Fprintf(&b, "- **发现时间**：%s\n", f.CreatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(&b, "- **生成时间**：%s\n\n", generatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "- **Descoberto em**: %s\n", f.CreatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "- **Gerado em**: %s\n\n", generatedAt.Format("2006-01-02 15:04:05"))
 	if s := strings.TrimSpace(f.Summary); s != "" {
-		fmt.Fprintf(&b, "## 概述\n\n%s\n\n", s)
+		fmt.Fprintf(&b, "## Visão geral\n\n%s\n\n", s)
 	}
 	if e := strings.TrimSpace(f.Evidence); e != "" {
-		fmt.Fprintf(&b, "## 证据\n\n```\n%s\n```\n\n", e)
+		fmt.Fprintf(&b, "## Evidência\n\n```\n%s\n```\n\n", e)
 	}
 	if rep := strings.TrimSpace(f.Report); rep != "" {
-		b.WriteString("## 详细报告\n\n")
+		b.WriteString("## Relatório detalhado\n\n")
 		b.WriteString(rep)
 		b.WriteString("\n")
 	}
@@ -121,8 +121,8 @@ func SingleFindingMarkdown(f *db.DBFinding, generatedAt time.Time) string {
 
 var unsafeFilenameChars = regexp.MustCompile(`[^\p{Han}\p{L}\p{N}._-]+`)
 
-// FindingFilename 为「一漏洞一文件」生成安全的 .md 文件名,形如
-// `critical_SQL注入_#123.md`。去掉路径分隔符与控制字符,避免 zip 内非法路径。
+// FindingFilename gera um nome de arquivo .md seguro para o pacote "uma vulnerabilidade por arquivo", no formato
+// `critical_Injecao_SQL_#123.md`. Remove separadores de caminho e caracteres de controle, evitando caminhos inválidos dentro do zip.
 func FindingFilename(f *db.DBFinding) string {
 	sev := nz(f.Severity, "info")
 	title := findingTitle(f)
@@ -132,7 +132,7 @@ func FindingFilename(f *db.DBFinding) string {
 	if name == "" {
 		name = fmt.Sprintf("finding_%d", f.ID)
 	}
-	// 防御性:再剥一层路径,杜绝 zip slip。
+	// Defensivo: remove mais uma camada de caminho, eliminando zip slip.
 	name = path.Base(name)
 	if len(name) > 120 {
 		name = name[:120]
@@ -140,8 +140,8 @@ func FindingFilename(f *db.DBFinding) string {
 	return name + ".md"
 }
 
-// FindingsCSV 把一批 findings 渲染成 CSV(带 UTF-8 BOM,便于 Excel 正确识别中文)。
-// 不含大段 report/evidence 全文,只放摘要类字段;需要全文用 Markdown/JSON 导出。
+// FindingsCSV renderiza um lote de findings como CSV (com BOM UTF-8, para o Excel reconhecer corretamente os acentos).
+// Não inclui o texto integral de report/evidence, apenas campos do tipo resumo; para o texto integral use a exportação em Markdown/JSON.
 func FindingsCSV(fs []*db.DBFinding) []byte {
 	items := append([]*db.DBFinding(nil), fs...)
 	sortFindingsForExport(items)
@@ -149,7 +149,7 @@ func FindingsCSV(fs []*db.DBFinding) []byte {
 	var buf bytes.Buffer
 	buf.WriteString("\xEF\xBB\xBF") // UTF-8 BOM
 	w := csv.NewWriter(&buf)
-	_ = w.Write([]string{"ID", "名称", "类别", "严重等级", "状态", "所属任务", "发现时间", "概述", "流量证据数量", "流量证据ID"})
+	_ = w.Write([]string{"ID", "Nome", "Categoria", "Severidade", "Status", "Tarefa", "Descoberto em", "Visão geral", "Qtde de evidências de tráfego", "ID das evidências de tráfego"})
 	for _, f := range items {
 		_ = w.Write([]string{
 			fmt.Sprintf("%d", f.ID),
@@ -181,18 +181,18 @@ func findingTrafficMarkdown(f *db.DBFinding, attachments bool) string {
 		return ""
 	}
 	var out strings.Builder
-	out.WriteString("\n## 关联流量证据\n\n")
-	fmt.Fprintf(&out, "证据版本：%d；绑定数量：%d。\n\n", f.EvidenceVersion, len(f.TrafficBindings))
+	out.WriteString("\n## Evidências de tráfego associadas\n\n")
+	fmt.Fprintf(&out, "Versão da evidência: %d; quantidade vinculada: %d.\n\n", f.EvidenceVersion, len(f.TrafficBindings))
 	if stale {
-		out.WriteString("证据已变更，详细报告待更新。\n\n")
+		out.WriteString("A evidência foi alterada; o relatório detalhado aguarda atualização.\n\n")
 	}
 	for i, b := range f.TrafficBindings {
-		fmt.Fprintf(&out, "%d. **证据 #%d · %s** — `%s %s`，状态码 %d\n", i+1, b.ID, b.Role, b.Snapshot.Method, strings.ReplaceAll(b.Snapshot.URL, "`", "%60"), b.Snapshot.Status)
+		fmt.Fprintf(&out, "%d. **Evidência #%d · %s** — `%s %s`, código de status %d\n", i+1, b.ID, b.Role, b.Snapshot.Method, strings.ReplaceAll(b.Snapshot.URL, "`", "%60"), b.Snapshot.Status)
 		if b.Note != "" {
 			fmt.Fprintf(&out, "   %s\n", strings.ReplaceAll(b.Note, "\n", "\n   "))
 		}
 		if attachments {
-			fmt.Fprintf(&out, "   [请求报文](evidence/%d/%d/request.http) · [响应报文](evidence/%d/%d/response.http)\n", f.ID, b.ID, f.ID, b.ID)
+			fmt.Fprintf(&out, "   [Mensagem de requisição](evidence/%d/%d/request.http) · [Mensagem de resposta](evidence/%d/%d/response.http)\n", f.ID, b.ID, f.ID, b.ID)
 		}
 	}
 	out.WriteString("\n")

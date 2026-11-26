@@ -12,22 +12,22 @@ import (
 	"testing"
 )
 
-// 本文件覆盖两条相关的加固：
-//   ① 投递地址不得把服务端当跳板打内网 / 云元数据（SSRF）
-//   ② 地址校验的错误信息不得带出地址里的凭据
+// Este arquivo cobre dois reforços relacionados:
+//   ① o endereço de entrega não pode usar o servidor como trampolim para atacar a rede interna / metadados de nuvem (SSRF)
+//   ② a mensagem de erro da validação do endereço não pode vazar a credencial contida no endereço
 //
-// 关于测试环境：本包大量用例用 127.0.0.1 上的 httptest 假接收端，守卫默认会拦下
-// 它们。所以 TestMain 里统一打开 AllowLocalTargetsEnv，而下面每个 SSRF 用例都
-// 显式把它清掉，以断言**默认拒绝**的行为。
+// Sobre o ambiente de teste: muitos casos deste pacote usam receptores falsos httptest em 127.0.0.1, que a guarda barra por padrão.
+// Por isso o TestMain ativa AllowLocalTargetsEnv de forma unificada, enquanto cada caso de SSRF abaixo
+// o limpa explicitamente, para asseverar o comportamento de **recusa por padrão**.
 
 func TestMain(m *testing.M) {
-	// 让常规用例能连本地的假接收端；SSRF 用例会自己临时清空。
+	// Permite que os casos comuns conectem ao receptor falso local; os casos de SSRF o esvaziam temporariamente por conta própria.
 	_ = os.Setenv(AllowLocalTargetsEnv, "1")
 	os.Exit(m.Run())
 }
 
-// TestDialGuardRejectsLoopbackByDefault 是 SSRF 防护的核心断言：
-// 默认配置下，投递到环回地址必须被**连接层**拒绝。
+// TestDialGuardRejectsLoopbackByDefault é a asserção central da proteção contra SSRF:
+// na configuração padrão, a entrega a um endereço de loopback deve ser recusada pela **camada de conexão**.
 func TestDialGuardRejectsLoopbackByDefault(t *testing.T) {
 	var hit bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -36,23 +36,23 @@ func TestDialGuardRejectsLoopbackByDefault(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	t.Setenv(AllowLocalTargetsEnv, "") // 关掉逃生口 = 默认行为
+	t.Setenv(AllowLocalTargetsEnv, "") // fechar a saída de emergência = comportamento padrão
 	_, err := (dingTalkChannel{}).Send(context.Background(),
 		map[string]any{"webhook": srv.URL + "/robot/send"}, Message{Items: []Item{{Severity: "high"}}})
 	if err == nil {
-		t.Fatal("默认不应允许投递到环回地址")
+		t.Fatal("por padrão não deveria permitir a entrega a endereço de loopback")
 	}
 	if hit {
-		t.Fatal("请求已经打到了本机服务——守卫没生效")
+		t.Fatal("a requisição já chegou ao serviço local — a guarda não funcionou")
 	}
-	// 错误信息要能指导用户怎么放开（本机 SMTP 中继是合法配置）。
+	// A mensagem de erro deve orientar o usuário sobre como liberar (o relay SMTP local é uma configuração legítima).
 	if !strings.Contains(err.Error(), AllowLocalTargetsEnv) {
-		t.Errorf("拒绝信息应说明如何显式放开: %v", err)
+		t.Errorf("a mensagem de recusa deveria explicar como liberar explicitamente: %v", err)
 	}
 }
 
-// TestDialGuardAllowsLoopbackWhenOptedIn 反向用例：显式打开后必须能用，
-// 否则本机 postfix / 内网中继这类合法部署会被一刀切废掉。
+// TestDialGuardAllowsLoopbackWhenOptedIn é o caso inverso: depois de liberar explicitamente deve funcionar,
+// senão implantações legítimas como o postfix local / relay da rede interna seriam inviabilizadas por uma proibição total.
 func TestDialGuardAllowsLoopbackWhenOptedIn(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, `{"errcode":0,"errmsg":"ok"}`)
@@ -62,38 +62,38 @@ func TestDialGuardAllowsLoopbackWhenOptedIn(t *testing.T) {
 	t.Setenv(AllowLocalTargetsEnv, "1")
 	if _, err := (dingTalkChannel{}).Send(context.Background(),
 		map[string]any{"webhook": srv.URL + "/robot/send"}, Message{Items: []Item{{Severity: "high"}}}); err != nil {
-		t.Fatalf("显式放开后应可投递: %v", err)
+		t.Fatalf("depois de liberar explicitamente deveria ser possível entregar: %v", err)
 	}
 }
 
 func TestIsBlockedDialIP(t *testing.T) {
 	blocked := []string{
 		"127.0.0.1", "127.1.2.3", "::1",
-		"169.254.169.254", // 云元数据端点——本函数存在的主要理由
+		"169.254.169.254", // endpoint de metadados de nuvem — a principal razão de existir desta função
 		"169.254.1.1", "fe80::1",
 		"0.0.0.0", "::",
 		"224.0.0.1", "ff02::1",
-		"::ffff:127.0.0.1", // IPv4-mapped 形式必须还原后再判，否则是绕过口
+		"::ffff:127.0.0.1", // a forma IPv4-mapped precisa ser convertida de volta antes do julgamento, senão é uma brecha
 		"",
 	}
 	for _, s := range blocked {
 		if !isBlockedDialIP(net.ParseIP(s)) {
-			t.Errorf("%s 应被拒绝", s)
+			t.Errorf("%s deveria ser recusado", s)
 		}
 	}
-	// RFC1918 私网**刻意放行**：内网自建 Mattermost / SMTP 中继是常见合法用法。
-	// 这条断言把这个取舍固定下来——若将来有人顺手加上私网判断，这里会失败，
-	// 从而逼出一次有意识的决定（而不是静默废掉一批部署）。
+	// As redes privadas RFC1918 são **liberadas de propósito**: Mattermost / relay SMTP próprios na rede interna são usos legítimos comuns.
+	// Esta asserção fixa essa escolha — se no futuro alguém acrescentar de passagem um julgamento de rede privada, ela falha,
+	// forçando uma decisão consciente (e não inviabilizar em silêncio um conjunto de implantações).
 	allowed := []string{"10.0.0.5", "172.16.3.4", "192.168.1.10", "8.8.8.8", "2606:4700::1111"}
 	for _, s := range allowed {
 		if isBlockedDialIP(net.ParseIP(s)) {
-			t.Errorf("%s 应被放行（私网是常见的合法投递目标）", s)
+			t.Errorf("%s deveria ser liberado (rede privada é um destino de entrega legítimo comum)", s)
 		}
 	}
 }
 
-// TestValidateHTTPURLRejectsLiteralPrivateTargets 覆盖配置阶段的前置提示：
-// 字面 IP 在保存时就该被拒，而不是等第一次投递失败。
+// TestValidateHTTPURLRejectsLiteralPrivateTargets cobre o aviso antecipado da fase de configuração:
+// um IP literal deve ser recusado já ao salvar, em vez de esperar a primeira entrega falhar.
 func TestValidateHTTPURLRejectsLiteralPrivateTargets(t *testing.T) {
 	t.Setenv(AllowLocalTargetsEnv, "")
 	for _, raw := range []string{
@@ -102,92 +102,92 @@ func TestValidateHTTPURLRejectsLiteralPrivateTargets(t *testing.T) {
 		"http://[::1]:8080/hook",
 	} {
 		if err := validateHTTPURL(raw); err == nil {
-			t.Errorf("%s 应在配置阶段被拒绝", raw)
+			t.Errorf("%s deveria ser recusado na fase de configuração", raw)
 		}
 	}
-	// 公网地址与私网地址照常通过（私网留给拨号阶段，那里不拦）。
+	// Endereços públicos e privados passam normalmente (a rede privada fica para a fase de conexão, onde não é barrada).
 	for _, raw := range []string{"https://oapi.dingtalk.com/robot/send", "http://10.0.0.9/hook"} {
 		if err := validateHTTPURL(raw); err != nil {
-			t.Errorf("%s 应通过校验: %v", raw, err)
+			t.Errorf("%s deveria passar na validação: %v", raw, err)
 		}
 	}
 }
 
-// TestValidateHTTPURLErrorNeverLeaksCredentials 是审计指出我上一轮遗漏的分支。
+// TestValidateHTTPURLErrorNeverLeaksCredentials é o ramo que a auditoria apontou como omitido por mim na rodada anterior.
 //
-// url.Parse **失败**时会返回 *url.Error，其 Error() 含完整原始地址。上一轮我只
-// 脱敏了 http.Client.Do 的返回错误，漏了这里；而当时补的「永久失败路径」用例
-// （file://、gopher://、ftp://）其实都能被 url.Parse 解析成功、走的是 scheme 分支，
-// 所以全绿也证明不了这条路径安全——是假保证。
+// Quando o url.Parse **falha**, retorna um *url.Error cujo Error() contém o endereço original completo. Na rodada anterior eu só
+// ofusquei o erro retornado pelo http.Client.Do, esquecendo deste ponto; e o caso de "caminho de falha permanente"
+// que foi acrescentado na época (file://, gopher://, ftp://) na verdade o url.Parse consegue interpretar com sucesso, indo pelo ramo de scheme,
+// então tudo verde também não provava que este caminho era seguro — era uma falsa garantia.
 func TestValidateHTTPURLErrorNeverLeaksCredentials(t *testing.T) {
 	cases := []string{
-		"http://127.0.0.1/%zz?access_token=" + leakProbeToken,         // 非法百分号转义
-		"https://a.example.com:port/x?access_token=" + leakProbeToken, // 端口非数字
-		"http://[::1?access_token=" + leakProbeToken,                  // 括号不配对
+		"http://127.0.0.1/%zz?access_token=" + leakProbeToken,         // escape percentual inválido
+		"https://a.example.com:port/x?access_token=" + leakProbeToken, // porta não numérica
+		"http://[::1?access_token=" + leakProbeToken,                  // colchetes desemparelhados
 	}
 	for _, raw := range cases {
-		// 先确认这个输入**确实**让 url.Parse 失败。不做这一步的话，用例可能在
-		// 毫无察觉的情况下走到别的分支（上一轮的假保证就是这么来的）。
+		// Primeiro confirma que esta entrada **de fato** faz o url.Parse falhar. Sem este passo, o caso poderia ir para outro ramo
+		// sem que se percebesse (a falsa garantia da rodada anterior surgiu assim).
 		if _, err := url.Parse(raw); err == nil {
-			t.Errorf("%q 本应解析失败，否则这条用例没有覆盖到目标分支", raw)
+			t.Errorf("%q deveria falhar na interpretação, senão este caso não cobre o ramo alvo", raw)
 			continue
 		}
 		err := validateHTTPURL(raw)
 		if err == nil {
-			t.Errorf("%q 应校验失败", raw)
+			t.Errorf("%q deveria falhar na validação", raw)
 			continue
 		}
 		assertNoSecret(t, err.Error(), leakProbeToken)
 	}
-	// 确认渠道层的包装也没有把地址带出去。
+	// Confirma que o embrulho da camada do canal também não deixou o endereço escapar.
 	t.Setenv(AllowLocalTargetsEnv, "")
 	err := (dingTalkChannel{}).Validate(map[string]any{"webhook": cases[0]})
 	if err == nil {
-		t.Fatal("非法地址应校验失败")
+		t.Fatal("endereço inválido deveria falhar na validação")
 	}
 	assertNoSecret(t, err.Error(), leakProbeToken)
 }
 
-// TestEmailDialGuardRejectsLoopbackByDefault 覆盖 SMTP 渠道的拨号守卫。
+// TestEmailDialGuardRejectsLoopbackByDefault cobre a guarda de conexão do canal SMTP.
 //
-// 邮件渠道曾经用的是裸 net.Dialer，是整套 SSRF 防护里唯一的缺口：host 填成
-// 169.254.169.254 或 127.0.0.1 能直接连上，而 smtp.NewClient 握手失败时会把
-// 对端返回的那一行包进错误、经 last_error 由投递历史接口回显——正是其它渠道
-// 已经关掉的半盲读原语；「连接被拒 vs 超时」的耗时差异还能用来探测端口。
+// O canal de e-mail já usou um net.Dialer puro, a única brecha em toda a proteção contra SSRF: preencher o host com
+// 169.254.169.254 ou 127.0.0.1 conectava direto, e quando o handshake do smtp.NewClient falha, ele embrulha no erro a
+// linha devolvida pelo outro lado, ecoada via last_error pela interface de histórico de entregas — exatamente a primitiva de leitura semi-cega
+// que os outros canais já fecharam; a diferença de tempo entre "conexão recusada" e "timeout" também poderia ser usada para sondar portas.
 //
-// 本包的 TestMain 全局打开了 AllowLocalTargetsEnv（大量用例用 127.0.0.1 上的
-// 假接收端），所以这个用例必须自己把它清掉——否则守卫在不在都会通过，
-// 这也正是缺口当初没被任何测试发现的原因。
+// O TestMain deste pacote ativa o AllowLocalTargetsEnv globalmente (muitos casos usam receptores falsos em 127.0.0.1),
+// então este caso precisa limpá-lo por conta própria — senão passaria com a guarda presente ou ausente,
+// e foi justamente por isso que a brecha não foi detectada por nenhum teste na época.
 func TestEmailDialGuardRejectsLoopbackByDefault(t *testing.T) {
 	f := newFakeSMTP(t)
 	cfg := emailCfg(t, f, nil)
 
-	t.Setenv(AllowLocalTargetsEnv, "") // 关掉逃生口 = 默认行为
+	t.Setenv(AllowLocalTargetsEnv, "") // fechar a saída de emergência = comportamento padrão
 	_, err := (emailChannel{}).Send(context.Background(), cfg, singleMsg())
 	if err == nil {
-		t.Fatal("默认不应允许把邮件投递到环回地址")
+		t.Fatal("por padrão não deveria permitir a entrega de e-mail a endereço de loopback")
 	}
-	// 连接根本不该建立：守卫在 Control 钩子里拦下，EHLO 永远发不出去。
+	// A conexão nem deveria ser estabelecida: a guarda barra no gancho Control, e o EHLO nunca chega a ser enviado.
 	if f.sawCommand("EHLO") || f.sawCommand("HELO") {
-		t.Fatal("SMTP 会话已经建立——守卫没生效")
+		t.Fatal("a sessão SMTP já foi estabelecida — a guarda não funcionou")
 	}
-	// 错误信息要能指导用户怎么放开（本机 postfix 中继是合法配置）。
+	// A mensagem de erro deve orientar o usuário sobre como liberar (o relay postfix local é uma configuração legítima).
 	if !strings.Contains(err.Error(), AllowLocalTargetsEnv) {
-		t.Errorf("拒绝信息应说明如何显式放开: %v", err)
+		t.Errorf("a mensagem de recusa deveria explicar como liberar explicitamente: %v", err)
 	}
 }
 
-// TestEmailDialGuardAllowsLoopbackWhenOptedIn 是配对的反向用例：显式打开后
-// 必须能正常投递。内网自建 SMTP / 本机中继是非常常见的部署，守卫不能一刀切。
+// TestEmailDialGuardAllowsLoopbackWhenOptedIn é o caso inverso emparelhado: depois de liberar explicitamente
+// deve ser possível entregar normalmente. Relay SMTP próprio na rede interna / local é uma implantação muito comum, e a guarda não pode ser uma proibição total.
 func TestEmailDialGuardAllowsLoopbackWhenOptedIn(t *testing.T) {
 	f := newFakeSMTP(t)
 	cfg := emailCfg(t, f, nil)
 
 	t.Setenv(AllowLocalTargetsEnv, "1")
 	if _, err := (emailChannel{}).Send(context.Background(), cfg, singleMsg()); err != nil {
-		t.Fatalf("显式放开后本机 SMTP 应可投递: %v", err)
+		t.Fatalf("depois de liberar explicitamente, o SMTP local deveria conseguir entregar: %v", err)
 	}
 	if !f.sawCommand("EHLO") {
-		t.Fatal("未看到 EHLO——会话没真正建立")
+		t.Fatal("EHLO não foi visto — a sessão não foi realmente estabelecida")
 	}
 }

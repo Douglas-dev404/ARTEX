@@ -3,29 +3,29 @@ package notify
 import "testing"
 
 func TestParseFilterMalformedFallsBackToMatchAll(t *testing.T) {
-	// 畸形 JSON、空输入、类型不对的字段——全部必须退化为零值 Filter，
-	// 即「不过滤」。这条不变量是「宁可多推不可漏推」的落点：
-	// 一旦这里改成报错或半解析，用户配错一个字符就会静默丢掉所有高危通知。
+	// JSON malformado, entrada vazia, campos de tipo errado — todos devem degradar para um Filter de valor zero,
+	// ou seja, "sem filtro". Esta invariante é o ponto de aplicação do princípio "melhor enviar a mais do que deixar de enviar":
+	// se aqui se passasse a dar erro ou a interpretar pela metade, um único caractere errado na configuração do usuário descartaria em silêncio todas as notificações de alta severidade.
 	cases := []struct {
 		name string
 		raw  string
 	}{
-		{"空输入", ""},
-		{"非法 JSON", `{not json`},
-		{"截断的 JSON", `{"min_severity":`},
-		{"类型不匹配", `{"min_severity": 123, "task_ids": "abc"}`},
-		{"顶层是数组", `[1,2,3]`},
+		{"entrada vazia", ""},
+		{"JSON inválido", `{not json`},
+		{"JSON truncado", `{"min_severity":`},
+		{"tipo incompatível", `{"min_severity": 123, "task_ids": "abc"}`},
+		{"o topo é um array", `[1,2,3]`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			f := ParseFilter([]byte(tc.raw))
 			if f.MinSeverity != "" || len(f.TaskIDs) != 0 || len(f.AssetIDs) != 0 {
-				t.Fatalf("畸形配置应退化为零值 Filter，得到 %+v", f)
+				t.Fatalf("a configuração malformada deveria degradar para um Filter de valor zero, obtido %+v", f)
 			}
-			// 零值 Filter 必须命中任意事件。
+			// O Filter de valor zero deve corresponder a qualquer evento.
 			ev := Snapshot{Kind: EventFindingCreated, Severity: "low", VulnClass: "XSS"}
 			if !Match(f, ev) {
-				t.Fatal("零值 Filter 应命中所有事件")
+				t.Fatal("o Filter de valor zero deveria corresponder a todos os eventos")
 			}
 		})
 	}
@@ -48,7 +48,7 @@ func TestMatchSeverityThreshold(t *testing.T) {
 		{"high", "low", false},
 		{"critical", "high", false},
 		{"critical", "critical", true},
-		// 未知级别序数为 0，应被任何非空门槛挡住（存疑时不推）。
+		// Severidade desconhecida tem ordinal 0 e deve ser barrada por qualquer limiar não vazio (na dúvida, não envia).
 		{"low", "", false},
 		{"low", "unknown", false},
 		{"", "", true},
@@ -56,7 +56,7 @@ func TestMatchSeverityThreshold(t *testing.T) {
 	for _, tc := range cases {
 		got := Match(Filter{MinSeverity: tc.min}, ev(tc.sev))
 		if got != tc.expect {
-			t.Errorf("min=%q sev=%q: 期望 %v 得到 %v", tc.min, tc.sev, tc.expect, got)
+			t.Errorf("min=%q sev=%q: esperava %v, obtido %v", tc.min, tc.sev, tc.expect, got)
 		}
 	}
 }
@@ -74,19 +74,19 @@ func TestMatchScopeRestrictions(t *testing.T) {
 		filter Filter
 		expect bool
 	}{
-		{"空范围=不限", Filter{}, true},
-		{"任务命中", Filter{TaskIDs: []int64{7}}, true},
-		{"任务未命中", Filter{TaskIDs: []int64{8}}, false},
-		{"任务多选含命中", Filter{TaskIDs: []int64{8, 7}}, true},
-		{"资产有交集", Filter{AssetIDs: []int64{20, 99}}, true},
-		{"资产无交集", Filter{AssetIDs: []int64{99}}, false},
-		{"任务与资产同时命中", Filter{TaskIDs: []int64{7}, AssetIDs: []int64{10}}, true},
-		{"任务命中但资产未命中", Filter{TaskIDs: []int64{7}, AssetIDs: []int64{99}}, false},
+		{"escopo vazio = sem restrição", Filter{}, true},
+		{"tarefa corresponde", Filter{TaskIDs: []int64{7}}, true},
+		{"tarefa não corresponde", Filter{TaskIDs: []int64{8}}, false},
+		{"várias tarefas, incluindo uma que corresponde", Filter{TaskIDs: []int64{8, 7}}, true},
+		{"ativo com interseção", Filter{AssetIDs: []int64{20, 99}}, true},
+		{"ativo sem interseção", Filter{AssetIDs: []int64{99}}, false},
+		{"tarefa e ativo correspondem ao mesmo tempo", Filter{TaskIDs: []int64{7}, AssetIDs: []int64{10}}, true},
+		{"tarefa corresponde mas o ativo não", Filter{TaskIDs: []int64{7}, AssetIDs: []int64{99}}, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := Match(tc.filter, ev); got != tc.expect {
-				t.Errorf("期望 %v 得到 %v", tc.expect, got)
+				t.Errorf("esperava %v, obtido %v", tc.expect, got)
 			}
 		})
 	}
@@ -102,25 +102,25 @@ func TestMatchVulnClassKeywords(t *testing.T) {
 		class  string
 		expect bool
 	}{
-		{"include 为空=全收", Filter{}, "任意类型", true},
-		{"include 命中", Filter{VulnClassInclude: []string{"SQL"}}, "SQL注入", true},
-		{"include 未命中", Filter{VulnClassInclude: []string{"命令执行"}}, "SQL注入", false},
-		{"include 多词任一命中", Filter{VulnClassInclude: []string{"命令执行", "SQL"}}, "SQL注入", true},
-		{"大小写不敏感", Filter{VulnClassInclude: []string{"sql"}}, "SQL注入", true},
-		{"exclude 命中即排除", Filter{VulnClassExclude: []string{"信息泄露"}}, "信息泄露", false},
-		{"exclude 未命中则放行", Filter{VulnClassExclude: []string{"信息泄露"}}, "SQL注入", true},
-		// 排除优先于包含：同时命中时应当出局。
-		{"排除优先于包含", Filter{
+		{"include vazio = aceita tudo", Filter{}, "任意类型", true},
+		{"include corresponde", Filter{VulnClassInclude: []string{"SQL"}}, "SQL注入", true},
+		{"include não corresponde", Filter{VulnClassInclude: []string{"命令执行"}}, "SQL注入", false},
+		{"include com várias palavras, qualquer uma corresponde", Filter{VulnClassInclude: []string{"命令执行", "SQL"}}, "SQL注入", true},
+		{"sem distinção de maiúsculas e minúsculas", Filter{VulnClassInclude: []string{"sql"}}, "SQL注入", true},
+		{"exclude corresponde, então exclui", Filter{VulnClassExclude: []string{"信息泄露"}}, "信息泄露", false},
+		{"exclude não corresponde, então libera", Filter{VulnClassExclude: []string{"信息泄露"}}, "SQL注入", true},
+		// A exclusão tem prioridade sobre a inclusão: quando ambas correspondem, o evento deve ficar de fora.
+		{"exclusão tem prioridade sobre inclusão", Filter{
 			VulnClassInclude: []string{"SQL"},
 			VulnClassExclude: []string{"注入"},
 		}, "SQL注入", false},
-		// 纯空白关键词应被忽略，否则会退化成「匹配所有含空格的字符串」。
-		{"空白关键词被忽略", Filter{VulnClassInclude: []string{"", "  "}}, "SQL注入", false},
+		// Palavra-chave só com espaço em branco deve ser ignorada, senão degeneraria em "corresponde a todas as strings que contêm espaço".
+		{"palavra-chave em branco é ignorada", Filter{VulnClassInclude: []string{"", "  "}}, "SQL注入", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := Match(tc.filter, ev(tc.class)); got != tc.expect {
-				t.Errorf("期望 %v 得到 %v", tc.expect, got)
+				t.Errorf("esperava %v, obtido %v", tc.expect, got)
 			}
 		})
 	}
@@ -128,16 +128,16 @@ func TestMatchVulnClassKeywords(t *testing.T) {
 
 func TestMatchStatusChangeRequiresOptIn(t *testing.T) {
 	ev := Snapshot{Kind: EventFindingStatusChanged, Severity: "critical", FromStatus: "pending", ToStatus: "fixed"}
-	// 默认关：绝大多数人说的「推送漏洞」指发现新漏洞，不是状态流水账。
+	// Desligado por padrão: para a maioria das pessoas, "enviar vulnerabilidades" significa descobrir uma nova vulnerabilidade, e não um registro corrido de status.
 	if Match(Filter{MinSeverity: "low"}, ev) {
-		t.Fatal("状态变更事件在未开启时应被跳过")
+		t.Fatal("o evento de mudança de status deveria ser ignorado quando não habilitado")
 	}
 	if !Match(Filter{OnStatusChange: true}, ev) {
-		t.Fatal("开启 on_status_change 后状态变更事件应命中")
+		t.Fatal("com on_status_change habilitado, o evento de mudança de status deveria corresponder")
 	}
-	// 创建事件不受 on_status_change 影响。
+	// O evento de criação não é afetado por on_status_change.
 	created := Snapshot{Kind: EventFindingCreated, Severity: "critical"}
 	if !Match(Filter{MinSeverity: "low"}, created) {
-		t.Fatal("创建事件不应依赖 on_status_change")
+		t.Fatal("o evento de criação não deveria depender de on_status_change")
 	}
 }

@@ -14,46 +14,46 @@ import (
 	"time"
 )
 
-// smokeEnv 让被冒烟测试拉起的子进程直接跳过 Bootstrap。
+// smokeEnv faz o subprocesso iniciado pelo teste de fumaça pular o Bootstrap diretamente.
 //
-// 严格来说不加也不会出事：子进程的 os.Executable() 是 artex.new，推导出来的
-// 全部路径都带 .new 前缀，碰不到真正的升级文件。但依赖这种巧合太脆弱，
-// 显式短路一目了然，也省掉子进程一次无谓的磁盘探测。
+// A rigor, sem isso nada daria errado: o os.Executable() do subprocesso é artex.new, e todos os caminhos
+// derivados dele levam o prefixo .new, sem tocar nos arquivos reais da atualização. Mas depender dessa
+// coincidência é frágil demais; o curto-circuito explícito é evidente e poupa ao subprocesso uma sondagem de disco inútil.
 const smokeEnv = "ARTEX_SELFUPDATE_SMOKE"
 
-// Action 是 Bootstrap 给 main 的指令。
+// Action é a instrução que o Bootstrap dá ao main.
 type Action int
 
 const (
-	// Continue：照常启动 server。
+	// Continue: inicia o server normalmente.
 	Continue Action = iota
-	// Restart：立刻以 ExitRestart 退出，让守护脚本重新拉起。
+	// Restart: sai imediatamente com ExitRestart, para o script guardião relançar o processo.
 	Restart
 )
 
-// State 描述本次启动时的升级状态，供 /api/update/check 如实告诉前端
-// "上一次升级是成功了还是被回滚了"。
+// State descreve o estado da atualização nesta inicialização, para que /api/update/check informe
+// ao front-end com fidelidade "se a última atualização teve sucesso ou foi revertida".
 type State struct {
-	Pending     bool   // 换装后尚未确认稳定
-	RolledBack  bool   // 本次启动刚刚执行过自动回滚
-	FailedStage bool   // 暂存件校验/冒烟未通过，已丢弃
-	Detail      string // 面向用户的一句话说明
+	Pending     bool   // troca feita, ainda sem confirmação de estabilidade
+	RolledBack  bool   // rollback automático acabou de ser executado nesta inicialização
+	FailedStage bool   // arquivo staged reprovado na verificação/teste de fumaça, descartado
+	Detail      string // explicação de uma frase voltada ao usuário
 }
 
-// Bootstrap 在 main 的最开头运行，必须在任何监听端口、打开数据库之前调用。
+// Bootstrap roda logo no início do main e deve ser chamado antes de abrir qualquer porta ou o banco de dados.
 //
-// 三种局面：
+// Três cenários:
 //
-//	① 存在暂存件 artex.new  → 校验 + 冒烟，通过则换装并要求重启；不通过则丢弃继续跑旧版
-//	② 只剩标记文件          → 说明刚换装完，累计一次尝试；连续失败够多次则回滚
-//	③ 什么都没有            → 正常启动
+// \t① Existe arquivo staged artex.new  → verifica + teste de fumaça; se passar, troca e pede reinício; se não, descarta e segue com a versão antiga
+// \t② Só resta o arquivo marcador       → a troca acabou de ocorrer; conta uma tentativa; se falhar vezes demais seguidas, faz rollback
+// \t③ Nada existe                       → inicialização normal
 func Bootstrap() (Action, State) {
 	if os.Getenv(smokeEnv) != "" {
 		return Continue, State{}
 	}
 	p, err := ResolvePaths()
 	if err != nil {
-		log.Printf("[update] 跳过自举：%v", err)
+		log.Printf("[update] bootstrap ignorado: %v", err)
 		return Continue, State{}
 	}
 
@@ -68,72 +68,72 @@ func Bootstrap() (Action, State) {
 	return confirmOrRollback(p, m)
 }
 
-// applyStaged 处理"存在暂存件"的局面：校验通过就换装，失败就丢弃。
+// applyStaged trata o cenário "existe arquivo staged": se a verificação passar, faz a troca; se falhar, descarta.
 //
-// 这里是整个升级链路唯一会覆盖可执行文件的地方，也是最后一道闸门——冒烟测试挡掉
-// 下载损坏、架构选错、动态链接缺失这类问题。一旦放行一个跑不起来的二进制，
-// 守护脚本会不知疲倦地反复拉起它，而 Go 代码根本没机会运行，自动回滚也就无从谈起。
+// Este é o único ponto de toda a cadeia de atualização que sobrescreve o executável, e também a última barreira — o teste de fumaça barra
+// download corrompido, arquitetura errada, dependências dinâmicas ausentes e problemas do tipo. Se um binário que não executa passar,
+// o script guardião o relançará incansavelmente, o código Go nunca terá chance de rodar e o rollback automático se torna impossível.
 func applyStaged(p Paths) (Action, State) {
 	m, _ := readMarker(p.Marker)
 
 	if err := verifyStaged(p); err != nil {
-		log.Printf("[update] 暂存的新版本未通过校验，已丢弃，继续运行当前版本：%v", err)
+		log.Printf("[update] nova versão staged reprovada na verificação, descartada; continuando com a versão atual: %v", err)
 		cleanStaged(p)
 		_ = os.Remove(p.Marker)
-		return Continue, State{FailedStage: true, Detail: "新版本校验失败，已丢弃：" + err.Error()}
+		return Continue, State{FailedStage: true, Detail: "Falha na verificação da nova versão, descartada: " + err.Error()}
 	}
 
 	if err := swap(p); err != nil {
-		log.Printf("[update] 换装失败，继续运行当前版本：%v", err)
+		log.Printf("[update] troca falhou; continuando com a versão atual: %v", err)
 		cleanStaged(p)
 		_ = os.Remove(p.Marker)
-		return Continue, State{FailedStage: true, Detail: "换装失败：" + err.Error()}
+		return Continue, State{FailedStage: true, Detail: "Falha na troca: " + err.Error()}
 	}
 
-	// 换装成功。保留标记，交给下一次启动（跑的就是新版）确认是否稳定。
+	// Troca concluída. Mantém o marcador, para que a próxima inicialização (que já roda a nova versão) confirme se está estável.
 	m.Attempts = 0
 	if m.StagedAt == 0 {
 		m.StagedAt = time.Now().Unix()
 	}
 	if err := writeMarker(p.Marker, m); err != nil {
-		log.Printf("[update] 写升级标记失败（失去自动回滚能力）：%v", err)
+		log.Printf("[update] falha ao gravar o marcador de atualização (perde-se o rollback automático): %v", err)
 	}
-	log.Printf("[update] 已换装到 %s，退出以重启（exit %d）", orUnknown(m.To), ExitRestart)
+	log.Printf("[update] troca concluída para %s; saindo para reiniciar (exit %d)", orUnknown(m.To), ExitRestart)
 	return Restart, State{Pending: true}
 }
 
-// confirmOrRollback 处理"换装后的启动"：累计尝试次数，超限则把旧版换回来。
+// confirmOrRollback trata a "inicialização após a troca": acumula o número de tentativas e, ao exceder o limite, restaura a versão antiga.
 //
-// 计数只在 Go 代码跑起来后才递增，所以它覆盖的是"能执行但初始化时崩溃"
-// （配置不兼容、端口被占、DB 迁移炸了）这类故障；"根本无法 exec" 由换装前的
-// 冒烟测试挡住，两者合起来才是完整的。
+// A contagem só incrementa depois que o código Go começa a rodar, então cobre falhas do tipo "executa, mas trava na inicialização"
+// (configuração incompatível, porta ocupada, migração do DB que explode); o caso "nem consegue dar exec" é barrado pelo
+// teste de fumaça antes da troca. Só os dois juntos formam a cobertura completa.
 func confirmOrRollback(p Paths, m marker) (Action, State) {
 	m.Attempts++
 	if m.Attempts > maxAttempts {
 		if err := rollback(p); err != nil {
-			// 回滚都失败了就别再重启了，否则会陷入无限重启。清掉标记，
-			// 让进程按当前状态起——起不来的话用户至少能在日志里看到原因。
-			log.Printf("[update] 新版本连续 %d 次启动失败，且回滚失败：%v", maxAttempts, err)
+			// Se até o rollback falhar, não reiniciar mais, senão cairia em reinício infinito. Limpa o marcador
+			// e deixa o processo subir no estado atual — se não subir, o usuário ao menos vê a causa nos logs.
+			log.Printf("[update] nova versão falhou ao iniciar %d vezes seguidas e o rollback também falhou: %v", maxAttempts, err)
 			_ = os.Remove(p.Marker)
-			return Continue, State{Detail: "新版本启动失败且回滚失败：" + err.Error()}
+			return Continue, State{Detail: "A nova versão falhou ao iniciar e o rollback também falhou: " + err.Error()}
 		}
-		log.Printf("[update] 新版本连续 %d 次启动失败，已回滚到 %s，退出以重启（exit %d）",
+		log.Printf("[update] nova versão falhou ao iniciar %d vezes seguidas; rollback para %s concluído; saindo para reiniciar (exit %d)",
 			maxAttempts, orUnknown(m.From), ExitRestart)
 		_ = os.Remove(p.Marker)
-		return Restart, State{RolledBack: true, Detail: fmt.Sprintf("新版本启动失败，已回滚到 %s", orUnknown(m.From))}
+		return Restart, State{RolledBack: true, Detail: fmt.Sprintf("A nova versão falhou ao iniciar; rollback para %s concluído", orUnknown(m.From))}
 	}
 	if err := writeMarker(p.Marker, m); err != nil {
-		log.Printf("[update] 更新升级标记失败：%v", err)
+		log.Printf("[update] falha ao atualizar o marcador de atualização: %v", err)
 	}
-	log.Printf("[update] 新版本启动中（第 %d/%d 次尝试），稳定运行后将确认升级",
+	log.Printf("[update] nova versão iniciando (tentativa %d/%d); a atualização será confirmada após execução estável",
 		m.Attempts, maxAttempts)
 	return Continue, State{Pending: true}
 }
 
-// Settle 确认新版本已稳定运行，清除升级标记。
+// Settle confirma que a nova versão está rodando de forma estável e limpa o marcador de atualização.
 //
-// 由 main 在 HTTP 监听起来之后延迟调用：活过这段时间才算数，否则标记留在原地，
-// 下次启动继续累计尝试次数，直到触发回滚。
+// Chamado pelo main com atraso, depois que o listener HTTP sobe: só conta quem sobrevive a esse intervalo; do contrário o marcador permanece,
+// a próxima inicialização continua acumulando tentativas, até disparar o rollback.
 func Settle() {
 	p, err := ResolvePaths()
 	if err != nil {
@@ -144,39 +144,39 @@ func Settle() {
 
 func settle(p Paths) {
 	if _, ok := readMarker(p.Marker); !ok {
-		return // 不是升级后的启动，无事可做
+		return // não é uma inicialização pós-atualização, nada a fazer
 	}
 	if err := os.Remove(p.Marker); err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.Printf("[update] 清除升级标记失败：%v", err)
+		log.Printf("[update] falha ao limpar o marcador de atualização: %v", err)
 		return
 	}
-	log.Printf("[update] 新版本运行稳定，升级完成（上一版本保留为 %s）", p.Old)
+	log.Printf("[update] nova versão estável, atualização concluída (versão anterior mantida como %s)", p.Old)
 }
 
-// SettleDelay 是判定"新版本活下来了"所需的运行时长。
+// SettleDelay é o tempo de execução necessário para julgar que "a nova versão sobreviveu".
 const SettleDelay = 30 * time.Second
 
-// verifyStaged 校验暂存件：先比对 SHA256，再真正把它拉起来跑一次。
+// verifyStaged verifica o arquivo staged: primeiro compara o SHA256, depois realmente o inicia uma vez.
 func verifyStaged(p Paths) error {
 	want, err := os.ReadFile(p.Sum)
 	if err != nil {
-		return fmt.Errorf("读取校验和: %w", err)
+		return fmt.Errorf("ler checksum: %w", err)
 	}
 	got, err := fileSHA256(p.New)
 	if err != nil {
-		return fmt.Errorf("计算校验和: %w", err)
+		return fmt.Errorf("calcular checksum: %w", err)
 	}
 	if !strings.EqualFold(strings.TrimSpace(string(want)), got) {
-		return errors.New("SHA256 不匹配（下载损坏或被篡改）")
+		return errors.New("SHA256 não confere (download corrompido ou adulterado)")
 	}
 	return smokeTest(p.New)
 }
 
-// smokeTest 用 -h 拉起新二进制，确认它在当前系统上真的能执行。
-// 这能挡掉下载截断、架构选错（exec format error）、缺依赖等一大类问题。
+// smokeTest inicia o novo binário com -h para confirmar que ele realmente executa neste sistema.
+// Isso barra uma grande classe de problemas: download truncado, arquitetura errada (exec format error), dependências ausentes etc.
 func smokeTest(bin string) error {
 	if err := os.Chmod(bin, 0o755); err != nil {
-		return fmt.Errorf("赋予执行权限: %w", err)
+		return fmt.Errorf("conceder permissão de execução: %w", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -185,90 +185,90 @@ func smokeTest(bin string) error {
 	cmd.Env = append(os.Environ(), smokeEnv+"=1")
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {
-		return errors.New("冒烟测试超时（新二进制无响应）")
+		return errors.New("teste de fumaça expirou (novo binário não responde)")
 	}
 	if err != nil {
 		snippet := strings.TrimSpace(string(out))
 		if len(snippet) > 300 {
 			snippet = snippet[:300] + "…"
 		}
-		return fmt.Errorf("冒烟测试失败: %v: %s", err, snippet)
+		return fmt.Errorf("teste de fumaça falhou: %v: %s", err, snippet)
 	}
 	return nil
 }
 
-// swap 把当前二进制换成暂存的新版本。
+// swap troca o binário atual pela nova versão staged.
 //
-// Unix 和 Windows 都允许 rename 一个正在运行的可执行文件（Windows 禁止的是删除和
-// 覆盖，rename 不在其列），所以这里不需要分平台，也不需要先停掉自己。
+// Unix e Windows permitem rename em um executável em execução (o que o Windows proíbe é excluir e
+// sobrescrever; rename não entra nessa lista), então aqui não precisa distinguir plataforma nem parar o próprio processo antes.
 func swap(p Paths) error {
-	// Windows 的 rename 不会覆盖已存在的目标，上一轮升级留下的 .old 必须先清掉。
+	// O rename do Windows não sobrescreve um destino existente; o .old deixado pela atualização anterior precisa ser removido antes.
 	if err := os.Remove(p.Old); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("清理旧备份 %s: %w", p.Old, err)
+		return fmt.Errorf("limpar backup antigo %s: %w", p.Old, err)
 	}
 	if err := os.Rename(p.Current, p.Old); err != nil {
-		return fmt.Errorf("备份当前版本: %w", err)
+		return fmt.Errorf("fazer backup da versão atual: %w", err)
 	}
 	if err := os.Rename(p.New, p.Current); err != nil {
-		// 换装失败但当前版本已经被挪走了，必须原样放回去，否则下次启动没有可执行文件。
+		// A troca falhou, mas a versão atual já foi movida; é preciso devolvê-la ao lugar, senão a próxima inicialização fica sem executável.
 		if rerr := os.Rename(p.Old, p.Current); rerr != nil {
-			return fmt.Errorf("装入新版本失败(%v)，且恢复当前版本失败: %w", err, rerr)
+			return fmt.Errorf("falha ao instalar a nova versão (%v) e falha ao restaurar a versão atual: %w", err, rerr)
 		}
-		return fmt.Errorf("装入新版本: %w", err)
+		return fmt.Errorf("instalar a nova versão: %w", err)
 	}
 	_ = os.Remove(p.Sum)
 	return nil
 }
 
-// rollback 把 swap 备份的旧版本换回来。
+// rollback devolve a versão antiga salva pelo swap.
 func rollback(p Paths) error {
 	if _, err := os.Stat(p.Old); err != nil {
-		return fmt.Errorf("没有可回滚的备份 %s: %w", p.Old, err)
+		return fmt.Errorf("não há backup disponível para rollback: %s: %w", p.Old, err)
 	}
-	// 把起不来的新版挪到 .failed 留作排查，而不是直接删掉。
+	// Move a nova versão que não sobe para .failed, para investigação, em vez de apagá-la.
 	failed := p.Current + ".failed"
 	_ = os.Remove(failed)
 	if err := os.Rename(p.Current, failed); err != nil {
-		return fmt.Errorf("移走失败的版本: %w", err)
+		return fmt.Errorf("mover a versão com falha: %w", err)
 	}
 	if err := os.Rename(p.Old, p.Current); err != nil {
-		return fmt.Errorf("恢复旧版本: %w", err)
+		return fmt.Errorf("restaurar a versão antiga: %w", err)
 	}
 	return nil
 }
 
-// Rollback 是 /api/update/rollback 的实现：主动退回上一版本。
-// 只做换装，重启同样交给守护脚本（调用方随后以 ExitRestart 退出）。
+// Rollback é a implementação de /api/update/rollback: volta ativamente para a versão anterior.
+// Só faz a troca; o reinício também fica com o script guardião (o chamador sai em seguida com ExitRestart).
 func Rollback() error {
 	p, err := ResolvePaths()
 	if err != nil {
 		return err
 	}
 	if _, err := os.Stat(p.Old); err != nil {
-		return errors.New("没有可回滚的上一版本（" + p.Old + " 不存在）")
+		return errors.New("Não há versão anterior para rollback (" + p.Old + " não existe)")
 	}
 	cleanStaged(p)
 	if err := smokeTest(p.Old); err != nil {
-		return fmt.Errorf("上一版本无法执行，拒绝回滚: %w", err)
+		return fmt.Errorf("a versão anterior não executa; rollback recusado: %w", err)
 	}
-	// 交换当前与备份：回滚之后还能再滚回来。
+	// Troca a atual com o backup: depois do rollback ainda é possível voltar.
 	tmp := p.Current + ".swap"
 	_ = os.Remove(tmp)
 	if err := os.Rename(p.Current, tmp); err != nil {
-		return fmt.Errorf("移走当前版本: %w", err)
+		return fmt.Errorf("mover a versão atual: %w", err)
 	}
 	if err := os.Rename(p.Old, p.Current); err != nil {
 		_ = os.Rename(tmp, p.Current)
-		return fmt.Errorf("装入上一版本: %w", err)
+		return fmt.Errorf("instalar a versão anterior: %w", err)
 	}
 	if err := os.Rename(tmp, p.Old); err != nil {
-		log.Printf("[update] 回滚后整理备份失败（不影响运行）：%v", err)
+		log.Printf("[update] falha ao organizar o backup após o rollback (não afeta a execução): %v", err)
 	}
 	_ = os.Remove(p.Marker)
 	return nil
 }
 
-// HasBackup 报告是否存在可回滚的上一版本，供前端决定要不要显示回滚按钮。
+// HasBackup informa se existe uma versão anterior para rollback, para o front-end decidir se exibe o botão de rollback.
 func HasBackup() bool {
 	p, err := ResolvePaths()
 	if err != nil {
@@ -293,7 +293,7 @@ func fileSHA256(path string) (string, error) {
 
 func orUnknown(s string) string {
 	if strings.TrimSpace(s) == "" {
-		return "未知版本"
+		return "versão desconhecida"
 	}
 	return s
 }

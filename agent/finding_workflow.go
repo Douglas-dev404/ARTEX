@@ -8,7 +8,7 @@ import (
 	actool "github.com/Autumn-27/norma/tool"
 )
 
-const findingIDGuidance = "\n\n**漏洞编号约定**：finding_id 是独立漏洞记录 ID；finding_node_id 是探索节点 ID。list_findings / list_task_findings / node_detail / get_task_node_detail 的 id 保留为探索节点 ID，应从同一返回的 finding_id 读取独立编号。get_finding_traffic / bind_finding_traffic 用独立 finding_id。旧 update_finding_report 的 finding_id 参数仍传 finding_node_id。不要把 report_finding 第一行的数字用于证据工具，也不要遇到编号错误后猜测其他数字。"
+const findingIDGuidance = "\n\n**Convenção de numeração de vulnerabilidades**: finding_id é o ID do registro independente da vulnerabilidade; finding_node_id é o ID do nó de exploração. Os id de list_findings / list_task_findings / node_detail / get_task_node_detail continuam sendo o ID do nó de exploração; leia o número independente no finding_id do mesmo retorno. get_finding_traffic / bind_finding_traffic usam o finding_id independente. O parâmetro finding_id do antigo update_finding_report ainda recebe finding_node_id. Não use o número da primeira linha de report_finding nas ferramentas de evidência, nem tente adivinhar outros números ao encontrar erro de numeração."
 
 // The server supplies the persisted setting. A missing setting/host is off.
 // Consulted at assembly and again on writes so an already-running session
@@ -53,9 +53,9 @@ func findingWorkflowTools(agentKey string, tools []actool.CoreTool) ([]actool.Co
 		note := ""
 		switch tool.Name() {
 		case "report_finding":
-			note = "\n默认由报告 Agent 在编写报告前核对并绑定流量。上报者在 evidence 中保留验证命令、关键输出、已有的真实流量 ID 及其用途，供报告 Agent 对照执行记录核实；无需为绑定额外查包。兼容显式即时绑定：traffic_refs 或 evidence_hint_id 可提交已核实的引用，后者读取本任务指定 hint 的结构化引用；任一无效则本次上报全部失败。TCP/无包不需要这些可选参数。返回 finding_id 与 finding_node_id 分别表示独立记录和探索节点。"
+			note = "\nPor padrão, o Agent de relatório confere e vincula o tráfego antes de redigir o relatório. Quem reporta mantém em evidence os comandos de verificação, as saídas-chave, os IDs de tráfego reais já existentes e sua finalidade, para que o Agent de relatório os verifique contra o registro de execução; não é necessário consultar pacotes extras só para vincular. Compatível com vínculo imediato explícito: traffic_refs ou evidence_hint_id podem enviar referências já verificadas, sendo que o segundo lê as referências estruturadas do hint designado desta tarefa; se qualquer uma for inválida, todo este reporte falha. TCP/sem pacotes não precisam desses parâmetros opcionais. O retorno traz finding_id e finding_node_id, que representam respectivamente o registro independente e o nó de exploração."
 		case "add_hint", "add_task_hint":
-			note = "\n交接已确认漏洞时，在对应提示的 traffic_refs 中保留已核实流量的 ID、用途、说明和顺序（单条放顶层，批量放对应 hints 元素），并在 text 中说明它证明的具体漏洞。调用方不能只交接文字而丢弃已有流量引用。未核实的候选不能作为证据传递。"
+			note = "\nAo repassar uma vulnerabilidade confirmada, mantenha nos traffic_refs do hint correspondente o ID, a finalidade, a descrição e a ordem do tráfego já verificado (um único vai no nível superior; em lote, nos elementos correspondentes de hints), e explique em text qual vulnerabilidade específica ele comprova. Quem chama não pode repassar apenas o texto e descartar as referências de tráfego existentes. Candidatos não verificados não podem ser passados como evidência."
 		case "get_finding_traffic", "bind_finding_traffic", "list_findings", "list_task_findings", "node_detail", "get_task_node_detail", "update_finding_report":
 			note = findingIDGuidance
 		}
@@ -65,16 +65,16 @@ func findingWorkflowTools(agentKey string, tools []actool.CoreTool) ([]actool.Co
 	}
 	guidance := ""
 	if has["report_finding"] || has["add_task_hint"] || has["add_hint"] {
-		guidance = "\n\n**流量证据交接（可选）**：自动绑定默认由报告 Agent 在漏洞入库后、编写报告前完成。上报者应在 evidence 保留验证命令、关键输出、已有真实流量 ID 及其用途，任务中带 intent_id，便于报告 Agent 追溯；不必为了绑定额外查包。Auto / Planner 代为上报时不要丢弃执行者已有的引用。add_hint / add_task_hint 可用 traffic_refs 交接；显式即时绑定仍兼容 report_finding 的 traffic_refs / evidence_hint_id。TCP 或无包时正常登记，不能猜测 ID，也不能仅为补包重复探测。"
+		guidance = "\n\n**Repasse de evidência de tráfego (opcional)**: o vínculo automático é feito, por padrão, pelo Agent de relatório depois que a vulnerabilidade entra no banco e antes de redigir o relatório. Quem reporta deve manter em evidence os comandos de verificação, as saídas-chave, os IDs de tráfego reais já existentes e sua finalidade, e incluir o intent_id na tarefa, para facilitar o rastreamento pelo Agent de relatório; não é preciso consultar pacotes extras só para vincular. Quando Auto / Planner reportam em nome de outro, não descarte as referências que o executor já tem. add_hint / add_task_hint podem repassar com traffic_refs; o vínculo imediato explícito continua compatível com traffic_refs / evidence_hint_id de report_finding. Com TCP ou sem pacotes, registre normalmente, sem adivinhar IDs e sem repetir sondagens apenas para completar pacotes."
 		if has["add_task_hint"] && !has["add_hint"] {
-			guidance += "\n平台对话没有任务上下文时，不直接调用 report_finding；通过 add_task_hint 向已有对应任务交接，由任务 Agent 登记，并用 list_task_findings 核对结果。"
+			guidance += "\nQuando a conversa da plataforma não tem contexto de tarefa, não chame report_finding diretamente; repasse via add_task_hint a uma tarefa correspondente existente, para que o Agent da tarefa o registre, e confira o resultado com list_task_findings."
 		}
 		if has["prove_goal"] || has["goal_met"] {
-			guidance += "\n判定目标完成前，先完成本次已有证据的上报/交接。不要在证据交接尚未完成时仅因文字漏洞已登记就结束任务、取消 Worker；无包不要求等待或强行抓包。"
+			guidance += "\nAntes de julgar o objetivo concluído, conclua primeiro o reporte/repasse das evidências já existentes desta rodada. Não encerre a tarefa nem cancele Workers só porque a vulnerabilidade em texto já foi registrada enquanto o repasse de evidências ainda não terminou; sem pacotes, não é preciso esperar nem forçar a captura."
 		}
 	}
 	if has["update_finding_report"] && has["bind_finding_traffic"] && has["get_finding_traffic"] {
-		guidance += "\n\n**报告前自动关联流量（已开启）**：你负责为本次触发的漏洞核对并绑定流量，再撰写报告。先从 report_finding 返回 JSON 或 get_task_node_detail / list_task_findings 取得明确的 finding_id 与 finding_node_id。读取漏洞详情、对应意图的执行记录及已有证据清单，优先使用上报者交接的真实 ID。若本次验证为 HTTP 且流量工具可用，用 traffic_search 筛选候选，再用 traffic_get 逐条核实请求/响应确实支持该漏洞；域名和时间只用于筛选，不证明归属。将确认的证据按复现顺序用 bind_finding_traffic(finding_id, traffic_refs) 关联，选择 baseline / proof / verification / supporting 并说明用途。只能操作本次漏洞，不重复创建漏洞或重新探测目标。绑定成功后重新调用 get_finding_traffic 获取最新 version，读取所需正文，再将实际读取的 version 作为 evidence_version 传给 update_finding_report（其 finding_id 参数仍用 finding_node_id）。已有绑定不必重复追加。TCP、未采集、工具不可用或没有确切匹配时，跳过自动绑定，依据文字/命令证据正常写报告并说明原因，不得为凑齐流量而猜测。绑定失败不宣称成功；保留已有证据并在报告说明未绑定原因。"
+		guidance += "\n\n**Vinculação automática de tráfego antes do relatório (ativada)**: você é responsável por conferir e vincular o tráfego da vulnerabilidade acionada desta vez e, depois, redigir o relatório. Primeiro obtenha finding_id e finding_node_id explícitos a partir do JSON retornado por report_finding ou de get_task_node_detail / list_task_findings. Leia os detalhes da vulnerabilidade, o registro de execução da intenção correspondente e a lista de evidências existentes, dando preferência aos IDs reais repassados por quem reportou. Se esta verificação foi por HTTP e a ferramenta de tráfego está disponível, use traffic_search para filtrar candidatos e depois traffic_get para conferir, um a um, que a requisição/resposta realmente sustenta a vulnerabilidade; domínio e horário servem apenas para filtrar e não comprovam a pertença. Vincule as evidências confirmadas, na ordem de reprodução, com bind_finding_traffic(finding_id, traffic_refs), escolhendo baseline / proof / verification / supporting e explicando a finalidade. Opere apenas sobre a vulnerabilidade desta vez, sem criar vulnerabilidades duplicadas nem sondar o alvo novamente. Após o vínculo bem-sucedido, chame get_finding_traffic de novo para obter a version mais recente, leia o corpo necessário e passe a version efetivamente lida como evidence_version para update_finding_report (cujo parâmetro finding_id continua usando finding_node_id). Vínculos já existentes não precisam ser adicionados de novo. Com TCP, tráfego não coletado, ferramenta indisponível ou sem correspondência exata, pule o vínculo automático e redija o relatório normalmente com base nas evidências de texto/comando, explicando o motivo, sem adivinhar para completar o tráfego. Se o vínculo falhar, não declare sucesso; preserve as evidências existentes e explique no relatório o motivo de não ter vinculado."
 	}
 	if guidance != "" || has["get_finding_traffic"] || has["update_finding_report"] {
 		guidance += findingIDGuidance
@@ -104,7 +104,7 @@ func stripTrafficParameters(schema map[string]any) {
 
 // HintTrafficSchema is shared by the task-local and cross-task hint tools.
 func HintTrafficSchema() map[string]any {
-	return map[string]any{"type": "array", "description": "可选：已核实且对应本提示中具体漏洞的流量引用，保留顺序；交接后 report_finding 可传 evidence_hint_id 携带这些引用。", "items": obj(map[string]any{"traffic_id": str("真实流量 ID"), "role": str("baseline / proof / verification / supporting"), "note": str("该流量支持什么结论")}, "traffic_id")}
+	return map[string]any{"type": "array", "description": "Opcional: referências de tráfego já verificadas e correspondentes à vulnerabilidade específica deste hint, mantendo a ordem; após o repasse, report_finding pode receber evidence_hint_id para carregar essas referências.", "items": obj(map[string]any{"traffic_id": str("ID de tráfego real"), "role": str("baseline / proof / verification / supporting"), "note": str("Que conclusão este tráfego sustenta")}, "traffic_id")}
 }
 
 func (t *ToolSet) findingRefsFromHint(hintID int64, explicit []db.TrafficRef) ([]db.TrafficRef, error) {
@@ -116,7 +116,7 @@ func (t *ToolSet) findingRefsFromHint(hintID int64, explicit []db.TrafficRef) ([
 		return nil, err
 	}
 	if n == nil || n.Kind != db.KindHint {
-		return nil, fmt.Errorf("evidence_hint_id=%d 必须是本任务的提示节点（继承提示不可直接用于绑定）", hintID)
+		return nil, fmt.Errorf("evidence_hint_id=%d deve ser um nó de hint desta tarefa (hints herdados não podem ser usados diretamente para vínculo)", hintID)
 	}
 	var payload struct {
 		Refs []db.TrafficRef `json:"traffic_refs"`

@@ -1,27 +1,27 @@
 #!/bin/sh
-# ARTEX 守护启动脚本（Linux / macOS / Docker ENTRYPOINT）
+# Script guardião de inicialização do ARTEX (Linux / macOS / Docker ENTRYPOINT)
 #
-# 用法：
-#   ./start.sh                       前台运行（Ctrl-C 停止）
-#   nohup ./start.sh >artex.log 2>&1 &   后台常驻
-#   ./start.sh -addr :9000           额外参数原样透传给 artex
+# Uso:
+#   ./start.sh                       executa em primeiro plano (Ctrl-C para parar)
+#   nohup ./start.sh >artex.log 2>&1 &   executa em segundo plano, residente
+#   ./start.sh -addr :9000           argumentos extras são repassados ao artex sem alteração
 #
-# 它只做一件事：把 artex 跑起来，进程退出后按退出码决定要不要再拉起。
+# Ele faz uma única coisa: executa o artex e, quando o processo termina, decide pelo código de saída se o relança.
 #
-#   0      用户正常停止        → 退出循环
-#   75     程序请求重启        → 立刻重跑（页面点了"一键更新"或"回滚"）
-#   其他   崩溃                → 退避后重跑（1→2→4…最多 60 秒）
+#   0      parada normal pelo usuário   → sai do loop
+#   75     o programa pediu reinício    → reexecuta imediatamente (clicou em "Atualização com um clique" ou "Rollback" na página)
+#   outro  crash                        → reexecuta após backoff (1→2→4… no máximo 60 segundos)
 #
-# 刻意不在这里做下载、SHA256 校验或换装：那些逻辑在 sh 和 bat 上要写两套，
-# 而它们恰恰是最不能出错的一环——一旦换上跑不起来的二进制，本脚本会忠实地
-# 反复拉起它，用户只能上机器手工救。所以校验/换装全部留在 Go 里（selfupdate 包），
-# 由 artex 自己在启动时完成，脚本保持傻瓜化。
+# Deliberadamente não faz aqui download, verificação SHA256 nem troca do binário: essa lógica precisaria ser escrita em duas versões, sh e bat,
+# e é justamente o elo que menos pode falhar — se um binário que não executa for instalado, este script o
+# relançará fielmente, sem parar, e o usuário só resolveria entrando na máquina. Por isso verificação/troca ficam todas em Go (pacote selfupdate),
+# feitas pelo próprio artex na inicialização, e o script permanece simples.
 set -u
 
 cd "$(dirname "$0")" || exit 1
 
 BIN=./artex
-[ -x "$BIN" ] || { echo "[artex] 找不到可执行文件 $BIN" >&2; exit 1; }
+[ -x "$BIN" ] || { echo "[artex] executável $BIN não encontrado" >&2; exit 1; }
 
 RESTART_CODE=75
 MAX_DELAY=60
@@ -29,11 +29,11 @@ MAX_DELAY=60
 child=0
 stopping=0
 
-# 转发停止信号给 artex 本体。
+# Encaminha o sinal de parada ao próprio artex.
 #
-# Docker 下这是必需的：docker stop 只把 SIGTERM 发给 PID 1（也就是本脚本），
-# 不会发给子进程。不转发的话 artex 收不到信号、做不了优雅关闭，10 秒后被 SIGKILL
-# 硬杀，正在跑的任务直接断在半路。
+# No Docker isso é indispensável: o docker stop só envia SIGTERM ao PID 1 (isto é, este script),
+# e não ao processo filho. Sem o encaminhamento, o artex não recebe o sinal e não consegue fazer um shutdown gracioso; após 10 segundos recebe SIGKILL
+# e as tarefas em execução são cortadas no meio do caminho.
 forward() {
 	stopping=1
 	if [ "$child" -ne 0 ]; then
@@ -47,8 +47,8 @@ while :; do
 	"$BIN" "$@" &
 	child=$!
 
-	# 信号会打断 wait 并让它返回 >128。此时子进程其实还在做优雅关闭，
-	# 必须再 wait 一次才能拿到它真正的退出码。
+	# Um sinal interrompe o wait e o faz retornar >128. Nesse momento o processo filho ainda está fazendo o shutdown gracioso,
+	# então é preciso dar wait mais uma vez para obter o código de saída real dele.
 	wait "$child"
 	code=$?
 	if [ "$code" -gt 128 ]; then
@@ -58,22 +58,22 @@ while :; do
 	child=0
 
 	if [ "$stopping" -eq 1 ]; then
-		echo "[artex] 已停止"
+		echo "[artex] parado"
 		exit 0
 	fi
 
 	case "$code" in
 		0)
-			echo "[artex] 正常退出"
+			echo "[artex] saída normal"
 			exit 0
 			;;
 		"$RESTART_CODE")
-			# 更新/回滚已就绪：重跑后 artex 会在启动时完成换装（见 selfupdate.Bootstrap）。
-			echo "[artex] 请求重启（应用新版本）…"
+			# Atualização/rollback pronto: após a reexecução o artex conclui a troca na inicialização (veja selfupdate.Bootstrap).
+			echo "[artex] reinício solicitado, aplicando a nova versão…"
 			delay=1
 			;;
 		*)
-			echo "[artex] 异常退出 (code=$code)，${delay}s 后重启" >&2
+			echo "[artex] saída anormal (code=$code), reiniciando em ${delay}s" >&2
 			sleep "$delay"
 			delay=$((delay * 2))
 			[ "$delay" -gt "$MAX_DELAY" ] && delay=$MAX_DELAY

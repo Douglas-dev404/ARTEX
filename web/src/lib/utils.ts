@@ -5,16 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// 抽屉/对话框(Sheet/Dialog)的 onInteractOutside 关闭判定辅助。
+// Auxiliar para decidir o fechamento via onInteractOutside em gavetas/diálogos (Sheet/Dialog).
 //
-// 背景:抽屉内的 Radix 弹层(Select 下拉、DropdownMenu、Popover 等)会 portal 到抽屉
-// 之外。开着弹层时点遮罩/抽屉外想收起它,这一次 pointerdown 会被 Select 和 Sheet 两个
-// DismissableLayer 同时处理;Select 先关闭且是 discrete 事件、React 会同步 flush,于是
-// 轮到 Sheet 的处理器时弹层的 data-state 早已翻成 closed —— 在"当下"检测弹层是否打开
-// 天然不可靠(实测已验证)。
+// Contexto: as camadas Radix dentro da gaveta (dropdown do Select, DropdownMenu, Popover etc.) fazem portal para fora
+// da gaveta. Com a camada aberta, ao clicar no overlay/fora da gaveta para recolhê-la, esse pointerdown é tratado ao mesmo tempo pelos dois
+// DismissableLayer, o do Select e o do Sheet; o Select fecha primeiro e, por ser um evento discrete, o React faz flush de forma síncrona, de modo que
+// quando chega a vez do handler do Sheet, o data-state da camada já virou closed — detectar "no momento" se a camada está aberta
+// é naturalmente pouco confiável (verificado na prática).
 //
-// 正确做法:Radix 的 pointerdown 监听在冒泡阶段;我们在 capture 阶段(早于它)先把
-// "此刻有没有弹层开着"记录下来,onInteractOutside 再读这个记录值来决定是否放行关闭。
+// Abordagem correta: o listener de pointerdown do Radix roda na fase de bubbling; nós, na fase de capture (antes dele), primeiro registramos
+// "se há alguma camada aberta neste momento", e o onInteractOutside então lê esse valor registrado para decidir se libera o fechamento.
 function isRadixOverlayOpenNow(): boolean {
   if (typeof document === "undefined") return false;
   return !!document.querySelector(
@@ -35,26 +35,26 @@ if (typeof document !== "undefined") {
     () => {
       overlayOpenAtLastPointerDown = isRadixOverlayOpenNow();
     },
-    true, // capture:抢在 Radix 冒泡阶段的 pointerdown 处理器之前记录
+    true, // capture: registra antes do handler de pointerdown da fase de bubbling do Radix
   );
 }
 
-// radixOverlayWasOpenAtPointerDown 返回"最近一次 pointerdown 发生时是否有 Radix 弹层
-// 开着"。抽屉/对话框据此:开着弹层时点遮罩 → 只收弹层、不关自身。
+// radixOverlayWasOpenAtPointerDown retorna "se havia camada Radix aberta no pointerdown mais recente".
+// Gavetas/diálogos usam isso: com a camada aberta, clicar no overlay → só recolhe a camada, sem fechar a si mesmo.
 export function radixOverlayWasOpenAtPointerDown(): boolean {
   return overlayOpenAtLastPointerDown;
 }
 
-// copyText 把文本写入剪贴板,返回是否成功。
-// 背景:navigator.clipboard 仅在安全上下文(HTTPS / localhost)可用;通过 IP + HTTP
-// 访问时它为 undefined,此时降级到 execCommand("copy")。
+// copyText grava o texto na área de transferência e retorna se teve sucesso.
+// Contexto: navigator.clipboard só está disponível em contexto seguro (HTTPS / localhost); com acesso via IP + HTTP
+// ele é undefined, e nesse caso faz fallback para execCommand("copy").
 export async function copyText(text: string): Promise<boolean> {
   if (navigator.clipboard && window.isSecureContext) {
     try {
       await navigator.clipboard.writeText(text);
       return true;
     } catch {
-      // 继续走降级方案
+      // segue para o fallback
     }
   }
   try {

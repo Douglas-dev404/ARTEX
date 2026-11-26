@@ -46,7 +46,7 @@ func (s SideQuestionService) Answer(ctx context.Context, req llm.CompletionReque
 			}
 		}
 		if err == nil && !complete {
-			err = errors.New("模型响应中断，请重新提问")
+			err = errors.New("resposta do modelo interrompida, faça a pergunta novamente")
 		}
 	} else {
 		var msg llm.Message
@@ -60,7 +60,7 @@ func (s SideQuestionService) Answer(ctx context.Context, req llm.CompletionReque
 		if out.ToolUse {
 			out.Text = "当前旁路提问不能执行工具操作，请在主会话中发出操作请求。"
 		} else {
-			err = errors.New("模型没有返回回答")
+			err = errors.New("o modelo não retornou resposta")
 		}
 	}
 	return out, err

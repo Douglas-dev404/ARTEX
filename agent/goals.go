@@ -14,36 +14,36 @@ import (
 	"github.com/Autumn-27/norma/transcript"
 )
 
-// goalsDefaultTmpl is the built-in EDITABLE body (段 [A]) of the goals-decomposer
+// goalsDefaultTmpl is the built-in EDITABLE body (seção [A]) of the goals-decomposer
 // prompt, seeded into agent_prompts. No template vars are used today.
-const goalsDefaultTmpl = `你是渗透测试目标分解器。你的职责是从用户输入中识别出**最终要达成的结果**，而不是规划攻击步骤。
+const goalsDefaultTmpl = `Você é o decompositor de objetivos de teste de intrusão. Sua responsabilidade é identificar, a partir da entrada do usuário, o **resultado final a ser alcançado**, e não planejar passos de ataque.
 
-**第一步（拆分目标之前先做）：抽取操作约束**
-从「任务目标 / 任务描述」里识别操作员对【可以做什么、不可以做什么操作】的明确规定，调用 set_constraints 逐条登记（如果描述、目标中不涉及操作约束可以不进行提取操作约束）：
-- type=deny：禁止的操作（如「不扫端口」「不得对生产环境做写/删操作」「禁止爆破」「不碰某子域」）。
-- type=allow：明确允许/限定的操作范围（如「只允许被动侦察」「仅针对某域名」）。
-- 约束 ≠ 目标，也 ≠ 攻击步骤：它是对操作行为边界的规定。
-- **约束必须【自包含、写死具体目标】**：把「当前目标/当前端口/当前IP/当前域名/本站」这类**指代词**替换成任务目标/描述里的**具体值**。约束会被单独注入到执行阶段的提示里，脱离上下文后指代词无法判断指谁。
-  例：目标是 https://abc.example.net → 写「只允许测试 abc.example.net」而不是「只允许测试当前目标」；「仅测目标端口 443，不扫其他端口」而不是「只测当前端口」。若原文只说「当前目标」但目标地址已明确，就把地址填进去。
-- **只登记目标/描述里【明确写出或强调】的约束，严禁臆造**；拿不准类型时用 deny（更保守）。
-- 若目标/描述里确实没有任何操作约束，则**不要**调用 set_constraints。
-登记完约束（如有）后，再进行下面的目标拆分。
+**Primeiro passo (faça antes de decompor os objetivos): extrair as restrições de operação**
+A partir do "objetivo da tarefa / descrição da tarefa", identifique as determinações explícitas do operador sobre [quais operações podem e quais não podem ser feitas] e registre-as uma a uma chamando set_constraints (se a descrição e o objetivo não envolverem restrições de operação, não é necessário extraí-las):
+- type=deny: operações proibidas (como "não escanear portas", "não executar operações de escrita/exclusão em ambiente de produção", "proibido força bruta", "não tocar em certo subdomínio").
+- type=allow: escopo de operações explicitamente permitido/delimitado (como "apenas reconhecimento passivo", "somente contra certo domínio").
+- Restrição ≠ objetivo, e também ≠ passo de ataque: é uma determinação sobre a fronteira do comportamento operacional.
+- **A restrição deve ser [autocontida, com o alvo concreto escrito explicitamente]**: substitua os **termos referenciais** como "o alvo atual / a porta atual / o IP atual / o domínio atual / este site" pelos **valores concretos** do objetivo/descrição da tarefa. A restrição será injetada isoladamente no prompt da fase de execução e, fora do contexto, o termo referencial não permite saber a quem se refere.
+  Exemplo: se o alvo é https://abc.example.net → escreva "só é permitido testar abc.example.net" e não "só é permitido testar o alvo atual"; "testar apenas a porta alvo 443, sem escanear outras portas" e não "testar apenas a porta atual". Se o texto original diz apenas "o alvo atual" mas o endereço do alvo já está claro, preencha o endereço.
+- **Registre apenas as restrições [explicitamente escritas ou enfatizadas] no objetivo/descrição, é estritamente proibido inventar**; na dúvida sobre o tipo, use deny (mais conservador).
+- Se o objetivo/descrição realmente não contém nenhuma restrição de operação, **não** chame set_constraints.
+Depois de registrar as restrições (se houver), faça a decomposição de objetivos abaixo.
 
-**目标 = 最终可交付/可核验的结果**
+**Objetivo = resultado final entregável/verificável**
 
-**不是目标的内容（禁止列为子目标）**：
-- 信息收集、侦察、端点扫描
-- 漏洞分析与验证过程
-- 攻击步骤、利用手段
-- 结果验证步骤
+**O que não é objetivo (proibido listar como subobjetivo)**:
+- Coleta de informações, reconhecimento, varredura de endpoints
+- Processo de análise e validação de vulnerabilidades
+- Passos de ataque, meios de exploração
+- Passos de verificação de resultados
 
-**拆分原则**：
-- 用户描述的最终目标只有一个 → 输出一个
-- 存在多个**相互独立**的最终交付物 → 分别列出
-- 能对应明确漏洞类的标注 vulnclass；信息收集/业务逻辑类目标留空
-- 严禁臆造用户未提及的目标
+**Princípios de decomposição**:
+- O objetivo final descrito pelo usuário é só um → produza um
+- Existem vários entregáveis finais **independentes entre si** → liste-os separadamente
+- Os que correspondem a uma classe de vulnerabilidade clara recebem vulnclass; objetivos de coleta de informações/lógica de negócio ficam em branco
+- É estritamente proibido inventar objetivos que o usuário não mencionou
 
-调用 set_goals 提交结果。`
+Chame set_goals para enviar o resultado.`
 
 // goalsScopeTail is the code-owned tail appended after the editable goals body
 // WHEN an asset store + task context are available. It teaches the decomposer to
@@ -52,19 +52,19 @@ const goalsDefaultTmpl = `你是渗透测试目标分解器。你的职责是从
 // on released DBs and can't be edited away — same pattern as the trafficTool tail.
 const goalsScopeTail = `
 
-**额外职责：登记测试资产范围**
-除拆分目标外，你还要从「任务目标 / 任务描述」里识别出**明确给出的测试资产范围**，调用 add_task_scope 登记（本任务的授权边界，也是资产测试覆盖度的分母）。**最小范围原则：只登记用户明确点到的那一个目标，绝不擅自放大。**
-- 目标是 URL 或带主机名的地址（如 https://xxx.example.com/path、app.example.com）→ 取其**完整主机名**，kind=subdomain，value=完整主机名。
-  例：目标 https://a1b2c3.lab.example.net/path → kind=subdomain，value=a1b2c3.lab.example.net（**不是** example.net）。
-  **严禁**把带子域的主机名缩成根域名——看到 xxx.example.com 就登记整个 example.com 会把范围扩到用户目标之外，违背最小范围原则。
-- 仅当用户给的就是**裸根域名、且不含任何子域**（如直接写 example.com），或明确说“整个站点 / 所有子域 / 全域名” → 才用 kind=root_domain，value=example.com。
-- 纯 IP 或网段 → kind=ip / cidr，value=IP 或 CIDR。
-- **不要**登记公司范围（company）——任务刚建立、资产系统里通常还没有这家公司，登记不上，公司级范围交由后续 plan 阶段处理。
-其它规则：
-- 只登记**目标/描述里明确写出**的范围；严禁臆造或推断未提及的域名/IP。
-- reason 简述依据来自哪句话，便于审计。
-- 若目标/描述中没有任何明确资产范围，则**不要**调用 add_task_scope。
-先用 add_task_scope 登记范围（如有），再调用 set_goals 提交目标。`
+**Responsabilidade adicional: registrar o escopo de ativos de teste**
+Além de decompor os objetivos, você também deve identificar, a partir do "objetivo da tarefa / descrição da tarefa", o **escopo de ativos de teste explicitamente informado** e registrá-lo chamando add_task_scope (a fronteira de autorização desta tarefa, e também o denominador da cobertura de teste dos ativos). **Princípio do escopo mínimo: registre apenas o único alvo que o usuário apontou explicitamente, nunca amplie por conta própria.**
+- Se o alvo é uma URL ou um endereço com nome de host (como https://xxx.example.com/path, app.example.com) → pegue o **nome de host completo**, kind=subdomain, value=nome de host completo.
+  Exemplo: alvo https://a1b2c3.lab.example.net/path → kind=subdomain, value=a1b2c3.lab.example.net (**não** example.net).
+  **É estritamente proibido** reduzir um nome de host com subdomínio ao domínio raiz — ao ver xxx.example.com, registrar example.com inteiro amplia o escopo para além do alvo do usuário, violando o princípio do escopo mínimo.
+- Somente quando o usuário informar um **domínio raiz puro, sem nenhum subdomínio** (como escrever diretamente example.com), ou disser explicitamente "o site inteiro / todos os subdomínios / o domínio inteiro" → use kind=root_domain, value=example.com.
+- IP puro ou faixa de rede → kind=ip / cidr, value=IP ou CIDR.
+- **Não** registre o escopo de empresa (company) — a tarefa acabou de ser criada, geralmente o sistema de ativos ainda não tem essa empresa e não é possível registrá-la; o escopo em nível de empresa fica para a fase de plan posterior.
+Outras regras:
+- Registre apenas o escopo **explicitamente escrito no objetivo/descrição**; é estritamente proibido inventar ou inferir domínios/IPs não mencionados.
+- reason resume em qual frase está o fundamento, para facilitar a auditoria.
+- Se o objetivo/descrição não contém nenhum escopo de ativos explícito, **não** chame add_task_scope.
+Registre primeiro o escopo com add_task_scope (se houver) e depois chame set_goals para enviar os objetivos.`
 
 // GoalSpec is one decomposed objective.
 type GoalSpec struct {
@@ -82,7 +82,7 @@ type GoalSpec struct {
 // shares the rate limiter, gets recorded by llmrec, and participates in LLM
 // failover instead of quietly bypassing all three.
 //
-// desc is the task's free-text description (背景：靶标范围/flag 数量/交战说明等).
+// desc is the task's free-text description (contexto: escopo do alvo/quantidade de flags/regras de engajamento etc.).
 // It is fed alongside the goal so the decomposer no longer splits blind — the
 // prompt still forbids inventing anything the two texts don't state.
 //
@@ -111,12 +111,12 @@ func DecomposeGoalsWithProvider(ctx context.Context, prov llm.Provider, dataDir,
 	if prov == nil {
 		return nil
 	}
-	// 目标拆解是一次性调用：不挂 transcript store，所以 agentcore 不会往 ctx 上挂
-	// session id（它只在有 writer 时才挂，见 agentcore.Prompt）。而按 session-id 头
-	// 做提示缓存/粘性路由的网关（opencode zen 缺 x-opencode-session 直接 400
-	// MissingSessionID）读的就是 ctx 上这个值——不补就是「对话正常、拆解 400」。
-	// 显式挂一个稳定 id：同一探索的拆解请求共享它（利于命中缓存），且命名与
-	// planner/worker 不冲突，能被 llmrec.parseSession 正确归因。
+	// A decomposição de objetivos é uma chamada única: não anexa o transcript store, portanto o agentcore não anexa
+	// o session id ao ctx (ele só o anexa quando há um writer, ver agentcore.Prompt). Já os gateways que fazem
+	// cache de prompt/roteamento sticky pelo cabeçalho session-id (o opencode zen devolve 400 direto sem x-opencode-session,
+	// MissingSessionID) leem justamente esse valor no ctx — sem o complemento seria "a conversa funciona, a decomposição dá 400".
+	// Anexa-se explicitamente um id estável: as requisições de decomposição da mesma exploração o compartilham (favorece acertos de cache), e o nome
+	// não conflita com planner/worker, podendo ser atribuído corretamente pelo llmrec.parseSession.
 	if ts != nil {
 		ctx = transcript.WithSessionID(ctx, fmt.Sprintf("exp%d-goals", ts.ID()))
 	}
@@ -128,8 +128,8 @@ func DecomposeGoalsWithProvider(ctx context.Context, prov llm.Provider, dataDir,
 	// {{.EngagementDescription}} template var — else a prompt that references the var
 	// would inject the description twice. System prompt stays pure static instructions.
 	sys := renderSystem("goals", goalsDefaultTmpl, GoalsVars{DataDir: dataDir, Now: nowStr()})
-	// set_constraints 始终可用(不依赖 asset store):正文已含「先抽操作约束再拆目标」这步
-	// (可在 agent 编辑页改措辞),这里只需接上工具。
+	// set_constraints está sempre disponível (não depende do asset store): o corpo já contém o passo "primeiro extrair as restrições de operação e depois decompor os objetivos"
+	// (a redação pode ser alterada na página de edição do agent), aqui basta conectar a ferramenta.
 	tools := []actool.CoreTool{tsx.setGoals(), tsx.setConstraints()}
 	// Wire add_task_scope only when we have a real asset store + task to write to.
 	// The scope-extraction tail is appended in lockstep so the prompt never asks for
@@ -138,9 +138,9 @@ func DecomposeGoalsWithProvider(ctx context.Context, prov llm.Provider, dataDir,
 		tools = append(tools, tsx.addTaskScope())
 		sys += goalsScopeTail
 	}
-	userMsg := "任务目标：\n" + goalText
+	userMsg := "Objetivo da tarefa:\n" + goalText
 	if d := strings.TrimSpace(desc); d != "" {
-		userMsg += "\n\n任务描述（背景信息，可能含靶标范围/flag 数量/交战说明；仅供参考，不要臆造其中未提及的内容）：\n" + d
+		userMsg += "\n\nDescrição da tarefa (informações de contexto, podem conter escopo do alvo/quantidade de flags/regras de engajamento; apenas para referência, não invente o que não foi mencionado):\n" + d
 	}
 	// Use captureRun so every LLM step is emitted as an activity record (visible in
 	// the plan tab under the round-0 marker). Falls back gracefully when emit is nil.
@@ -156,10 +156,10 @@ func DecomposeGoalsWithProvider(ctx context.Context, prov llm.Provider, dataDir,
 		Tools:                  tools,
 		PermissionMode:         acperm.ModeBypass,
 		DisableBackgroundTasks: true,
-		// 3 步(抽约束 → 登记范围 → 拆目标)各需一次工具调用,给足回合避免收尾前漏调 set_goals。
+		// 3 passos (extrair restrições → registrar escopo → decompor objetivos) exigem cada um uma chamada de ferramenta; dê turnos suficientes para não deixar de chamar set_goals antes do encerramento.
 		MaxTurns:     8,
-		NonStreaming: nonStreaming, // 该 profile 选非流式时走 Provider.Complete
-		MaxTokens:    maxTokens,    // 0 = 不发上限,由服务端默认值决定
+		NonStreaming: nonStreaming, // quando este profile escolhe não streaming, usa Provider.Complete
+		MaxTokens:    maxTokens,    // 0 = não envia limite; o padrão do servidor decide
 	}, userMsg, captureEmit)
 	// set_goals persisted the goals directly; read them back so the caller sees what
 	// was written (empty slice ⇒ the LLM produced nothing ⇒ caller falls back).

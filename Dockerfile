@@ -1,44 +1,44 @@
 # syntax=docker/dockerfile:1
 #
-# 运行镜像（不在镜像里编译）：只装常用工具，放入**预编译好的 Linux 单二进制**。
-# 二进制由 CI 的 binaries job 交叉编译（纯 Go、无 QEMU），按目标架构放在
-# 构建上下文的 dist/<TARGETARCH>/artex。这样多架构构建时 arm64 只需模拟 apt 层，
-# 不再模拟 Next/Go 编译，速度快得多。
+# Imagem de execução (não compila dentro da imagem): instala só as ferramentas comuns e coloca o **binário único Linux pré-compilado**.
+# O binário é compilado de forma cruzada pelo job binaries do CI (Go puro, sem QEMU) e fica, conforme a arquitetura alvo,
+# no contexto de build em dist/<TARGETARCH>/artex. Assim, no build multi-arquitetura o arm64 só precisa emular a camada apt,
+# sem emular a compilação de Next/Go, e fica bem mais rápido.
 #
-# 本地手动构建镜像时，先自行准备二进制：
+# Ao construir a imagem manualmente na máquina local, prepare o binário antes:
 #   cd web && npm run build:static && cd ..
 #   cp -r web/out server/webui/dist
 #   CGO_ENABLED=0 GOARCH=amd64 go build -tags embedui -o dist/amd64/artex ./cmd/artex
 #   docker build -t artex:local .
 FROM python:3.12-slim-bookworm
 ARG TARGETARCH
-# 常用工具：ripgrep / curl / vim，加一批 recon 常备件（按需增删）。
-# Node 从 NodeSource 装 20.x：bookworm 自带的 apt nodejs 是 18，Playwright 要求 >=20。
+# Ferramentas comuns: ripgrep / curl / vim, mais um conjunto de utilitários de recon (adicione ou remova conforme a necessidade).
+# Node 20.x instalado do NodeSource: o nodejs do apt do bookworm é o 18, e o Playwright exige >=20.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates ripgrep curl wget vim git jq unzip \
       dnsutils iputils-ping netcat-openbsd inetutils-telnet whois nmap \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
-# 预装 Playwright MCP 与 CLI（全局），运行时不再 npx 联网下载。
-# @playwright/mcp：browser MCP 直接 `npx @playwright/mcp`（已全局装好，无需 -y/@latest）。
-# @playwright/cli：提供 playwright-cli，装完顺带 --help 验证可执行。
-# 再装 playwright（提供浏览器管理），装完用 --with-deps 预置 chromium 及其系统依赖，
-# 这样容器内 MCP/CLI 首次启动即可用，不再联网下载浏览器。
+# Pré-instala o Playwright MCP e a CLI (globalmente), para que em tempo de execução não seja preciso baixar via npx.
+# @playwright/mcp: o MCP de browser usa direto `npx @playwright/mcp` (já instalado globalmente, sem necessidade de -y/@latest).
+# @playwright/cli: fornece o playwright-cli; depois de instalar, roda --help para verificar que é executável.
+# Depois instala o playwright (gerenciamento de browsers) e usa --with-deps para pré-instalar o chromium e suas dependências de sistema,
+# de modo que o MCP/CLI dentro do contêiner funcione já na primeira inicialização, sem baixar o browser pela rede.
 RUN npm install -g @playwright/mcp@latest @playwright/cli@latest playwright@latest \
     && playwright-cli --help \
     && playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-# 预编译好的对应架构二进制（dist/amd64/artex 或 dist/arm64/artex）
+# Binário pré-compilado da arquitetura correspondente (dist/amd64/artex ou dist/arm64/artex)
 COPY dist/${TARGETARCH}/artex /app/artex
-# 守护启动脚本：进程退出后按退出码决定是否重新拉起，页面一键更新靠它完成换装。
-# 它同时负责把 SIGTERM 转发给 artex —— docker stop 只把信号发给 PID 1，
-# 不转发的话 artex 收不到、做不了优雅关闭，10 秒后被 SIGKILL 硬杀。
+# Script de inicialização (daemon): após a saída do processo, decide pelo código de saída se deve subir de novo; a atualização com um clique pela página depende dele para concluir a troca.
+# Ele também encaminha o SIGTERM para o artex — o docker stop só envia o sinal ao PID 1;
+# sem o encaminhamento o artex não o recebe, não consegue encerrar de forma graciosa e é morto à força por SIGKILL após 10 segundos.
 COPY start.sh /app/start.sh
 RUN chmod +x /app/artex /app/start.sh
 COPY skills/ /app/skills/
-# data/（SQLite + jwt.key）持久化点
+# Ponto de persistência de data/ (SQLite + jwt.key)
 VOLUME ["/app/data"]
 EXPOSE 8787 8788
 ENTRYPOINT ["/app/start.sh"]

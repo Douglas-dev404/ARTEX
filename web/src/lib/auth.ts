@@ -1,5 +1,5 @@
 const TOKEN_KEY = "artex_token";
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 天（秒）
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 dias (em segundos)
 
 export interface CurrentUser {
   id: string;
@@ -13,13 +13,13 @@ export interface CurrentUser {
 export const auth = {
   getToken(): string | null {
     if (typeof window === "undefined") return null;
-    // Mock demo：无真实登录，返回一个假 token 让路由守卫放行、直接进主界面。
+    // Demo mock: sem login real, retorna um token falso para o guard de rotas liberar e entrar direto na interface principal.
     return localStorage.getItem(TOKEN_KEY) ?? (process.env.NEXT_PUBLIC_MOCK === "1" ? "mock-demo" : null);
   },
 
   setToken(token: string): void {
     localStorage.setItem(TOKEN_KEY, token);
-    // 同步写 cookie，供 Next.js middleware 服务端读取
+    // Grava o cookie de forma síncrona, para leitura no servidor pelo middleware do Next.js
     document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
   },
 
@@ -28,7 +28,7 @@ export const auth = {
     document.cookie = `${TOKEN_KEY}=; path=/; max-age=0`;
   },
 
-  // 从 JWT payload 的 sub 字段解析当前用户，仅用于展示，不做签名验证。
+  // Obtém o usuário atual a partir do campo sub do payload do JWT, apenas para exibição, sem validar a assinatura.
   getCurrentUser(): CurrentUser | null {
     const token = this.getToken();
     if (!token) return null;

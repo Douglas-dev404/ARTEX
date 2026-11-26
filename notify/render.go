@@ -7,14 +7,14 @@ import (
 
 const ellipsis = "…"
 
-// TruncateBytes 把 s 截断到不超过 max 字节，保证结果是合法 UTF-8 且不切断字符。
+// TruncateBytes trunca s para no máximo max bytes, garantindo que o resultado seja UTF-8 válido e não corte um caractere ao meio.
 //
-// 为什么必须按字符边界切：企微群机器人的 markdown 有 4096 **字节**硬上限（不是
-// 字符数），而中文一个字 3 字节。直接按字节切片会把一个汉字切成两半，产出非法
-// UTF-8——平台侧要么整条拒收，要么显示成乱码方块。这里的做法是先从预算位置
-// 往前回退到最近的 rune 起始字节（utf8.RuneStart 判定续字节 0b10xxxxxx）。
+// Por que é obrigatório cortar na fronteira de caractere: o markdown do robô de grupo do WeCom tem um limite rígido de 4096 **bytes** (não
+// de caracteres), e um caractere chinês ocupa 3 bytes. Cortar o slice direto por bytes parte um caractere em dois, gerando
+// UTF-8 inválido — a plataforma ou rejeita a mensagem inteira ou exibe quadrados ilegíveis. A abordagem aqui é, a partir da posição do orçamento,
+// recuar até o byte inicial de rune mais próximo (utf8.RuneStart identifica os bytes de continuação 0b10xxxxxx).
 //
-// max<=0 表示不限制。截断后追加省略号，除非 max 小到装不下省略号。
+// max<=0 significa sem limite. Após o truncamento acrescenta reticências, a menos que max seja tão pequeno que não caibam as reticências.
 func TruncateBytes(s string, max int) string {
 	if max <= 0 || len(s) <= max {
 		return s
@@ -22,7 +22,7 @@ func TruncateBytes(s string, max int) string {
 	budget := max - len(ellipsis)
 	suffix := ellipsis
 	if budget < 0 {
-		// max 比省略号还短：放弃省略号，纯截断，避免结果反而超出 max。
+		// max é menor que as próprias reticências: abandona as reticências e faz truncamento puro, evitando que o resultado acabe excedendo max.
 		budget = max
 		suffix = ""
 	}
@@ -33,20 +33,20 @@ func TruncateBytes(s string, max int) string {
 	return s[:cut] + suffix
 }
 
-// OneLine 把多行文本压成单行：折叠所有空白，再按字符数截断。
-// 用于 IM 消息的标题行——摘要里常有换行，直接塞进表格/标题会撑坏排版。
-// max<=0 表示不限制长度。
+// OneLine comprime texto de várias linhas em uma única linha: colapsa todo o espaço em branco e depois trunca por número de caracteres.
+// Usado na linha de título das mensagens de IM — o resumo costuma ter quebras de linha, e enfiá-lo direto numa tabela/título estraga o layout.
+// max<=0 significa sem limite de tamanho.
 func OneLine(s string, max int) string {
 	s = strings.Join(strings.Fields(s), " ")
 	return TruncateRunes(s, max)
 }
 
-// TruncateRunes 把 s 截断到不超过 max 个字符（而非字节），超出时追加省略号。
-// max<=0 表示不限制。
+// TruncateRunes trunca s para no máximo max caracteres (e não bytes), acrescentando reticências quando excede.
+// max<=0 significa sem limite.
 //
-// 与 TruncateBytes 的区别在于平台口径：企微按字节限长，Telegram 按字符数限长。
-// 用错口径不会报错，只会让消息被切得远比预期短（中文 1 字 = 3 字节，
-// 按字节切 4096 只剩约 1365 字），所以两个函数都必须保留、按渠道选用。
+// A diferença para TruncateBytes está no critério da plataforma: o WeCom limita por bytes e o Telegram limita por número de caracteres.
+// Usar o critério errado não gera erro, apenas faz a mensagem ser cortada muito mais curta que o esperado (em chinês 1 caractere = 3 bytes,
+// cortando 4096 por bytes sobram só cerca de 1365 caracteres), por isso as duas funções devem ser mantidas e escolhidas conforme o canal.
 func TruncateRunes(s string, max int) string {
 	if max <= 0 {
 		return s
@@ -61,46 +61,46 @@ func TruncateRunes(s string, max int) string {
 	return string(runes[:max-1]) + ellipsis
 }
 
-// TruncateHTML 按字符数截断 HTML 片段，并保证不产生半截标签。
+// TruncateHTML trunca um fragmento HTML por número de caracteres e garante que não produza uma tag cortada pela metade.
 //
-// 直接对 HTML 做字符截断会切出 `<a href="htt` 这种残缺标签，平台解析器要么
-// 报错拒收整条、要么把后续正文当成属性值吞掉。这里的做法是：先按字符截断，
-// 再检查尾部是否有未闭合的 `<`，有就退到它之前。
+// Truncar HTML direto por caracteres pode cortar uma tag incompleta como `<a href="htt`, e o parser da plataforma ou
+// rejeita a mensagem inteira, ou engole o corpo seguinte como se fosse valor de atributo. A abordagem aqui é: primeiro truncar por caracteres,
+// depois verificar se o final tem um `<` não fechado, e se tiver recuar até antes dele.
 //
-// 不做标签配平（补全 </b> 之类）：Telegram 的 HTML 解析器会自动闭合未闭合标签，
-// 而自己实现配平要处理属性里的引号、注释、自闭合标签，复杂度与收益不成比例。
+// Não faz balanceamento de tags (completar </b> e semelhantes): o parser HTML do Telegram fecha automaticamente as tags não fechadas,
+// e implementar o balanceamento por conta própria exigiria tratar aspas em atributos, comentários e tags autofechadas, com complexidade desproporcional ao benefício.
 func TruncateHTML(s string, max int) string {
 	if max <= 0 || len([]rune(s)) <= max {
 		return s
 	}
 	cut := TruncateRunes(s, max)
-	// 尾部若是 `<` 开头的残片（最后出现 `<` 之后没有 `>`），退回 `<` 之前。
+	// Se o final é um fragmento começando com `<` (depois do último `<` não há `>`), recua até antes do `<`.
 	if lt := strings.LastIndex(cut, "<"); lt >= 0 && !strings.Contains(cut[lt:], ">") {
 		cut = cut[:lt]
 	}
-	// 尾部若是被切断的 HTML 实体（如 `&amp;` 被切成 `&amp`），同样要退回去。
-	// 实体残片在一个只认实体的解析器里可能让**整条消息**被拒收——一条超过
-	// 长度上限的汇总消息本来就常见，不值得为此丢掉整条通知。
+	// Se o final é uma entidade HTML cortada (como `&amp;` cortada em `&amp`), também é preciso recuar.
+	// Um fragmento de entidade, num parser que só reconhece entidades, pode fazer **a mensagem inteira** ser rejeitada — uma mensagem consolidada que
+	// excede o limite de tamanho já é comum, e não vale a pena perder a notificação inteira por isso.
 	if amp := strings.LastIndex(cut, "&"); amp >= 0 && !strings.Contains(cut[amp:], ";") {
 		cut = cut[:amp]
 	}
 	return cut
 }
 
-// packItemCount 计算在预算内能**完整**放下多少条，供汇总消息按整条打包。
+// packItemCount calcula quantos itens cabem **por inteiro** dentro do orçamento, para o empacotamento de mensagens consolidadas por item inteiro.
 //
-// 为什么要按整条而不是渲染完整篇再截断：截断会让后半截条目凭空消失，
-// 而它们的投递记录仍会被标记为已送达——消息里看不出来、投递历史里也看不出来，
-// 漏洞就这么没了。按整条打包后，装不下的条目留在库里成为下一批，
-// 调用方拿到的 kept 就是本条消息真正送达的条数。
+// Por que por item inteiro e não renderizar o texto completo e truncar: o truncamento faz os itens da segunda metade sumirem do nada,
+// enquanto seus registros de entrega continuam sendo marcados como entregues — não se vê na mensagem nem no histórico de entregas,
+// e a vulnerabilidade simplesmente se perde. Com o empacotamento por item inteiro, os itens que não cabem ficam no banco e viram o próximo lote,
+// e o kept que o chamador recebe é o número de itens realmente entregues nesta mensagem.
 //
-// 参数：maxSize<=0 表示不限制；reserve 是给消息头部/尾部预留的量；
-// size 负责计量（各平台口径不同：企微/钉钉按字节，Telegram 按字符数——
-// 用错口径不会报错，只会让中文消息被压到远小于上限）；
-// render 把第 idx 条渲染成它的实际文本——长度因内容而异，不能靠估算。
+// Parâmetros: maxSize<=0 significa sem limite; reserve é o espaço reservado para o cabeçalho/rodapé da mensagem;
+// size é responsável pela medição (o critério varia por plataforma: WeCom/DingTalk medem em bytes, Telegram em caracteres —
+// usar o critério errado não gera erro, apenas comprime a mensagem em chinês para muito abaixo do limite);
+// render renderiza o item idx como o seu texto real — o tamanho varia com o conteúdo e não pode ser estimado.
 //
-// 至少返回 1（只要还有条目）。单条极端超长时也要发出这一条、由调用方的
-// 最终截断兜底，否则一条超长漏洞会把整批永久卡在原地。
+// Retorna pelo menos 1 (enquanto ainda houver itens). Mesmo quando um único item é extremamente longo, ele deve ser enviado, ficando para o
+// truncamento final do chamador cobrir; caso contrário um item longo demais prenderia o lote inteiro no mesmo lugar para sempre.
 func packItemCount(items []Item, maxSize, reserve int, footer string, size func(string) int, render func(Item, int) string) int {
 	if maxSize <= 0 {
 		return len(items)
@@ -119,24 +119,24 @@ func packItemCount(items []Item, maxSize, reserve int, footer string, size func(
 	return len(items)
 }
 
-// byteSize / runeSize 是 packItemCount 的两种计量口径，命名出来避免调用处
-// 出现裸的 func(s string) int 闭包，否则很难一眼看出用的是哪种口径。
+// byteSize / runeSize são os dois critérios de medição de packItemCount; dar nome a eles evita que os pontos de chamada
+// tenham closures soltas func(s string) int, o que dificultaria ver de relance qual critério está sendo usado.
 func byteSize(s string) int { return len(s) }
 func runeSize(s string) int { return utf8.RuneCountInString(s) }
 
-// assetLine 把资产列表渲染成一行展示文本，超过 limit 个时省略其余并标注总数。
-// 一个漏洞可能锚定几十个资产，全列出来会挤爆消息。
+// assetLine renderiza a lista de ativos em uma linha de texto de exibição; ao passar de limit itens, omite o restante e indica o total.
+// Uma vulnerabilidade pode estar ancorada em dezenas de ativos, e listar todos estouraria a mensagem.
 func assetLine(assets []string, limit int) string {
 	if len(assets) == 0 {
 		return ""
 	}
 	if limit <= 0 || len(assets) <= limit {
-		return strings.Join(assets, "、")
+		return strings.Join(assets, ", ")
 	}
-	return strings.Join(assets[:limit], "、") + " 等 " + itoa(len(assets)) + " 个"
+	return strings.Join(assets[:limit], ", ") + " (total: " + itoa(len(assets)) + ")"
 }
 
-// itoa 是 strconv.Itoa 的短别名，仅用于拼接展示文本，避免到处 import strconv。
+// itoa é um alias curto de strconv.Itoa, usado só para montar o texto de exibição, evitando importar strconv por toda parte.
 func itoa(n int) string {
 	if n == 0 {
 		return "0"

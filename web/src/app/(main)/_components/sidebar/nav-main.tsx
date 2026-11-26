@@ -86,7 +86,7 @@ function hasSubItems(item: NavMainItem): item is NavMainParentItem {
 
 export function NavMain({ items }: NavMainProps) {
   const rawPath = usePathname();
-  // 路由段含中文，pathname 可能是百分号编码，解码后再与导航 url 比较，保证高亮命中。
+  // O segmento de rota contém chinês e o pathname pode vir codificado com percent-encoding; decodifica-se antes de comparar com a url da navegação, garantindo que o destaque funcione.
   const path = (() => {
     try {
       return decodeURIComponent(rawPath);

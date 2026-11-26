@@ -13,43 +13,43 @@ import (
 	"github.com/Autumn-27/artex/notify"
 )
 
-// 本文件是 IM 推送的渠道配置与事件层。投递任务的领取与状态流转见
-// db/notification_delivery.go。
+// Este arquivo é a camada de configuração de canais de push IM e de eventos. Para a reivindicação das tarefas de entrega e as transições de estado, ver
+// db/notification_delivery.go.
 //
-// 两条不变量，改这个文件时务必保持：
+// Duas invariantes que devem ser mantidas ao mexer neste arquivo:
 //
-//  1. 写漏洞的事务(RecordFindingTx)只调用 InsertNotificationEventTx 做一次盲插，
-//     不读任何通知相关的表、不做过滤匹配。任何在这里引入的读操作都可能因为
-//     用户配错的过滤条件而污染甚至中止漏洞写入事务。
-//  2. 过滤匹配永不报错：配置畸形一律按「命中」处理(见 notify.Match)。宁可多推，
-//     不可漏推。
+//  1. A transação que grava a vulnerabilidade (RecordFindingTx) só chama InsertNotificationEventTx para um insert cego,
+//     sem ler nenhuma tabela relacionada a notificações e sem fazer correspondência de filtros. Qualquer leitura introduzida aqui pode, por causa de
+//     um filtro mal configurado pelo usuário, contaminar ou até abortar a transação de gravação da vulnerabilidade.
+//  2. A correspondência de filtros nunca gera erro: configuração malformada é sempre tratada como "atingida" (ver notify.Match). Melhor
+//     empurrar a mais do que deixar de empurrar.
 
-// ErrNotificationChannelNotFound 渠道不存在。
-var ErrNotificationChannelNotFound = errors.New("通知渠道不存在")
+// ErrNotificationChannelNotFound: o canal não existe.
+var ErrNotificationChannelNotFound = errors.New("o canal de notificação não existe")
 
-// 投递状态。
+// Estados de entrega.
 const (
-	NotifyStatePending = "pending" // 待发
-	NotifyStateSending = "sending" // 已被某个 dispatcher 领取，租约未到期
-	NotifyStateSent    = "sent"    // 已送达
-	NotifyStateFailed  = "failed"  // 重试耗尽或永久失败，可手动重发
-	NotifyStateSkipped = "skipped" // 渠道已停用，不再发送
+	NotifyStatePending = "pending" // pendente de envio
+	NotifyStateSending = "sending" // reivindicado por algum dispatcher, lease ainda não expirou
+	NotifyStateSent    = "sent"    // entregue
+	NotifyStateFailed  = "failed"  // tentativas esgotadas ou falha permanente, pode ser reenviado manualmente
+	NotifyStateSkipped = "skipped" // canal desativado, não será mais enviado
 )
 
-// 推送模式。
+// Modos de push.
 const (
 	NotifyModeRealtime = "realtime"
 	NotifyModeDigest   = "digest"
 )
 
-// ValidNotifyMode 白名单校验推送模式（与 findings.status 同理：不用 DB CHECK，
-// 便于后续扩展）。
+// ValidNotifyMode valida o modo de push por lista de permissão (mesmo motivo de findings.status: sem CHECK no banco,
+// para facilitar extensões futuras).
 func ValidNotifyMode(m string) bool {
 	return m == NotifyModeRealtime || m == NotifyModeDigest
 }
 
-// NotificationChannel 是一个渠道实例配置。Config 与 Filter 保持原始 JSON，
-// 解析交给 notify 包——db 层不理解它们的字段含义。
+// NotificationChannel é a configuração de uma instância de canal. Config e Filter mantêm o JSON bruto,
+// e a interpretação fica com o pacote notify — a camada db não entende o significado dos seus campos.
 type NotificationChannel struct {
 	ID     int64           `json:"id"`
 	Name   string          `json:"name"`
@@ -57,18 +57,18 @@ type NotificationChannel struct {
 	Mode   string          `json:"mode"`
 	Config json.RawMessage `json:"config"`
 	Filter json.RawMessage `json:"filter"`
-	// Enabled 用指针是为了区分「没传这个字段」与「显式传 false」——
-	// 前端开关控件只提交被改动的字段。
+	// Enabled é um ponteiro para distinguir "o campo não foi enviado" de "false explícito" —
+	// o controle de interruptor do frontend só envia os campos que foram alterados.
 	Enabled    *bool     `json:"enabled,omitempty"`
 	RatePerMin int       `json:"rate_per_min"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
-// IsEnabled 返回渠道是否启用；Enabled 为 nil（未加载）时按启用处理。
+// IsEnabled retorna se o canal está habilitado; quando Enabled é nil (não carregado), é tratado como habilitado.
 func (c *NotificationChannel) IsEnabled() bool { return c.Enabled == nil || *c.Enabled }
 
-// NotificationEvent 是一条事件事实。
+// NotificationEvent é um fato de evento.
 type NotificationEvent struct {
 	ID        int64           `json:"id"`
 	Kind      string          `json:"kind"`
@@ -89,8 +89,8 @@ func scanNotificationChannel(sc interface{ Scan(...any) error }) (*NotificationC
 	return &c, nil
 }
 
-// ListNotificationChannels 返回全部渠道实例，启用的排在前面、同级按 id。
-// 排序放在 SQL 里是为了让 UI 与 dispatcher 看到同一个稳定顺序。
+// ListNotificationChannels retorna todas as instâncias de canal, habilitados primeiro e, no mesmo nível, por id.
+// A ordenação fica no SQL para que a UI e o dispatcher vejam a mesma ordem estável.
 func (d *DB) ListNotificationChannels(ctx context.Context) ([]*NotificationChannel, error) {
 	rows, err := d.QueryContext(ctx, `SELECT `+notificationChannelCols+` FROM notification_channels
 ORDER BY enabled DESC, id`)
@@ -109,7 +109,7 @@ ORDER BY enabled DESC, id`)
 	return out, rows.Err()
 }
 
-// NotificationChannelByID 取单个渠道。
+// NotificationChannelByID obtém um único canal.
 func (d *DB) NotificationChannelByID(ctx context.Context, id int64) (*NotificationChannel, error) {
 	row := d.QueryRowContext(ctx, `SELECT `+notificationChannelCols+` FROM notification_channels WHERE id=$1`, id)
 	c, err := scanNotificationChannel(row)
@@ -119,26 +119,26 @@ func (d *DB) NotificationChannelByID(ctx context.Context, id int64) (*Notificati
 	return c, err
 }
 
-// SaveNotificationChannel 新建或更新一个渠道。
+// SaveNotificationChannel cria ou atualiza um canal.
 //
-// 更新时只覆盖调用方显式给出的字段（非 nil / 非空），这样前端可以提交局部
-// 修改的抽屉表单，而不必回传 config 里那些它没展示的字段——回传反而会造成
-// 「掩码值把真实密钥覆盖掉」的事故。
+// Na atualização, só sobrescreve os campos explicitamente fornecidos pelo chamador (não nil / não vazios), assim o frontend pode enviar um formulário
+// de gaveta com edição parcial, sem precisar devolver os campos de config que ele não exibiu — devolvê-los causaria
+// o acidente de "o valor mascarado sobrescrever a chave real".
 func (d *DB) SaveNotificationChannel(ctx context.Context, c *NotificationChannel) (int64, error) {
 	if c.Mode == "" {
 		c.Mode = NotifyModeRealtime
 	}
-	// 这里刻意**不**对 0 做任何加工：0 是合法配置，含义是「不限流」。
+	// Aqui deliberadamente **não** se processa o 0: 0 é uma configuração válida, com o significado de "sem limite de taxa".
 	//
-	// 曾经写成 `if c.RatePerMin <= 0 { c.RatePerMin = 默认值 }`，本意是「未指定时
-	// 给个安全默认」，但那把「显式设成 0」也一起吞掉了——文档、UI 提示与
-	// takeTokens 都把 0 解释为不限流，唯独这里悄悄改成 20（钉钉/企微/Telegram）
-	// 或 100（飞书），操作者以为放开了限流、实际被 20/分钟卡着且没有任何提示。
+	// Já foi escrito como `if c.RatePerMin <= 0 { c.RatePerMin = valor padrão }`, com a intenção de "dar um padrão seguro quando não especificado",
+	// mas isso engolia também o "0 definido explicitamente" — a documentação, as dicas da UI e
+	// takeTokens interpretam 0 como sem limite, e só este ponto mudava silenciosamente para 20 (DingTalk/WeCom/Telegram)
+	// ou 100 (Feishu); o operador achava que tinha liberado o limite, mas na prática ficava preso a 20/minuto sem nenhum aviso.
 	//
-	// 「未指定」与「显式 0」的区别只有调用方知道（请求体里字段缺省 vs 明确传 0），
-	// 所以默认值由 server 层在字段缺省时填，见 notifyCreateChannel。
+	// A diferença entre "não especificado" e "0 explícito" só o chamador conhece (campo omitido no corpo da requisição vs 0 passado explicitamente),
+	// então o valor padrão é preenchido pela camada server quando o campo é omitido; ver notifyCreateChannel.
 	if c.RatePerMin < 0 {
-		return 0, errors.New("限流值不能为负")
+		return 0, errors.New("o valor de limite de taxa não pode ser negativo")
 	}
 	if c.Config == nil {
 		c.Config = json.RawMessage(`{}`)
@@ -168,10 +168,10 @@ WHERE id=$1`,
 	return c.ID, nil
 }
 
-// SetNotificationChannelEnabled 切换启停。
+// SetNotificationChannelEnabled alterna entre ligado e desligado.
 //
-// 停用一个渠道时，把它尚未发出的投递一并标记为 skipped：否则重新启用后
-// 会突然收到一批「停用期间积压」的旧漏洞，时效已失且容易误判为新增。
+// Ao desativar um canal, as entregas dele ainda não enviadas também são marcadas como skipped: senão, ao reativar,
+// chegaria de repente um lote de vulnerabilidades antigas "acumuladas durante a desativação", sem atualidade e fáceis de confundir com novas.
 func (d *DB) SetNotificationChannelEnabled(ctx context.Context, id int64, enabled bool) error {
 	return d.WithEvidenceTx(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx, `UPDATE notification_channels SET enabled=$2 WHERE id=$1`, id, enabled)
@@ -184,7 +184,7 @@ func (d *DB) SetNotificationChannelEnabled(ctx context.Context, id int64, enable
 		if !enabled {
 			if _, err := tx.ExecContext(ctx, `UPDATE notification_deliveries SET state=$2, last_error=$3
 WHERE channel_id=$1 AND state IN ($4,$5)`,
-				id, NotifyStateSkipped, "渠道已停用", NotifyStatePending, NotifyStateSending); err != nil {
+				id, NotifyStateSkipped, "canal desativado", NotifyStatePending, NotifyStateSending); err != nil {
 				return err
 			}
 		}
@@ -192,8 +192,8 @@ WHERE channel_id=$1 AND state IN ($4,$5)`,
 	})
 }
 
-// DeleteNotificationChannel 删除渠道。其投递历史随外键级联删除
-// （渠道配置都没了，历史无从解读）。
+// DeleteNotificationChannel exclui o canal. O histórico de entregas dele é excluído em cascata pela chave estrangeira
+// (sem a configuração do canal, o histórico não tem como ser interpretado).
 func (d *DB) DeleteNotificationChannel(ctx context.Context, id int64) error {
 	res, err := d.ExecContext(ctx, `DELETE FROM notification_channels WHERE id=$1`, id)
 	if err != nil {
@@ -205,53 +205,53 @@ func (d *DB) DeleteNotificationChannel(ctx context.Context, id int64) error {
 	return nil
 }
 
-// RecordNotificationEventTx 在调用方的事务里**尽力**写入一条推送事件。
+// RecordNotificationEventTx grava um evento de push na transação do chamador, em **melhor esforço**.
 //
-// 这是漏洞写入路径上唯一的通知相关改动：一次 INSERT，不读任何表、不认识渠道、
-// 不跑过滤。事务提交即保证「漏洞落库」与「推送任务存在」原子一致，
-// 不存在提交成功却没入队、消息永久丢失的窗口。
+// Esta é a única alteração relacionada a notificações no caminho de gravação de vulnerabilidades: um INSERT, sem ler nenhuma tabela, sem conhecer canais,
+// sem executar filtros. O commit da transação garante que "vulnerabilidade gravada" e "tarefa de push existente" sejam atomicamente consistentes,
+// sem a janela em que o commit tem sucesso mas nada é enfileirado e a mensagem se perde para sempre.
 //
-// 两个关键设计，都不是随手写的：
+// Dois pontos-chave de projeto, nenhum escrito por acaso:
 //
-//  1. **为什么用 SAVEPOINT**：PostgreSQL 里事务内任一语句报错会让整个事务进入
-//     aborted 状态，此后所有语句（含 COMMIT）一律失败。所以「忽略这条 INSERT
-//     的错误、让调用方继续提交」在 PG 里是做不到的——除非用保存点把错误隔离在
-//     这一条语句上。没有保存点，就只剩「整笔回滚」这一个选项。
+//  1. **Por que usar SAVEPOINT**: no PostgreSQL, o erro de qualquer instrução dentro da transação coloca a transação inteira no estado
+//     aborted, e depois disso todas as instruções (inclusive COMMIT) falham. Logo, "ignorar o erro deste INSERT
+//     e deixar o chamador dar commit" é impossível no PG — a menos que um savepoint isole o erro nesta única instrução.
+//     Sem o savepoint, só resta a opção de "reverter tudo".
 //
-//  2. **为什么整笔回滚是错的**：推送是便利功能，漏洞记录才是产品本身。一个通知
-//     表的问题（旧库未迁移、磁盘瞬时故障）不该让高危漏洞存不进库。所以这里隔离
-//     错误、记日志、返回 false，让漏洞写入照常提交——代价是丢掉这一条推送。
-//     返回 bool 而非 error 是刻意的：调用方不该把它当作会影响写入成败的错误。
+//  2. **Por que reverter tudo está errado**: o push é uma conveniência, o registro da vulnerabilidade é o próprio produto. Um problema na tabela de
+//     notificações (banco antigo sem migrar, falha transitória de disco) não deve impedir que uma vulnerabilidade de alto risco seja gravada. Por isso aqui isolamos
+//     o erro, registramos em log e retornamos false, deixando a gravação da vulnerabilidade fazer commit normalmente — o custo é perder este push.
+//     Retornar bool e não error é deliberado: o chamador não deve tratá-lo como um erro que afeta o sucesso da gravação.
 func RecordNotificationEventTx(ctx context.Context, tx *sql.Tx, kind string, findingID int64, snap notify.Snapshot) bool {
 	raw, err := json.Marshal(snap)
 	if err != nil {
-		log.Printf("[notify] 序列化推送事件失败 finding=%d: %v", findingID, err)
+		log.Printf("[notify] falha ao serializar o evento de push finding=%d: %v", findingID, err)
 		return false
 	}
 	if _, err := tx.ExecContext(ctx, `SAVEPOINT notify_event`); err != nil {
-		log.Printf("[notify] 建立保存点失败 finding=%d: %v", findingID, err)
+		log.Printf("[notify] falha ao criar o savepoint finding=%d: %v", findingID, err)
 		return false
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO notification_events(kind,finding_id,snapshot) VALUES($1,$2,$3)`,
 		kind, findingID, string(raw)); err != nil {
-		log.Printf("[notify] 写入推送事件失败 finding=%d（漏洞记录不受影响）: %v", findingID, err)
-		// 回滚到保存点，把事务从 aborted 状态里救回来。
+		log.Printf("[notify] falha ao gravar o evento de push finding=%d (o registro da vulnerabilidade não é afetado): %v", findingID, err)
+		// Reverte ao savepoint, resgatando a transação do estado aborted.
 		if _, rbErr := tx.ExecContext(ctx, `ROLLBACK TO SAVEPOINT notify_event`); rbErr != nil {
-			log.Printf("[notify] 回滚到保存点失败 finding=%d: %v", findingID, rbErr)
+			log.Printf("[notify] falha ao reverter ao savepoint finding=%d: %v", findingID, rbErr)
 		}
 		return false
 	}
-	// 释放保存点，避免长事务里积攒无用的保存点。
+	// Libera o savepoint, evitando acumular savepoints inúteis em transações longas.
 	_, _ = tx.ExecContext(ctx, `RELEASE SAVEPOINT notify_event`)
 	return true
 }
 
-// AddNotificationEvent 是 InsertNotificationEventTx 的独立事务版本，供不在
-// 既有事务里的调用点使用（如渠道的「发送测试消息」，它没有真实 finding）。
+// AddNotificationEvent é a versão em transação independente de InsertNotificationEventTx, para pontos de chamada que não estão
+// dentro de uma transação existente (como o "enviar mensagem de teste" do canal, que não tem finding real).
 func (d *DB) AddNotificationEvent(ctx context.Context, kind string, findingID int64, snap notify.Snapshot) (int64, error) {
 	raw, err := json.Marshal(snap)
 	if err != nil {
-		return 0, fmt.Errorf("序列化通知事件快照失败: %w", err)
+		return 0, fmt.Errorf("falha ao serializar o snapshot do evento de notificação: %w", err)
 	}
 	var id int64
 	err = d.QueryRowContext(ctx, `INSERT INTO notification_events(kind,finding_id,snapshot) VALUES($1,$2,$3) RETURNING id`,
@@ -259,19 +259,19 @@ func (d *DB) AddNotificationEvent(ctx context.Context, kind string, findingID in
 	return id, err
 }
 
-// FanOutPendingEvents 把尚未分派的漏洞事件按当前启用的渠道展开成投递任务，
-// 返回本轮处理的事件数与新建的投递数。
+// FanOutPendingEvents expande os eventos de vulnerabilidade ainda não despachados em tarefas de entrega, conforme os canais atualmente habilitados,
+// e retorna o número de eventos processados e de entregas criadas nesta rodada.
 //
-// 整轮操作在一个事务里：事件用 FOR UPDATE SKIP LOCKED 领取，多个进程同时跑
-// 也各自领到不同的行（项目里归档队列的领取用的是同一套手法，见
-// db/task_archives.go 的 completeNextArchiveJob）。
+// Toda a rodada acontece em uma transação: os eventos são reivindicados com FOR UPDATE SKIP LOCKED, e vários processos rodando ao mesmo tempo
+// também pegam linhas diferentes (a reivindicação da fila de arquivamento do projeto usa a mesma técnica, ver
+// completeNextArchiveJob em db/task_archives.go).
 //
-// 过滤匹配刻意放在 Go 侧而非 SQL：渠道的过滤条件是一组可选字段的 JSONB，
-// 用 SQL 表达六种组合的匹配会让查询难以维护，而渠道数量是「人手配的几条」，
-// 全量加载后在内存里逐条比对更快也更好测。
+// A correspondência de filtros fica deliberadamente no lado Go e não no SQL: o filtro do canal é um JSONB de campos opcionais,
+// e expressar em SQL a correspondência das seis combinações tornaria a consulta difícil de manter, enquanto o número de canais é "umas poucas configuradas à mão",
+// carregar tudo e comparar um a um em memória é mais rápido e mais fácil de testar.
 //
-// 未命中任何渠道的事件同样会被标记 fanned_out ——否则它会永远留在待分派集合里，
-// 每个 tick 被重扫一遍。
+// Eventos que não atingem nenhum canal também são marcados como fanned_out — senão ficariam para sempre no conjunto de pendentes de despacho,
+// sendo reescaneados a cada tick.
 func (d *DB) FanOutPendingEvents(ctx context.Context, limit int) (eventCount, deliveryCount int, err error) {
 	if limit <= 0 {
 		limit = 200
@@ -280,7 +280,7 @@ func (d *DB) FanOutPendingEvents(ctx context.Context, limit int) (eventCount, de
 	if err != nil {
 		return 0, 0, err
 	}
-	defer tx.Rollback() //nolint:errcheck // 提交成功后是 no-op
+	defer tx.Rollback() //nolint:errcheck // no-op após o commit bem-sucedido
 
 	channels, err := listEnabledNotificationChannelsTx(ctx, tx)
 	if err != nil {
@@ -302,11 +302,11 @@ WHERE NOT fanned_out ORDER BY id FOR UPDATE SKIP LOCKED LIMIT $1`, limit)
 			return 0, 0, err
 		}
 		var snap notify.Snapshot
-		// 快照是我们自己写的，理论上必定可解析；解析失败不阻断投递流程，
-		// 但这条事件会因字段全空而被所有带过滤条件的渠道跳过——宁可少推一条
-		// 也不让一个坏行卡死整个队列。
+		// O snapshot é escrito por nós mesmos e em teoria sempre é interpretável; uma falha de parsing não interrompe o fluxo de entrega,
+		// mas o evento será ignorado por todos os canais com condições de filtro, por ter todos os campos vazios — melhor empurrar um a menos
+		// do que deixar uma linha ruim travar a fila inteira.
 		_ = json.Unmarshal(ev.Snapshot, &snap)
-		// kind 以行内值为准：快照里那份是渲染用的副本，可能被旧版本写过。
+		// kind vale o valor da linha: o do snapshot é uma cópia para renderização e pode ter sido gravado por versões antigas.
 		snap.Kind = ev.Kind
 		events = append(events, ev)
 		parsedSnaps = append(parsedSnaps, snap)
@@ -346,7 +346,7 @@ WHERE NOT fanned_out ORDER BY id FOR UPDATE SKIP LOCKED LIMIT $1`, limit)
 		}
 	}
 
-	// 标记本轮事件已分派。未命中任何渠道的事件也一起标记（见函数注释）。
+	// Marca os eventos desta rodada como despachados. Eventos que não atingiram nenhum canal também são marcados (ver o comentário da função).
 	ids := make([]string, 0, len(events))
 	markArgs := make([]any, 0, len(events))
 	for _, ev := range events {
@@ -359,8 +359,8 @@ WHERE NOT fanned_out ORDER BY id FOR UPDATE SKIP LOCKED LIMIT $1`, limit)
 	return len(events), len(toInsert), tx.Commit()
 }
 
-// listEnabledNotificationChannelsTx 在事务里取启用中的渠道。数量很少，
-// 不做分页也不加缓存——缓存会引入「改了配置何时生效」这个额外的时序问题。
+// listEnabledNotificationChannelsTx obtém, dentro da transação, os canais habilitados. São poucos,
+// sem paginação nem cache — o cache traria um problema extra de temporização: "quando a mudança de configuração passa a valer".
 func listEnabledNotificationChannelsTx(ctx context.Context, tx *sql.Tx) ([]*NotificationChannel, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT id, name, kind, config, mode, filter, rate_per_min
 FROM notification_channels WHERE enabled ORDER BY id`)
@@ -379,11 +379,11 @@ FROM notification_channels WHERE enabled ORDER BY id`)
 	return out, rows.Err()
 }
 
-// NotificationAssetNames 把资产 id 解析成简短展示名，供推送消息使用。
+// NotificationAssetNames resolve ids de ativos em nomes de exibição curtos, para uso nas mensagens de push.
 //
-// 返回顺序与入参一致、长度可能小于入参（不存在的 id 被跳过）。保持入参顺序是
-// 为了让同一条漏洞的消息在多次投递里资产顺序稳定——否则重试后收到的消息里
-// 资产次序变了，会被误读成「资产变了」。
+// A ordem retornada é a mesma da entrada, e o tamanho pode ser menor que a entrada (ids inexistentes são ignorados). Manter a ordem de entrada serve
+// para que, nas várias entregas da mesma vulnerabilidade, a ordem dos ativos na mensagem seja estável — senão, a ordem dos ativos
+// na mensagem recebida após uma retentativa mudaria e seria lida como "os ativos mudaram".
 func (d *DB) NotificationAssetNames(ctx context.Context, ids []int64) ([]string, error) {
 	if len(ids) == 0 {
 		return nil, nil
@@ -424,9 +424,9 @@ func (d *DB) NotificationAssetNames(ctx context.Context, ids []int64) ([]string,
 	return out, nil
 }
 
-// assetDisplayName 按资产类型挑选最具辨识度的标识。
-// 兜底返回空串，由调用方决定怎么呈现「名字取不到的资产」——本函数不臆造占位符，
-// 否则「资产#42」这种噪音会混进推送消息里，读者还以为是真实域名。
+// assetDisplayName escolhe o identificador mais reconhecível conforme o tipo do ativo.
+// O fallback retorna string vazia, e o chamador decide como apresentar "um ativo cujo nome não foi obtido" — esta função não inventa placeholders,
+// senão ruídos como "Ativo #42" se misturariam à mensagem de push e o leitor pensaria que é um domínio real.
 func assetDisplayName(typ, domain, ip, url, appName, bundleID string) string {
 	pick := func(vals ...string) string {
 		for _, v := range vals {
@@ -450,17 +450,17 @@ func assetDisplayName(typ, domain, ip, url, appName, bundleID string) string {
 	}
 }
 
-// SetFindingStatusWithNotify 更新漏洞处置状态，并在同一事务里登记一条状态变更
-// 推送事件。
+// SetFindingStatusWithNotify atualiza o status de tratamento da vulnerabilidade e, na mesma transação, registra um evento de push de
+// mudança de status.
 //
-// 返回 from=变更前的状态；found=漏洞是否存在；notified=事件是否登记成功。
+// Retorna from = status antes da mudança; found = se a vulnerabilidade existe; notified = se o evento foi registrado com sucesso.
 //
-// 三条刻意的行为：
-//   - 状态未实际变化时不登记事件。前端抽屉重复提交同一个值、或自动化脚本
-//     幂等重放，都不该产出推送噪音。
-//   - 漏洞不存在时返回 found=false 且不做任何写入，由调用方翻译成 404。
-//   - 事件登记失败不影响状态更新（见 RecordNotificationEventTx 的保存点说明），
-//     所以 notified=false 时状态已经改成功了，调用方不应因此报错。
+// Três comportamentos deliberados:
+//   - Não registra evento quando o status não mudou de fato. O drawer do frontend reenviando o mesmo valor, ou um script de automação
+//     repetindo de forma idempotente, não devem produzir ruído de push.
+//   - Quando a vulnerabilidade não existe, retorna found=false sem gravar nada, e o chamador traduz isso em 404.
+//   - Falha ao registrar o evento não afeta a atualização do status (ver a explicação do savepoint em RecordNotificationEventTx),
+//     então com notified=false o status já foi alterado com sucesso e o chamador não deve devolver erro por isso.
 func (d *DB) SetFindingStatusWithNotify(ctx context.Context, id int64, status string) (from string, found bool, notified bool, err error) {
 	err = d.WithEvidenceTx(ctx, func(tx *sql.Tx) error {
 		var txErr error
@@ -470,16 +470,16 @@ func (d *DB) SetFindingStatusWithNotify(ctx context.Context, id int64, status st
 	return from, found, notified, err
 }
 
-// SetFindingStatusTx 在**调用方的事务**内更新漏洞状态并登记状态变更推送事件。
+// SetFindingStatusTx atualiza o status da vulnerabilidade **dentro da transação do chamador** e registra o evento de push de mudança de status.
 //
-// 抽成事务级函数是为了让所有改状态的路径共用同一套语义——此前只有
-// patchFinding 走带通知的版本，而**复测结论为「已修复」时**（finding_retests
-// 里那条 `UPDATE findings SET status=...`）是直接写库的，于是配了
-// `on_status_change` 的渠道对这类状态流转完全收不到推送：界面上状态悄悄变了，
-// 运维要到打开平台才发现。
+// Foi extraída como função em nível de transação para que todos os caminhos que mudam o status compartilhem a mesma semântica — antes, só
+// patchFinding usava a versão com notificação, e **quando a conclusão do reteste era "corrigido"** (aquele `UPDATE findings SET status=...`
+// em finding_retests) gravava direto no banco, então os canais configurados com
+// `on_status_change` não recebiam nenhum push desse tipo de transição: o status mudava em silêncio na interface,
+// e a operação só descobria ao abrir a plataforma.
 //
-// 返回 from=变更前状态、found=漏洞是否存在、changed=状态是否真的变了、
-// notified=事件是否登记成功（登记失败不影响状态更新，见 RecordNotificationEventTx）。
+// Retorna from = status antes da mudança, found = se a vulnerabilidade existe, changed = se o status de fato mudou,
+// notified = se o evento foi registrado com sucesso (falha no registro não afeta a atualização do status, ver RecordNotificationEventTx).
 func SetFindingStatusTx(ctx context.Context, tx *sql.Tx, id int64, status string) (from string, found bool, changed bool, notified bool, err error) {
 	var (
 		vulnclass, name, severity, summary string
@@ -497,8 +497,8 @@ FROM findings WHERE id=$1 FOR UPDATE`, id).
 	}
 	found = true
 	if from == status {
-		// 状态没有真的变化就不登记事件：重复提交同一个值、幂等重放都不该
-		// 产生推送噪音。
+		// Se o status não mudou de fato, não registra o evento: reenviar o mesmo valor ou repetir de forma idempotente não deve
+		// produzir ruído de push.
 		return from, true, false, false, nil
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE findings SET status=$2 WHERE id=$1`, id, status); err != nil {
@@ -521,19 +521,19 @@ FROM findings WHERE id=$1 FOR UPDATE`, id).
 	return from, true, true, notified, nil
 }
 
-// NotificationStats 是通知页顶部的概览计数。
+// NotificationStats são as contagens de visão geral no topo da página de notificações.
 type NotificationStats struct {
 	Channels     int   `json:"channels"`
 	ChannelsOn   int   `json:"channels_on"`
 	Pending      int   `json:"pending"`
 	Failed       int   `json:"failed"`
 	SentToday    int   `json:"sent_today"`
-	BacklogAgeMS int64 `json:"backlog_age_ms"` // 最老的待发投递距今毫秒数
+	BacklogAgeMS int64 `json:"backlog_age_ms"` // idade em milissegundos da entrega pendente mais antiga
 }
 
-// NotificationStatsSnapshot 汇总通知系统的健康度。
-// BacklogAgeMS 是「推送是不是卡住了」最直接的指标——比 pending 计数有用得多，
-// 因为积压 3 条和积压 3 条的差别可以是从 3 秒到 3 小时。
+// NotificationStatsSnapshot resume a saúde do sistema de notificações.
+// BacklogAgeMS é o indicador mais direto de "o push travou?" — muito mais útil que a contagem de pending,
+// pois a diferença entre 3 itens acumulados e 3 itens acumulados pode ser de 3 segundos a 3 horas.
 func (d *DB) NotificationStatsSnapshot(ctx context.Context) (*NotificationStats, error) {
 	var s NotificationStats
 	if err := d.QueryRowContext(ctx, `SELECT

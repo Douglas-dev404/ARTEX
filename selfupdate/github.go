@@ -11,28 +11,28 @@ import (
 	"time"
 )
 
-// Repo 是发布源。写死而不是做成配置项：更新源可配等于给任何能改配置的人一条
-// 远程代码执行通道，对一个渗透测试平台来说这个口子开不得。
+// Repo é a origem das releases. Fixo no código e não configurável: tornar a origem de atualização configurável daria a qualquer pessoa que possa alterar a configuração um canal de
+// execução remota de código, e numa plataforma de teste de intrusão essa porta não pode existir.
 const Repo = "Hinln/ARTEX"
 
-// GitHubTokenEnv 只由后端进程读取，不通过前端或配置 API 传递令牌。
+// GitHubTokenEnv é lido apenas pelo processo de backend; o token não passa pelo front-end nem pela API de configuração.
 const GitHubTokenEnv = "ARTEX_UPDATE_GITHUB_TOKEN"
 
-// latestURL 是 GitHub 的"最新正式版"接口。它会自动跳过 prerelease 和 draft。
+// latestURL é a API do GitHub para a "última versão estável". Ela ignora prerelease e draft automaticamente.
 const latestURL = "https://api.github.com/repos/" + Repo + "/releases/latest"
 
-// allowedHosts 限定升级链路能访问的域名。配合下面的 checkRedirect，
-// 任何一跳被重定向到名单外的主机都会直接失败——这是防止 DNS 污染 / 中间人
-// 把二进制换掉的第一道闸门，第二道是 SHA256SUMS 比对。
+// allowedHosts limita os domínios que a cadeia de atualização pode acessar. Em conjunto com o checkRedirect abaixo,
+// qualquer redirecionamento para um host fora da lista falha imediatamente — esta é a primeira barreira contra envenenamento de DNS / man-in-the-middle
+// trocando o binário; a segunda é a comparação do SHA256SUMS.
 var allowedHosts = map[string]bool{
 	"api.github.com":                       true,
 	"github.com":                           true,
-	"objects.githubusercontent.com":        true, // release 资产实际落地的对象存储
+	"objects.githubusercontent.com":        true, // armazenamento de objetos onde os assets da release realmente ficam
 	"release-assets.githubusercontent.com": true,
 	"raw.githubusercontent.com":            true,
 }
 
-// Release 是 GitHub Release 里我们关心的字段。
+// Release contém os campos do GitHub Release que nos interessam.
 type Release struct {
 	TagName     string    `json:"tag_name"`
 	Name        string    `json:"name"`
@@ -44,7 +44,7 @@ type Release struct {
 	Assets      []Asset   `json:"assets"`
 }
 
-// Asset 是 Release 上挂的一个文件。
+// Asset é um arquivo anexado a uma Release.
 type Asset struct {
 	Name   string `json:"name"`
 	URL    string `json:"browser_download_url"`
@@ -52,7 +52,7 @@ type Asset struct {
 	Size   int64  `json:"size"`
 }
 
-// 私有仓库的附件需通过 Release Asset API 携带认证下载。
+// Anexos de repositório privado precisam ser baixados com autenticação pela Release Asset API.
 func (a Asset) downloadURL() string {
 	if a.APIURL != "" {
 		return a.APIURL
@@ -60,8 +60,8 @@ func (a Asset) downloadURL() string {
 	return a.URL
 }
 
-// setUpdateAuth 仅向固定发布仓库的 HTTPS API 发送令牌。附件重定向到
-// GitHub 对象存储时使用签名 URL，不得把 Authorization 一并转发。
+// setUpdateAuth envia o token apenas à API HTTPS do repositório de releases fixo. Quando o anexo é redirecionado
+// para o armazenamento de objetos do GitHub, usa-se URL assinada, e o Authorization não deve ser encaminhado junto.
 func setUpdateAuth(req *http.Request) {
 	req.Header.Del("Authorization")
 	u := req.URL
@@ -75,10 +75,10 @@ func setUpdateAuth(req *http.Request) {
 	}
 }
 
-// NewClient 构造一个只认 GitHub 域名的 HTTP 客户端。proxy 为空则直连。
+// NewClient constrói um cliente HTTP que só aceita domínios do GitHub. Se proxy estiver vazio, conecta direto.
 //
-// 刻意不复用默认 Transport：升级链路必须强制走 TLS 且校验证书，不能被别处
-// 设置的 InsecureSkipVerify 之类影响到。
+// Deliberadamente não reutiliza o Transport padrão: a cadeia de atualização precisa forçar TLS e validar o certificado, sem ser afetada por
+// InsecureSkipVerify e similares definidos em outros lugares.
 func NewClient(proxy string) *http.Client {
 	tr := &http.Transport{
 		ForceAttemptHTTP2:   true,
@@ -91,10 +91,10 @@ func NewClient(proxy string) *http.Client {
 	}
 	return &http.Client{
 		Transport: tr,
-		Timeout:   30 * time.Minute, // 下载整包，不能按请求级超时卡死
+		Timeout:   30 * time.Minute, // baixa o pacote inteiro; não pode travar por timeout em nível de requisição
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 10 {
-				return fmt.Errorf("重定向次数过多")
+				return fmt.Errorf("redirecionamentos demais")
 			}
 			if err := checkURL(req.URL); err != nil {
 				return err
@@ -105,18 +105,18 @@ func NewClient(proxy string) *http.Client {
 	}
 }
 
-// checkURL 强制 https + 域名白名单。
+// checkURL força https + lista de domínios permitidos.
 func checkURL(u *url.URL) error {
 	if u.Scheme != "https" {
-		return fmt.Errorf("拒绝非 HTTPS 地址: %s", u.Scheme+"://"+u.Host)
+		return fmt.Errorf("endereço não HTTPS recusado: %s", u.Scheme+"://"+u.Host)
 	}
 	if !allowedHosts[strings.ToLower(u.Hostname())] {
-		return fmt.Errorf("拒绝非 GitHub 域名: %s", u.Hostname())
+		return fmt.Errorf("domínio fora do GitHub recusado: %s", u.Hostname())
 	}
 	return nil
 }
 
-// FetchLatest 查询最新正式版。
+// FetchLatest consulta a última versão estável.
 func FetchLatest(ctx context.Context, c *http.Client) (*Release, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, latestURL, nil)
 	if err != nil {
@@ -131,40 +131,40 @@ func FetchLatest(ctx context.Context, c *http.Client) (*Release, error) {
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("访问 GitHub 失败（可在系统设置里配置全局代理）: %w", err)
+		return nil, fmt.Errorf("falha ao acessar o GitHub (é possível configurar um proxy global nas configurações do sistema): %w", err)
 	}
 	defer resp.Body.Close()
 
 	switch {
 	case resp.StatusCode == http.StatusUnauthorized:
-		return nil, fmt.Errorf("GitHub 认证失败，请检查后端环境变量 %s", GitHubTokenEnv)
+		return nil, fmt.Errorf("falha de autenticação no GitHub; verifique a variável de ambiente do backend %s", GitHubTokenEnv)
 	case resp.StatusCode == http.StatusForbidden:
-		return nil, fmt.Errorf("GitHub 拒绝访问：请检查令牌的仓库 Contents 读取权限或 API 限额")
+		return nil, fmt.Errorf("o GitHub negou o acesso: verifique a permissão de leitura de Contents do repositório no token ou a cota da API")
 	case resp.StatusCode == http.StatusTooManyRequests:
-		return nil, fmt.Errorf("GitHub 接口限流，请稍后再试")
+		return nil, fmt.Errorf("limite de requisições da API do GitHub atingido, tente novamente mais tarde")
 	case resp.StatusCode == http.StatusNotFound:
-		return nil, fmt.Errorf("仓库 %s 不可访问或尚未发布正式版本；私有仓库请在后端设置 %s（需 Contents 读取权限）", Repo, GitHubTokenEnv)
+		return nil, fmt.Errorf("o repositório %s está inacessível ou ainda não publicou versão estável; para repositório privado, defina %s no backend (requer permissão de leitura de Contents)", Repo, GitHubTokenEnv)
 	case resp.StatusCode != http.StatusOK:
-		return nil, fmt.Errorf("GitHub 返回 %d", resp.StatusCode)
+		return nil, fmt.Errorf("GitHub retornou %d", resp.StatusCode)
 	}
 
 	var rel Release
 	if err := json.NewDecoder(resp.Body).Decode(&rel); err != nil {
-		return nil, fmt.Errorf("解析 Release 失败: %w", err)
+		return nil, fmt.Errorf("falha ao interpretar a Release: %w", err)
 	}
 	if strings.TrimSpace(rel.TagName) == "" {
-		return nil, fmt.Errorf("Release 缺少 tag")
+		return nil, fmt.Errorf("Release sem tag")
 	}
 	return &rel, nil
 }
 
-// AssetName 返回当前平台对应的发布包名，与 build.sh 的 package_binary 保持一致：
-// artex-<版本>-<os>-<arch>.zip（版本号不带 v 前缀）。
+// AssetName retorna o nome do pacote de release da plataforma atual, consistente com o package_binary do build.sh:
+// artex-<versão>-<os>-<arch>.zip (o número da versão não leva o prefixo v).
 func AssetName(tag, goos, goarch string) string {
 	return fmt.Sprintf("artex-%s-%s-%s.zip", strings.TrimPrefix(tag, "v"), goos, goarch)
 }
 
-// FindAsset 在 Release 里按名字找资产。
+// FindAsset procura um asset na Release pelo nome.
 func (r *Release) FindAsset(name string) (Asset, bool) {
 	for _, a := range r.Assets {
 		if strings.EqualFold(a.Name, name) {

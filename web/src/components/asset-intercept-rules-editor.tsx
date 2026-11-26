@@ -9,24 +9,24 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import type { AssetInterceptKind, AssetInterceptRuleInput } from "@/lib/types";
 
-// 用 NativeSelect（原生 <select>）而非 shadcn Select：这个编辑器会用在 Sheet 抽屉内，
-// shadcn Select 的下拉 portal 到 body、点击外部会触发抽屉的「点击外部关闭」误关；原生下拉无此问题。
+// Usa NativeSelect (<select> nativo) em vez do Select do shadcn: este editor é usado dentro de um Sheet (gaveta),
+// e o dropdown do shadcn Select faz portal para o body, e clicar fora dispara o "fechar ao clicar fora" da gaveta, fechando-a por engano; o dropdown nativo não tem esse problema.
 export const ASSET_INTERCEPT_KIND_OPTIONS: {
   value: AssetInterceptKind;
   label: string;
   placeholder: string;
 }[] = [
-  { value: "exact_domain", label: "域名(全等)", placeholder: "example.gov.cn" },
-  { value: "exact_ip", label: "IP(全等)", placeholder: "203.0.113.10" },
-  { value: "exact_url", label: "URL(全等)", placeholder: "https://example.com/login" },
-  { value: "fuzzy_domain", label: "域名(模糊)", placeholder: ".gov.cn" },
-  { value: "fuzzy_ip", label: "IP(模糊)", placeholder: "203.0.113." },
-  { value: "fuzzy_url", label: "URL(模糊)", placeholder: "/admin" },
-  { value: "cidr", label: "CIDR 网段", placeholder: "192.168.0.0/16" },
+  { value: "exact_domain", label: "Domínio (exato)", placeholder: "example.gov.cn" },
+  { value: "exact_ip", label: "IP (exato)", placeholder: "203.0.113.10" },
+  { value: "exact_url", label: "URL (exata)", placeholder: "https://example.com/login" },
+  { value: "fuzzy_domain", label: "Domínio (parcial)", placeholder: ".gov.cn" },
+  { value: "fuzzy_ip", label: "IP (parcial)", placeholder: "203.0.113." },
+  { value: "fuzzy_url", label: "URL (parcial)", placeholder: "/admin" },
+  { value: "cidr", label: "Faixa CIDR", placeholder: "192.168.0.0/16" },
 ];
 
-// AssetInterceptRulesEditor 是「拦截/允许规则」的受控多行编辑区（拦截block/允许allow +
-// 类型 + 匹配内容 + 备注），不自带持久化——由父组件决定何时提交。
+// AssetInterceptRulesEditor é a área de edição controlada, com várias linhas, das "regras de interceptação/permissão" (interceptar block/permitir allow +
+// tipo + conteúdo de correspondência + observação), sem persistência própria: o componente pai decide quando enviar.
 export function AssetInterceptRulesEditor({
   value,
   onChange,
@@ -48,7 +48,7 @@ export function AssetInterceptRulesEditor({
       {value.map((r, i) => {
         const ph = ASSET_INTERCEPT_KIND_OPTIONS.find((o) => o.value === r.kind)?.placeholder ?? "";
         return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: 行无稳定 id，按索引受控即可
+          // biome-ignore lint/suspicious/noArrayIndexKey: as linhas não têm id estável, basta controlar por índice
           <div key={i} className="flex items-center gap-2">
             <NativeSelect
               size="sm"
@@ -56,8 +56,8 @@ export function AssetInterceptRulesEditor({
               value={r.action}
               onChange={(e) => update(i, { action: e.target.value as "block" | "allow" })}
             >
-              <NativeSelectOption value="block">拦截</NativeSelectOption>
-              <NativeSelectOption value="allow">允许</NativeSelectOption>
+              <NativeSelectOption value="block">Interceptar</NativeSelectOption>
+              <NativeSelectOption value="allow">Permitir</NativeSelectOption>
             </NativeSelect>
             <NativeSelect
               size="sm"
@@ -79,7 +79,7 @@ export function AssetInterceptRulesEditor({
             />
             <Input
               className="w-[120px] shrink-0"
-              placeholder="备注(可选)"
+              placeholder="Observação (opcional)"
               value={r.note}
               onChange={(e) => update(i, { note: e.target.value })}
             />
@@ -96,7 +96,7 @@ export function AssetInterceptRulesEditor({
         );
       })}
       <Button type="button" size="sm" variant="outline" className="w-fit" onClick={add}>
-        <PlusIcon className="size-4" /> 添加一条
+        <PlusIcon className="size-4" /> Adicionar uma regra
       </Button>
     </div>
   );

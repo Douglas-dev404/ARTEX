@@ -131,7 +131,7 @@ func renderPlannerTodos(items []actool.Todo) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("\n\n【你的规划待办（跨唤醒保留，上一轮你写的）】：\n")
+	b.WriteString("\n\n[Sua lista de pendências de planejamento (mantida entre despertares, escrita por você na rodada anterior)]:\n")
 	for _, it := range items {
 		mark := map[actool.TodoStatus]string{actool.TodoPending: "☐", actool.TodoInProgress: "▶", actool.TodoCompleted: "✔"}[it.Status]
 		if mark == "" {
@@ -139,7 +139,7 @@ func renderPlannerTodos(items []actool.Todo) string {
 		}
 		b.WriteString(fmt.Sprintf("  %s %s\n", mark, it.Content))
 	}
-	b.WriteString("据此推进：只对【前置步骤已完成 / 其依赖的 fact 已存在】的下一步派意图；用 TodoWrite 更新清单（把已被 fact 满足的步骤标 completed）。不要重复派已在清单里 pending/in_progress 的步骤。")
+	b.WriteString("Avance com base nisso: só despache intenções para o próximo passo cujos [passos pré-requisitos já foram concluídos / cujos facts dos quais depende já existem]; use TodoWrite para atualizar a lista (marque como completed os passos já satisfeitos por facts). Não despache de novo passos que já estão pending/in_progress na lista.")
 	return b.String()
 }
 
@@ -148,22 +148,22 @@ func renderPlannerTodos(items []actool.Todo) string {
 // overview. Kind:
 //
 //	"done"    — a worker finished intent IntentID (its output conclusion is fetched).
-//	"finding" — a worker reported a finding on intent IntentID (Detail = 摘要).
-//	"goal"    — the human (via 主 agent 的 set_goals) added one OR MORE goals in a
-//	            single call (Goals = 本次新增的目标文本，1+ 条；set_goals 支持批量).
-//	"goal_deleted" — the human deleted a goal from 总览的目标管理 (Detail = 被删目标文本).
-//	"goal_edited"  — the human edited a goal from 总览的目标管理 (OldGoal→NewGoal 文本).
-//	"cancelled" — the human deleted intent IntentID (Detail = 删除原因). The intent is
+//	"finding" — a worker reported a finding on intent IntentID (Detail = resumo).
+//	"goal"    — the human (via set_goals do agent principal) added one OR MORE goals in a
+//	            single call (Goals = texto dos objetivos adicionados desta vez, 1+; set_goals suporta lote).
+//	"goal_deleted" — the human deleted a goal from o gerenciamento de objetivos da visão geral (Detail = texto do objetivo excluído).
+//	"goal_edited"  — the human edited a goal from o gerenciamento de objetivos da visão geral (OldGoal→NewGoal = texto).
+//	"cancelled" — the human deleted intent IntentID (Detail = motivo da exclusão). The intent is
 //	            stopped (not deleted) and the reason is attached to it as a fact.
 type TriggerEvent struct {
 	Kind     string
 	IntentID int64
 	Detail   string
-	Summary  string   // Kind=="cancelled" 专用：删除前捕获的意图摘要（真删除后节点已不存在，无法再查）
-	Goals    []string // Kind=="goal" 专用：本次 set_goals 新增的目标文本（1 条或多条）
-	OldGoal  string   // Kind=="goal_edited" 专用：修改前的目标文本
-	NewGoal  string   // Kind=="goal_edited" 专用：修改后的目标文本
-	Hints    []string // Kind=="hint" 专用：本次 add_hint 新增的提示文本（1 条或多条）
+	Summary  string   // exclusivo de Kind=="cancelled": resumo da intenção capturado antes da exclusão (após exclusão definitiva o nó não existe mais e não pode ser consultado)
+	Goals    []string // exclusivo de Kind=="goal": texto dos objetivos adicionados por este set_goals (um ou vários)
+	OldGoal  string   // exclusivo de Kind=="goal_edited": texto do objetivo antes da edição
+	NewGoal  string   // exclusivo de Kind=="goal_edited": texto do objetivo depois da edição
+	Hints    []string // exclusivo de Kind=="hint": texto dos hints adicionados por este add_hint (um ou vários)
 }
 
 // renderTriggers spells out the change(s) that fired this round: for a finished
@@ -175,46 +175,46 @@ func renderTriggers(ts *db.ExplorationStore, evs []TriggerEvent) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("\n\n【本次触发本轮的实际变动（先看这里，再决定是否补方向）】：")
+	b.WriteString("\n\n[Mudanças reais que dispararam esta rodada (veja aqui primeiro, depois decida se deve complementar a direção)]:")
 	for _, ev := range evs {
 		switch ev.Kind {
 		case "goal":
 			if len(ev.Goals) == 1 {
-				b.WriteString(fmt.Sprintf("\n- 人（主 agent）新增了一个目标：%s —— 新的待达成目标，请据此补充探索方向（若尚无对应意图）。", ev.Goals[0]))
+				b.WriteString(fmt.Sprintf("\n- A pessoa (agent principal) adicionou um objetivo: %s — novo objetivo a ser alcançado; complemente a direção de exploração com base nele (se ainda não houver intenção correspondente).", ev.Goals[0]))
 			} else {
-				b.WriteString(fmt.Sprintf("\n- 人（主 agent）新增了 %d 个目标：%s —— 均为新的待达成目标，请逐一为尚无对应意图的目标补充探索方向。", len(ev.Goals), strings.Join(ev.Goals, "；")))
+				b.WriteString(fmt.Sprintf("\n- A pessoa (agent principal) adicionou %d objetivos: %s — todos são novos objetivos a serem alcançados; complemente, um a um, a direção de exploração dos objetivos que ainda não têm intenção correspondente.", len(ev.Goals), strings.Join(ev.Goals, "; ")))
 			}
 		case "hint":
 			if len(ev.Hints) == 1 {
-				b.WriteString(fmt.Sprintf("\n- 人（主 agent）新增了一条战略提示：%s —— 已挂到探索图上，请据此调整/补充探索方向（若尚无对应意图）。", ev.Hints[0]))
+				b.WriteString(fmt.Sprintf("\n- A pessoa (agent principal) adicionou uma dica estratégica: %s — já foi anexada ao grafo de exploração; ajuste/complemente a direção de exploração com base nela (se ainda não houver intenção correspondente).", ev.Hints[0]))
 			} else {
-				b.WriteString(fmt.Sprintf("\n- 人（主 agent）新增了 %d 条战略提示：%s —— 均已挂到探索图上，请逐一据此调整/补充探索方向。", len(ev.Hints), strings.Join(ev.Hints, "；")))
+				b.WriteString(fmt.Sprintf("\n- A pessoa (agent principal) adicionou %d dicas estratégicas: %s — todas já foram anexadas ao grafo de exploração; ajuste/complemente, uma a uma, a direção de exploração com base nelas.", len(ev.Hints), strings.Join(ev.Hints, "; ")))
 			}
 		case "goal_deleted":
-			b.WriteString(fmt.Sprintf("\n- 人删除了该目标：%s —— 该目标已移除，请据此重判剩余目标/方向（不必再为它派意图）。", ev.Detail))
+			b.WriteString(fmt.Sprintf("\n- A pessoa excluiu este objetivo: %s — o objetivo foi removido; reavalie com base nisso os objetivos/direções restantes (não é mais necessário despachar intenções para ele).", ev.Detail))
 		case "goal_edited":
-			b.WriteString(fmt.Sprintf("\n- 人修改了目标，由「%s」变为「%s」—— 请据新目标调整探索方向（原方向若已不适用请停派）。", ev.OldGoal, ev.NewGoal))
+			b.WriteString(fmt.Sprintf("\n- A pessoa alterou o objetivo, de \"%s\" para \"%s\" — ajuste a direção de exploração conforme o novo objetivo (se a direção original não se aplica mais, pare de despachá-la).", ev.OldGoal, ev.NewGoal))
 		case "finding":
-			b.WriteString(fmt.Sprintf("\n- 意图 #%d（%s）的 worker 报告了一个 finding：%s", ev.IntentID, intentSummary(ts, ev.IntentID), ev.Detail))
+			b.WriteString(fmt.Sprintf("\n- O worker da intenção #%d (%s) reportou um finding: %s", ev.IntentID, intentSummary(ts, ev.IntentID), ev.Detail))
 		case "cancelled":
-			// 意图内容优先用删除时捕获的 Summary（真删除后节点已不存在，intentSummary 查不到）。
+			// Para o conteúdo da intenção, dá-se preferência ao Summary capturado na exclusão (após exclusão definitiva o nó não existe mais e intentSummary não o encontra).
 			sm := ev.Summary
 			if sm == "" {
 				sm = intentSummary(ts, ev.IntentID)
 			}
-			b.WriteString(fmt.Sprintf("\n- 意图 #%d 由用户删除，意图内容是：%s、删除原因是：%s。该意图已删除（不再执行）；请据此重新规划。", ev.IntentID, sm, ev.Detail))
+			b.WriteString(fmt.Sprintf("\n- A intenção #%d foi excluída pelo usuário; o conteúdo da intenção era: %s; o motivo da exclusão foi: %s. Esta intenção foi excluída (não será mais executada); replaneje com base nisso.", ev.IntentID, sm, ev.Detail))
 		default: // "done"
-			b.WriteString(fmt.Sprintf("\n- 意图 #%d（%s）的 worker 结束，输出结论：%s", ev.IntentID, intentSummary(ts, ev.IntentID), workerOutput(ts, ev.IntentID)))
+			b.WriteString(fmt.Sprintf("\n- O worker da intenção #%d (%s) terminou, conclusão da saída: %s", ev.IntentID, intentSummary(ts, ev.IntentID), workerOutput(ts, ev.IntentID)))
 			if fids := factIDsYielded(ts, ev.IntentID); fids != "" {
-				b.WriteString(fmt.Sprintf("；本意图新产生的事实 id：%s ", fids))
+				b.WriteString(fmt.Sprintf("; ids dos fatos novos produzidos por esta intenção: %s ", fids))
 			}
 		}
 	}
-	b.WriteString("\n（完整细节可 node_detail / get_worker_output / list_findings 再查。）")
+	b.WriteString("\n(Para detalhes completos, consulte novamente com node_detail / get_worker_output / list_findings.)")
 	return b.String()
 }
 
-// factIDsYielded lists the fact ids an intent produced this run as "#12、#15", so the
+// factIDsYielded lists the fact ids an intent produced this run as "#12, #15", so the
 // planner can jump straight to the round's incremental facts. Empty (best-effort) when
 // the intent yielded no facts or the lookup fails.
 func factIDsYielded(ts *db.ExplorationStore, id int64) string {
@@ -226,7 +226,7 @@ func factIDsYielded(ts *db.ExplorationStore, id int64) string {
 	for i, fid := range ids {
 		parts[i] = fmt.Sprintf("#%d", fid)
 	}
-	return strings.Join(parts, "、")
+	return strings.Join(parts, ", ")
 }
 
 // intentSummary reads an intent node's one-line summary (best-effort, "?" on miss).
@@ -249,7 +249,7 @@ func intentSummary(ts *db.ExplorationStore, id int64) string {
 func workerOutput(ts *db.ExplorationStore, id int64) string {
 	acts, _, err := ts.ActivityList(&id, 0, 1000)
 	if err != nil {
-		return "(取输出失败)"
+		return "(falha ao obter a saída)"
 	}
 	var pick *db.Activity
 	for i := range acts {
@@ -260,7 +260,7 @@ func workerOutput(ts *db.ExplorationStore, id int64) string {
 		}
 	}
 	if pick == nil {
-		return "(该 work 尚无输出记录)"
+		return "(este work ainda não tem registro de saída)"
 	}
 	out, _ := ts.ActivityDetail(pick.ID)
 	if out == "" {
@@ -276,7 +276,7 @@ func truncOutput(s string, n int) string {
 	if len(r) <= n {
 		return s
 	}
-	return string(r[:n]) + " …（已截断，完整见 get_worker_output）"
+	return string(r[:n]) + " … (truncado; texto completo em get_worker_output)"
 }
 
 // renderGraphOverview folds the pre-computed graph_overview snapshot into the
@@ -289,55 +289,55 @@ func renderGraphOverview(data map[string]any) string {
 	if err != nil {
 		return "" // fall back to the model calling graph_overview itself
 	}
-	return "\n\n【本轮态势（graph_overview 预取，等同你调用该工具的返回；需要细节再按需调 node_detail/list_facts 等）】：\n" + string(b)
+	return "\n\n[Panorama desta rodada (pré-carregado de graph_overview, equivalente ao retorno de você chamar essa ferramenta; para detalhes, chame node_detail/list_facts etc. sob demanda)]:\n" + string(b)
 }
 
-// plannerDefaultTmpl is the built-in EDITABLE body (段 [A]) of the planner prompt,
-// seeded into agent_prompts. Goal is a {{.Goal}} template var; the 中间产物输出规约
+// plannerDefaultTmpl is the built-in EDITABLE body (seção [A]) of the planner prompt,
+// seeded into agent_prompts. Goal is a {{.Goal}} template var; the convenção de saída de artefatos intermediários
 // tail is code-owned (artifactSpec) and appended by plannerSystem after rendering.
-const plannerDefaultTmpl = `你是一个网络安全平台授权渗透测试系统的"规划者"，被频繁唤醒（图一变就唤醒）。职责：读态势 → 判目标 → **只在确有未被覆盖的新方向时**补充探索意图。你是规划者、不是执行者：本轮所有产物只能是【生成/说清意图】或【判定目标】，绝不在 plan 里把活干了。
+const plannerDefaultTmpl = `Você é o "planejador" de um sistema autorizado de teste de intrusão de uma plataforma de segurança cibernética, e é despertado com frequência (desperta sempre que o grafo muda). Responsabilidades: ler o panorama → julgar os objetivos → **só quando houver de fato uma nova direção não coberta**, acrescentar intenções de exploração. Você é o planejador, não o executor: todos os produtos desta rodada só podem ser [gerar/explicitar intenções] ou [julgar objetivos], jamais fazer o trabalho dentro do plan.
 
-任务目标：{{.Goal}}
+Objetivo da tarefa: {{.Goal}}
 
-**本轮该产出几个意图（先想清楚这条）**：
-- **硬底线（最高优先）**：只要【目标未达成】且【当前没有任何 open 或 running 意图】（frontier_open=0 且 running_intents 为空），本轮就【必须】产出至少一个向目标推进的意图——没有在跑的 work 可等、也没有在排队的方向时，产出 0 意图=任务停摆；哪怕已知方向都只在 recent_done 里，也要据下面 done/exhausted/blocked 的判断另开一条或续派一条。
-- 硬底线之外，**产出 0 个意图是正常结果，但要有正当理由**（不是"少派更稳"的默认）：①**已覆盖**——你想到的方向都已被仍在 open/running 的意图处理（换措辞重复生成已存在的意图是严重错误）；②**等待依赖**——下一步依赖当前在跑 work 的产出、而它还没出来（此时硬派会让下游拿不到前置而空转，应等下次唤醒图更新后再派）。
-- 反过来：确有【未覆盖、且不依赖在跑 work】的新方向，或目标未达成且范围内仍有未测面，就该派——别把 0 意图当偷懒的默认。
+**Quantas intenções esta rodada deve produzir (pense nisto primeiro)**:
+- **Piso rígido (prioridade máxima)**: enquanto [o objetivo não foi atingido] e [não há nenhuma intenção open ou running no momento] (frontier_open=0 e running_intents vazio), esta rodada [deve] produzir pelo menos uma intenção que avance rumo ao objetivo — sem nenhum work em execução para esperar, e sem nenhuma direção na fila, produzir 0 intenção = tarefa paralisada; mesmo que as direções conhecidas estejam só em recent_done, é preciso, conforme o julgamento de done/exhausted/blocked abaixo, abrir uma nova ou continuar uma.
+- Além do piso rígido, **produzir 0 intenção é um resultado normal, mas precisa de justificativa legítima** (não é o padrão de "despachar menos é mais seguro"): ① **já coberto** — as direções em que você pensou já são tratadas por intenções ainda open/running (gerar de novo, com outras palavras, uma intenção já existente é um erro grave); ② **aguardando dependência** — o próximo passo depende da produção de um work em execução que ainda não saiu (despachar à força faria o downstream ficar sem o pré-requisito e girar em vazio; deve-se esperar o grafo ser atualizado no próximo despertar para então despachar).
+- Inversamente: havendo uma nova direção [não coberta e que não depende de work em execução], ou o objetivo não foi atingido e ainda existem superfícies não testadas dentro do escopo, deve-se despachar — não trate 0 intenção como padrão de preguiça.
 
-**每次唤醒的决策流程**：
+**Fluxo de decisão a cada despertar**:
 
-1. **完整态势已附在本提示下方**（就是 graph_overview 的返回，无需再调它）：task（原始标题+目标/根节点）、资产计数、goals+状态、open/running/recent_done 意图、sites_without_endpoints（无端点的站点，提示可能待探的方向）、facts（探索事实数，与漏洞是两类）、recent_facts（{id,summary,confidence?}）。
-   - **范围**：探索节点（goals/意图/facts/findings）只含本任务；**资产图全局共享**（多任务同一份，资产计数是全局在范围内的、非本任务独有）——出现非本任务相关的资产时忽略。
-   - **血缘**：每个意图带 parents（上游：派生自哪些事实/意图）和 yields（下游：产生了哪些事实/发现），recent_facts 每条带 from_intent；据此理解"哪些事实来自哪个方向、能否综合出新方向"。
-   - **否定/存疑观察**（recent_facts 里"端口关闭/不可注入"等）是 worker 的观察、不是定论：采信前先 node_detail(id) 看 evidence——evidence 扎实、confidence=observed 且手段已穷尽的才视为该方向暂时封住；evidence 缺失、只是"看起来像/只探一次"、或 confidence=inferred 的，按【尚未探明】处理，若在范围内且无其它意图覆盖，默认派一条复核意图去证实或推翻（**同一否定方向至多复核一次**；复核后仍为否定、且证据合理，就尊重该结论、不再派）。
-   - **要更深细节才按需调**：list_facts（分页，最新在前，默认 20，可 q 过滤、before 翻页，带 total/has_more）、list_findings（全部漏洞）、node_detail(id)（完整证据/详情；列表/recent_facts 只给摘要）、list_assets（pull：q 搜索、type/company_id/task_id 过滤、分页，或 id/ids 直取）、asset_neighbors。资产全局共享，别默认拉全量。
+1. **O panorama completo já está anexado abaixo deste prompt** (é o retorno de graph_overview, não precisa chamá-lo de novo): task (título original + objetivo/nó raiz), contagem de ativos, goals + estado, intenções open/running/recent_done, sites_without_endpoints (sites sem endpoints, sugerem direções possivelmente a explorar), facts (quantidade de fatos de exploração, categoria distinta de vulnerabilidades), recent_facts ({id,summary,confidence?}).
+   - **Escopo**: os nós de exploração (goals/intenções/facts/findings) contêm apenas esta tarefa; **o grafo de ativos é compartilhado globalmente** (uma só cópia para várias tarefas, a contagem de ativos é global dentro do escopo, não exclusiva desta tarefa) — ao aparecerem ativos não relacionados a esta tarefa, ignore-os.
+   - **Linhagem**: cada intenção traz parents (upstream: derivada de quais fatos/intenções) e yields (downstream: quais fatos/descobertas produziu), e cada item de recent_facts traz from_intent; com isso, entenda "quais fatos vieram de qual direção e se é possível sintetizar uma nova direção".
+   - **Observações negativas/duvidosas** (em recent_facts, como "porta fechada/não injetável") são observações do worker, não conclusões definitivas: antes de aceitá-las, use node_detail(id) para ver o evidence — só se o evidence for sólido, confidence=observed e os meios estiverem esgotados considere a direção temporariamente bloqueada; se o evidence estiver ausente, for só "parece que sim/explorado uma vez só", ou confidence=inferred, trate como [ainda não esclarecido] e, se estiver no escopo e nenhuma outra intenção cobrir, despache por padrão uma intenção de revisão para confirmar ou refutar (**a mesma direção negativa deve ser revisada no máximo uma vez**; se depois da revisão ainda for negativa e a evidência for razoável, respeite a conclusão e não despache mais).
+   - **Só chame sob demanda quando precisar de detalhes mais profundos**: list_facts (paginado, mais recentes primeiro, padrão 20, filtrável por q, paginação por before, com total/has_more), list_findings (todas as vulnerabilidades), node_detail(id) (evidência/detalhes completos; a lista/recent_facts só dão resumo), list_assets (pull: busca por q, filtro por type/company_id/task_id, paginado, ou id/ids direto), asset_neighbors. Os ativos são compartilhados globalmente; não puxe tudo por padrão.
 
-2. **判目标（核心职责）**：goals 字段已含目标与状态；对已被某发现/事实证明的未达成目标，调 prove_goal(goal_id, evidence_id, reason) 标 met。**当你标记的恰是最后一个未完成目标时，系统自动判定整个任务完成**——收官只由逐个 prove_goal 驱动，没有别的"一键完成"手段。
-   - ⚠️ **量化验收核对（严禁提前盖章）**：目标含可量化条件（覆盖度达 X%、拿 N 个 flag、获得某权限）时，prove_goal 前【必须】核对上方 graph_overview 的实测值（coverage.pct、findings_total 计数等）：未达标就【禁止】prove_goal，改派意图补差；不得以"大体达成/核心已拿下"为由提前标 met。例：要求覆盖度 100% 而实测 coverage.pct=40% → 未达成，继续派补测意图。
+2. **Julgar os objetivos (responsabilidade central)**: o campo goals já contém os objetivos e seu estado; para objetivo ainda não atingido que foi comprovado por alguma descoberta/fato, chame prove_goal(goal_id, evidence_id, reason) para marcar como met. **Quando o que você marca for justamente o último objetivo não concluído, o sistema julga automaticamente a tarefa inteira como concluída** — o encerramento é conduzido apenas pelos prove_goal um a um, não existe outro meio de "concluir com um clique".
+   - ⚠️ **Conferência de aceitação quantificada (proibido carimbar antecipadamente)**: quando o objetivo contém condições quantificáveis (cobertura de X%, obter N flags, obter certa permissão), antes de prove_goal [é obrigatório] conferir os valores medidos no graph_overview acima (coverage.pct, contagem de findings_total etc.): se não atingiu, [é proibido] prove_goal — despache intenções para cobrir a diferença; não marque met antecipadamente com a justificativa de "em grande parte atingido/o núcleo já foi dominado". Exemplo: se exige cobertura de 100% e o valor medido é coverage.pct=40% → não atingido, continue despachando intenções de teste complementar.
 
-3. **（可选，仅开局、极轻量）探测理解**：仅当图里几乎还没有 fact（recent_facts 基本为空、任务刚开始）、仅凭态势无法把初始意图说具体时，才用 Bash 等对目标做极少量、只读的探测（如 1–2 次 curl 看首页/指纹）。**唯一合法产物是一句更精准的意图描述**——绝不是漏洞的发现/验证/利用，也不是端点/目录/参数的枚举结果（那些是 worker 的活，写成意图派下去）。三条硬边界：
-   - 图里已有 worker 产出的 fact（facts>0 / recent_facts 非空）→【禁止】再自己探测，一切判断基于已有 fact，本轮产物只能是"派新意图"或"结束"；想深挖某线索 → 派意图让 worker 去查，不是自己 curl。
-   - 即使开局也最多探 ≤3 次就收手，只为把初始意图说清；一旦发现自己在"深入查证"而非"快速定方向"（逐个枚举端点/目录、逐个试 id、解码链、反复探同一接口、任何注入/越权/漏洞的测试验证——全是 worker 的重活），立刻停手写成意图。
-   - 能从现有事实/态势判断的，根本不必探测。
+3. **(Opcional, só na abertura, muito leve) Compreensão por sondagem**: só quando o grafo quase não tem fact (recent_facts praticamente vazio, a tarefa mal começou) e, apenas com o panorama, não for possível especificar a intenção inicial, use Bash etc. para fazer sondagens mínimas e somente leitura no alvo (como 1–2 curl para ver a página inicial/fingerprint). **O único produto legítimo é uma descrição de intenção mais precisa** — jamais a descoberta/validação/exploração de vulnerabilidades, nem resultados de enumeração de endpoints/diretórios/parâmetros (isso é trabalho do worker, escreva como intenção e despache). Três limites rígidos:
+   - Se o grafo já tem fact produzido por worker (facts>0 / recent_facts não vazio) → [é proibido] sondar por conta própria de novo; todo julgamento se baseia nos fatos existentes, e o produto desta rodada só pode ser "despachar nova intenção" ou "encerrar"; se quiser aprofundar uma pista → despache uma intenção para o worker investigar, não faça curl você mesmo.
+   - Mesmo na abertura, sonde no máximo ≤3 vezes e pare, apenas para esclarecer a intenção inicial; ao perceber que está em "verificação aprofundada" e não em "definir rapidamente a direção" (enumerar endpoints/diretórios um a um, testar ids um a um, cadeias de decodificação, sondar repetidamente a mesma interface, qualquer teste de validação de injeção/escalada/vulnerabilidade — tudo isso é trabalho pesado do worker), pare imediatamente e escreva como intenção.
+   - O que pode ser julgado a partir dos fatos/panorama existentes não precisa de sondagem alguma.
 
-4. **决定补哪些新方向**：**这里的"克制"只指【不重复已存在的意图】，不是"能少派就少派"**——目标未达成时，默认追问是"为逼近目标，还有哪些更深、更狠、尚未覆盖的打法"，而不是"是否可以收尾"。意图是【开放的探索方向】（不是固定类型/菜单），结合已知事实、资产、目标自判方向，逐一与 open + running + recent_done 比对：
-   - 已有 open/running 覆盖 → 不再生成（正在处理）。
-   - 在 recent_done 里出现过 → **先看该意图的 state（每条都带）分辨怎么停的，再决定**：
-     · **done（正常跑完）**：已覆盖 → 不原样重派；是否死路看它 yields 出的 fact 结论、而非 state；仅出现【材料性新机理】（新事实/资产/参数/明显不同的打法）才重派，且 summary 写清与上次的不同；换措辞、"再试一次说不定行"不算，禁止重试。
-     · **exhausted（预算耗尽、探到一半被掐断，只写回部分）/ blocked（模型或网络失败、基本没探成）**：都是中途没善终、信息不全——先用 get_worker_trace / get_worker_output 看它实际做到哪、卡在哪，再从下列里选：接近突破被预算掐 → 派"接上次进度继续"；纯外部故障没跑成（blocked 常是）→ 直接重派同方向；每次卡同一处 → 换打法/方向。依据永远是 trace 里的真实进度，不是 state 本身。
-   - 完全无任何意图覆盖的全新方向 → 生成。
-   - 所有已知方向都被仍在 open/running 的意图覆盖 → 不生成、直接结束（有在跑/在排队的 work，等它们推进）；但若只剩 recent_done 覆盖、已无 open/running 而目标未达成 → 按顶部硬底线必须另开或续派。
-   - **深度优先于覆盖度**：coverage 是下限/验收项、不是探索目标本身；发现高价值入口（可能通向 RCE/提权/数据外泄）后，优先派意图把那条路【往深打穿】，而不是为拉平覆盖度去铺广、逐个资产浅测。
-   - **保持路线多样、别过早收敛**：目标未达成时，若现有意图都挤在同一条路线/入口，而存在【本质不同】的未覆盖方向（另一入口面/另一类资产/另一条利用链），优先补那条分歧方向，而不是在同一线上加同义意图（看实质差异，不看措辞）；若该分歧方向已被现有意图覆盖，仍不生成。理想是 2–3 条机理不同的路线并存（如"从上传链打"与"从认证绕过打"），某条交出【目标逼近】的证据后才把资源集中过去。**但多样性永远服从顶部【操作约束】**：被约束排除的入口面/端口/主机/操作，即使本质不同也绝不生成意图。
+4. **Decidir quais novas direções complementar**: **a "contenção" aqui se refere apenas a [não repetir intenções já existentes], não a "despache o mínimo possível"** — com o objetivo não atingido, a pergunta padrão é "para se aproximar do objetivo, que abordagens mais profundas, mais agressivas e ainda não cobertas existem", e não "dá para encerrar?". A intenção é uma [direção de exploração aberta] (não um tipo fixo/menu); combinando fatos conhecidos, ativos e objetivo, julgue a direção por conta própria e compare uma a uma com open + running + recent_done:
+   - Já coberto por open/running → não gere de novo (está em tratamento).
+   - Já apareceu em recent_done → **primeiro veja o state da intenção (cada uma o traz) para distinguir como parou, e então decida**:
+     · **done (terminou normalmente)**: já coberto → não redespache tal qual; se é beco sem saída, veja a conclusão dos facts que ela yields, e não o state; só quando aparecer um [novo mecanismo material] (novo fato/ativo/parâmetro/abordagem claramente diferente) redespache, e o summary deve deixar claro a diferença em relação à vez anterior; trocar a redação ou "tentar de novo, vai que dá" não conta, proibido repetir.
+     · **exhausted (orçamento esgotado, cortado no meio da exploração, só gravou parte de volta) / blocked (falha do modelo ou da rede, praticamente não explorou)**: ambos não chegaram a um bom fim no meio do caminho, informação incompleta — primeiro use get_worker_trace / get_worker_output para ver até onde de fato chegou e onde travou, e então escolha entre: perto de um avanço mas cortado pelo orçamento → despache "continuar do progresso anterior"; falha puramente externa que impediu a execução (blocked costuma ser) → redespache diretamente a mesma direção; travando sempre no mesmo ponto → troque de abordagem/direção. A base é sempre o progresso real no trace, não o state em si.
+   - Direção totalmente nova sem nenhuma intenção cobrindo → gere.
+   - Todas as direções conhecidas estão cobertas por intenções ainda open/running → não gere, encerre direto (há work em execução/na fila, espere que avancem); mas se só resta cobertura de recent_done, sem mais open/running e com o objetivo não atingido → pelo piso rígido do topo é obrigatório abrir nova ou continuar.
+   - **Profundidade acima de cobertura**: coverage é um piso/item de aceitação, não o objetivo da exploração em si; ao descobrir uma entrada de alto valor (que possa levar a RCE/escalada de privilégio/exfiltração de dados), priorize despachar intenções para [furar fundo] aquele caminho, em vez de espalhar para nivelar a cobertura, testando superficialmente ativo por ativo.
+   - **Mantenha rotas diversas, não convirja cedo demais**: com o objetivo não atingido, se as intenções existentes estão todas espremidas na mesma rota/entrada e existe uma direção não coberta [essencialmente diferente] (outra superfície de entrada/outra classe de ativo/outra cadeia de exploração), priorize complementar essa direção divergente, em vez de acrescentar intenções sinônimas na mesma linha (olhe a diferença substancial, não a redação); se essa direção divergente já está coberta por intenções existentes, ainda assim não gere. O ideal é que 2–3 rotas de mecanismos diferentes coexistam (como "atacar pela cadeia de upload" e "atacar pelo bypass de autenticação"), e só concentrar recursos numa delas depois que ela entregar evidência de [aproximação do objetivo]. **Mas a diversidade sempre se subordina às [Restrições de operação] do topo**: superfícies de entrada/portas/hosts/operações excluídas pelas restrições, mesmo sendo essencialmente diferentes, jamais geram intenção.
 
-   **串行利用链：分步派，别拆成并行。** 强依赖串行链（①→②→③，后一步依赖前一步的实际产出）：不要一次性并行下发（下游拿不到还不存在的前置只会重复/空转）；用 TodoWrite 把整条链记成待办（每步一条），本轮只派"前置已满足"的那步（通常第一步），待它产出 fact 后下次唤醒（提示会带上待办清单）再派下一步并把已满足的标 completed。"同一件事"别拆两条（"确认触发点"和"触发触发点"是同一步）；只有【平行、互不依赖】的维度（如枚举多个不相关端点）才用多意图并行。
+   **Cadeia de exploração serial: despache por etapas, não divida em paralelo.** Cadeia serial fortemente dependente (①→②→③, o passo seguinte depende da produção real do anterior): não despache tudo em paralelo de uma vez (o downstream, sem o pré-requisito que ainda não existe, só repetiria/giraria em vazio); use TodoWrite para registrar a cadeia inteira como pendências (uma por passo), e nesta rodada despache apenas o passo cujo "pré-requisito já está satisfeito" (normalmente o primeiro); depois que ele produzir fact, no próximo despertar (a dica trará a lista de pendências) despache o próximo passo e marque como completed os já satisfeitos. "A mesma coisa" não deve ser dividida em duas ("confirmar o ponto de disparo" e "disparar o ponto de disparo" são o mesmo passo); só as dimensões [paralelas e independentes entre si] (como enumerar vários endpoints sem relação) usam múltiplas intenções em paralelo.
 
-5. **提交**：用【一次】add_intent 批量提交筛出的新方向（intents 数组，最多 4 个最高价值的，不要逐条多次调）：
-   - **summary**：一句话自然语言描述该方向（测试目标完整地址 + 做什么 + 为什么），不套固定分类；去重主要靠它与已有意图比对。
-   - **asset_ids**：本方向要测试/攻击的目标资产 id（尽量传，0/1/多个，来自 list_assets）——只要方向围绕具体资产（站点/接口/参数/主机）就务必传，用于覆盖去重、连入资产链路，跨多资产就都传；纯全局侦察无具体资产才留空。
-   - **parent_ids**：本方向由哪些上游节点综合得出（可选，0/1/多个）——多个事实结合产生一个意图就都传，派生自某上游意图/发现也传其 id，顶层全新方向留空。
+5. **Enviar**: use [uma única] chamada de add_intent para enviar em lote as novas direções selecionadas (array intents, no máximo 4 de maior valor; não chame várias vezes uma a uma):
+   - **summary**: uma frase em linguagem natural descrevendo a direção (endereço completo do alvo de teste + o que fazer + por quê), sem usar categoria fixa; a deduplicação depende principalmente da comparação dele com as intenções existentes.
+   - **asset_ids**: ids dos ativos-alvo que esta direção vai testar/atacar (passe sempre que possível, 0/1/vários, vindos de list_assets) — sempre que a direção girar em torno de ativos concretos (site/interface/parâmetro/host), passe obrigatoriamente, usado para deduplicação de cobertura e ligação à cadeia de ativos; se cruza vários ativos, passe todos; só reconhecimento global puro, sem ativo concreto, deixa vazio.
+   - **parent_ids**: de quais nós upstream esta direção foi sintetizada (opcional, 0/1/vários) — se vários fatos combinados geram uma intenção, passe todos; se derivada de alguma intenção/descoberta upstream, passe também o id dela; direção totalmente nova de topo, deixe vazio.
 
-不重复、不硬凑；但目标未达成、又有未覆盖且更深的打法时，该派就派。简洁、聚焦、高效。`
+Sem repetir, sem forçar; mas com o objetivo não atingido e havendo abordagens mais profundas e não cobertas, despache quando deve despachar. Conciso, focado, eficiente.`
 
 func plannerSystem(goal, dataDir, workDir string) string {
 	body := renderSystem("planner", plannerDefaultTmpl, PlannerVars{Goal: goal, DataDir: dataDir, Now: nowStr()})
@@ -370,33 +370,33 @@ func (p *Planner) Plan(ctx context.Context, taskID int64, as *db.AssetStore, ts 
 	if origin, _ := ts.OriginFactID(); origin > 0 {
 		tsx.SetOwnerNode(origin) // planner-side anchors default to the task root (origin fact)
 	}
-	// 领域工具 + 基础默认工具集（Read/Write/Edit/MultiEdit/LS/Glob/Grep/Bash）
-	// 资产覆盖度功能关闭时剔除 add_task_scope/list_untested_assets（不入 prompt）。
+	// Ferramentas de domínio + conjunto básico de ferramentas padrão (Read/Write/Edit/MultiEdit/LS/Glob/Grep/Bash)
+	// Com a função de cobertura de ativos desativada, remove add_task_scope/list_untested_assets (não entram no prompt).
 	base := append(tsx.DropCoverageTools(tsx.PlannerTools()), actool.DefaultTools()...)
 	ctx = WithRunInfo(ctx, RunInfo{TaskID: taskID, ExplorationID: explorationID(ts)})
 	tools, def, cleanup := AugmentTools(ctx, "planner", base)
 	defer cleanup()
-	// 关键态势（刚完成的意图 + 预取的完整图）改放【本轮 user 输入】(见下方 input)，system
-	// 只留静态规划正文。move-out 让 system 每轮稳定、更利于缓存；代价是若单轮变长，态势可能
-	// 被 compaction 压缩（planner 单轮通常短，风险低）。situational 会拼进下方 input。
+	// O panorama-chave (intenção recém-concluída + grafo completo pré-carregado) passa a ir na [entrada de user desta rodada] (ver input abaixo), o system
+	// mantém apenas o corpo estático de planejamento. O move-out deixa o system estável a cada rodada, melhor para o cache; o custo é que, se uma única rodada ficar longa, o panorama pode
+	// ser comprimido pela compaction (a rodada única do planner costuma ser curta, risco baixo). situational é concatenado ao input abaixo.
 	situational := renderTriggers(ts, triggers) + renderGraphOverview(tsx.graphOverviewData())
-	// 任务级 deadline / 终局模式(经 ctx 注入,见 taskclock.go)。终局那一轮把任务超时
-	// planner 收尾词作为【本轮操作指令】拼进本轮 user 输入(随 situational),让它只做最后
-	// 目标判定、不产新意图。
+	// Deadline de nível de tarefa / modo de fim de jogo (injetado via ctx, ver taskclock.go). Na rodada de fim de jogo, o prompt de encerramento por timeout da tarefa do
+	// planner é concatenado, como [instrução de operação desta rodada], à entrada de user desta rodada (junto com situational), para que ele faça só o último
+	// julgamento de objetivos, sem produzir novas intenções.
 	tc := taskClockFrom(ctx)
 	if tc.Final {
-		situational += "\n\n【任务终局收尾（本轮特殊指令，覆盖上面的常规规划流程）】：" + resolveTaskTimeoutWrapup("planner")
+		situational += "\n\n[Encerramento final da tarefa (instrução especial desta rodada, sobrepõe o fluxo de planejamento regular acima)]:" + resolveTaskTimeoutWrapup("planner")
 	}
-	// 本任务的工作目录 <workDir>/tasks/<taskID>，先建好。
+	// Diretório de trabalho desta tarefa <workDir>/tasks/<taskID>, criado antes.
 	taskDir := ensureRunDir(p.workDir, taskID, 0)
 	ctx = intercept.WithReviewContext(ctx, taskDir, intercept.ReviewBackground{})
 	sysBody := plannerSystem(goal, p.workDir, taskDir)
 	if p.wantConstraints() {
-		sysBody += constraintBlock(ts) // 操作约束(若有)注入系统提示,框定探索边界
+		sysBody += constraintBlock(ts) // Restrições de operação (se houver) são injetadas no prompt do sistema, delimitando a fronteira de exploração
 	}
 	system, boundary := deferredSystem(sysBody, def)
-	// planner 无自身墙钟预算;有 deadline 时把 MaxDuration 夹逼到剩余,让在跑的规划轮在
-	// 任务到点时进收尾(因超时→任务超时词,因步数→per-run 词)。
+	// O planner não tem orçamento próprio de tempo de relógio; havendo deadline, limita MaxDuration ao restante, para que a rodada de planejamento em execução entre no
+	// encerramento quando a tarefa chega ao prazo (por timeout → prompt de timeout da tarefa, por passos → prompt per-run).
 	maxDur, clamped := clampMaxDuration(tc.DeadlineUnix, 0)
 	settle := wrapupSettlement("planner", nil)
 	if tc.DeadlineUnix > 0 {
@@ -410,11 +410,11 @@ func (p *Planner) Plan(ctx context.Context, taskID int64, as *db.AssetStore, ts 
 		DeferredTools:   def.Deferred,
 		UnlockSet:       def.Unlock,
 		PermissionMode:  permission.ModeBypass,
-		EnableWebFetch:  true, // 走记录代理留痕；载入代理 CA 验证 MITM 重签的 HTTPS 证书
+		EnableWebFetch:  true, // passa pelo proxy de registro para deixar rastro; carrega a CA do proxy para validar certificados HTTPS reassinados pelo MITM
 		WebFetchProxy:   p.proxyAddr,
 		WebFetchCACert:  p.proxyCACert,
-		// 联网搜索(可选)。ddgs 无需 key；brave-free 需 BraveKey；tavily 需 TavilyKey。
-		// WebSearchProxy 是独立出口代理(http/https/socks5)，与记录流量的 MITM 代理无关；空则直连。
+		// Busca na web (opcional). ddgs não precisa de key; brave-free precisa de BraveKey; tavily precisa de TavilyKey.
+		// WebSearchProxy é um proxy de saída independente (http/https/socks5), sem relação com o proxy MITM que registra o tráfego; vazio = conexão direta.
 		EnableWebSearch:       p.webSearch.Enabled,
 		WebSearchBackend:      p.webSearch.Backend,
 		BraveSearchAPIKey:     p.webSearch.BraveKey,
@@ -423,45 +423,45 @@ func (p *Planner) Plan(ctx context.Context, taskID int64, as *db.AssetStore, ts 
 		DeepSeekSearchAPIKey:  p.webSearch.DeepSeekAPIKey,
 		DeepSeekSearchModel:   p.webSearch.DeepSeekModel,
 		WebSearchProxy:        p.webSearch.Proxy,
-		BashEnv:               proxyEnv(p.proxyAddr, p.proxyCACert), // Bash 子命令默认走代理+信任 CA
-		WorkingDir:            taskDir,                              // 本任务工作目录 <workDir>/tasks/<taskID>
+		BashEnv:               proxyEnv(p.proxyAddr, p.proxyCACert), // Subcomandos do Bash passam pelo proxy por padrão + confiam na CA
+		WorkingDir:            taskDir,                              // diretório de trabalho desta tarefa <workDir>/tasks/<taskID>
 		ToolOutputDir:         cmdOutDir(taskDir),
 		MaxTurns:              p.maxTurns, // 0 = unlimited (configurable in agent management)
-		MaxDuration:           maxDur,     // 0=不限;有 deadline 时=距 deadline 剩余
+		MaxDuration:           maxDur,     // 0=sem limite; havendo deadline = restante até o deadline
 		Compaction:            compactionConfig(p.compactionWindow()),
-		// 跨唤醒共享的规划待办：让串行链在多轮之间保留（session 是新的，store 不是）。
+		// Pendências de planejamento compartilhadas entre despertares: faz a cadeia serial persistir entre rodadas (a session é nova, o store não).
 		Todos: p.todoFor(ts.ID()),
-		// 命中【本轮】步数预算→ SDK 跑收尾:把本轮已想清楚的结论落地(该派的 add_intent、
-		// 能证的 prove_goal、串行链记 TodoWrite),而非停止规划——planner 之后仍会被反复唤醒。
-		// clamped(被任务 deadline 夹逼)时改用 PromptByReason(见 wrapupSettlementForTask)。
+		// Ao atingir o orçamento de passos da [rodada] → o SDK roda o encerramento: consolida as conclusões já esclarecidas nesta rodada (add_intent do que deve ser despachado,
+		// prove_goal do que pode ser comprovado, TodoWrite da cadeia serial), em vez de parar de planejar — o planner continuará sendo despertado repetidamente depois.
+		// Quando clamped (limitado pelo deadline da tarefa) usa PromptByReason (ver wrapupSettlementForTask).
 		Settlement:   settle,
-		NonStreaming: p.nonStreaming(), // 该 profile 选非流式时走 Provider.Complete
-		MaxTokens:    p.maxTokens(),    // 0 = 不发上限,由服务端默认值决定
+		NonStreaming: p.nonStreaming(), // quando este profile escolhe não streaming, usa Provider.Complete
+		MaxTokens:    p.maxTokens(),    // 0 = não envia limite; o padrão do servidor decide
 	}
 	if p.tx != nil { // persist raw LLM conversation; one accumulating file per task's planner
 		opts.Transcript = p.tx
 		opts.SessionID = fmt.Sprintf("exp%d-planner", ts.ID())
 	}
-	// 实验功能:开启后由 noa 接管上下文压缩(归档集中在 <workDir>/noa/<SessionID> 下,持久)。
+	// Recurso experimental: quando ativado, o noa assume a compressão de contexto (arquivos em <workDir>/noa/<SessionID>, persistentes).
 	noaSession := fmt.Sprintf("exp%d-planner", ts.ID())
 	enableNoa(&opts, p.noaEnabledFn, p.workDir, noaSession, noaWarn(noaSession))
-	// 态势（刚完成的意图 + 完整图）现在拼进本轮 user 输入（见下方 input）。user 里还有
-	// 指令 + 跨唤醒待办（todo 是模型自己的规划便签，可再生，放 user 即可）。
-	// 开场白按「本轮有无具体变动」分两种：有变动 → 指向下方【实际变动】块；无变动
-	// (心跳定时巡检 / hint / 恢复等) → 别谎称"图发生了变化",转而提示顺带复查在跑意图。
-	lead := "刚有具体变动（见下面的【本次触发本轮的实际变动】），据此规划下一步："
+	// O panorama (intenção recém-concluída + grafo completo) agora é concatenado à entrada de user desta rodada (ver input abaixo). No user há também a
+	// instrução + pendências entre despertares (todo é o bloco de anotações de planejamento do próprio modelo, regenerável; basta colocá-lo no user).
+	// A abertura se divide em dois casos conforme "esta rodada tem ou não mudança concreta": com mudança → aponta para o bloco [mudanças reais] abaixo; sem mudança
+	// (inspeção periódica por heartbeat / hint / retomada etc.) → não alegar falsamente que "o grafo mudou", e sim sugerir revisar de passagem as intenções em execução.
+	lead := "Houve uma mudança concreta (veja [Mudanças reais que dispararam esta rodada] abaixo); planeje o próximo passo com base nela:"
 	if len(triggers) == 0 {
-		lead = "本轮是**定时巡检（心跳到点）/无具体变动信号**的唤醒——图不一定有新变动。顺带复查在跑意图：长时间无进展或跑偏的用 steer_work 纠偏、方向整个错的用 kill_work 止损；再判定目标、决定是否补方向："
-		// 心跳/无变动唤醒时,若全图已无任何 open 或 running 意图 → 探索已停摆(没 worker 在跑、
-		// 也没排队方向)。明确告知 planner 并强制其本轮补出新方向,别只复查在跑意图后空转一轮。
+		lead = "Esta rodada é um despertar por **inspeção periódica (heartbeat no prazo) / sem sinal de mudança concreta** — o grafo não necessariamente tem mudanças novas. Aproveite para revisar as intenções em execução: as que ficaram muito tempo sem progresso ou saíram do rumo, corrija com steer_work; as de direção totalmente errada, interrompa com kill_work para estancar a perda; depois julgue os objetivos e decida se complementa a direção:"
+		// Ao despertar por heartbeat/sem mudança, se o grafo inteiro não tem mais nenhuma intenção open ou running → a exploração está paralisada (nenhum worker em execução,
+		// nem direção na fila). Avise explicitamente o planner e force-o a produzir nesta rodada novas direções, em vez de só revisar as intenções em execução e girar uma rodada em vazio.
 		if active, err := ts.HasActiveIntent(); err == nil && !active {
-			lead = "本轮是**定时巡检（心跳到点）**的唤醒,且当前**已没有任何 open 或 running 的意图**——没有 worker 在跑、也没有排队中的方向,探索已停摆。你**必须**在本轮产出一个或多个向目标推进、且与图中既有意图**互不重复**的新意图(不得产出 0 意图);先据下面的态势判定目标是否已达成,未达成则立即补方向："
+			lead = "Esta rodada é um despertar por **inspeção periódica (heartbeat no prazo)**, e atualmente **não há nenhuma intenção open ou running** — nenhum worker em execução e nenhuma direção na fila, a exploração está paralisada. Você **deve** produzir nesta rodada uma ou mais novas intenções que avancem rumo ao objetivo e **não dupliquem** as intenções já existentes no grafo (não é permitido produzir 0 intenção); primeiro julgue, com base no panorama abaixo, se o objetivo já foi atingido e, se não, complemente imediatamente as direções:"
 		}
 	}
-	input := lead + situational + "\n\n据上面的态势，判定目标。目标已【真正达成】（已拿到目标成果/已确认目标漏洞）时用 prove_goal 逐个标记。**硬底线：只要目标尚未达成、且当前没有任何 open 或 running 意图（frontier_open=0 且 running_intents 为空），本轮就必须产出至少一个向目标推进的意图——此时没有在跑的 work 可等、也没有在排队的方向，产出 0 意图=任务停摆。仅当已有 open/running 意图在推进、或目标已达成时，本轮才可以不产出新意图。**" +
+	input := lead + situational + "\n\nCom base no panorama acima, julgue os objetivos. Quando o objetivo foi [realmente atingido] (obteve o resultado do objetivo/confirmou a vulnerabilidade-alvo), marque um a um com prove_goal. **Piso rígido: enquanto o objetivo não foi atingido e não há nenhuma intenção open ou running no momento (frontier_open=0 e running_intents vazio), esta rodada deve produzir pelo menos uma intenção que avance rumo ao objetivo — sem work em execução para esperar nem direção na fila, produzir 0 intenção = tarefa paralisada. Somente quando já há intenções open/running avançando, ou o objetivo foi atingido, esta rodada pode não produzir novas intenções.**" +
 		renderPlannerTodos(opts.Todos.List())
-	// MaxDuration 现在会在墙钟到点打断在跑工具并就地进收尾(在活 ctx 上),单轮卡死不再
-	// 绕过收尾,无需外部硬 ctx 兜底。ctx 只承载 pause / kill / shutdown。
+	// O MaxDuration agora interrompe as ferramentas em execução quando o tempo de relógio chega ao prazo e entra no encerramento ali mesmo (em ctx vivo); uma rodada única travada não
+	// contorna mais o encerramento, sem necessidade de ctx rígido externo de salvaguarda. O ctx só carrega pause / kill / shutdown.
 	_, _, err = captureRun(ctx, opts, input,
 		func(r db.Activity) {
 			if emit != nil {

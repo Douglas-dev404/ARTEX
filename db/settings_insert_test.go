@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-// InsertSettingIfAbsent 是 auth.password_hash 的兜底：调用方的 GetSetting 检查可能
-// 因为数据库报错而失效，也可能被并发请求插队（bcrypt 要跑几十毫秒），所以"仅首次
-// 可设"的保证必须落在主键约束上，而不是上层的 if 判断。
+// InsertSettingIfAbsent é a salvaguarda de auth.password_hash: a verificação GetSetting do chamador pode falhar
+// por erro do banco, e também pode ser furada por requisições concorrentes (o bcrypt leva dezenas de milissegundos), então a garantia de "só pode ser
+// definido na primeira vez" precisa se apoiar na restrição de chave primária e não no if da camada superior.
 func TestInsertSettingIfAbsentDoesNotOverwrite(t *testing.T) {
 	d, err := Open(testDSN(t))
 	if err != nil {
@@ -16,7 +16,7 @@ func TestInsertSettingIfAbsentDoesNotOverwrite(t *testing.T) {
 	}
 	defer d.Close()
 
-	// 用测试专属 key，绝不碰开发库里真实的 auth.password_hash。
+	// Usa uma key exclusiva do teste, nunca tocando o auth.password_hash real do banco de desenvolvimento.
 	key := fmt.Sprintf("test.insert_if_absent.%d", time.Now().UnixNano())
 	defer func() { _, _ = d.Exec(`DELETE FROM settings WHERE key=$1`, key) }()
 
@@ -25,7 +25,7 @@ func TestInsertSettingIfAbsentDoesNotOverwrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !inserted {
-		t.Fatal("首次写入应返回 inserted=true")
+		t.Fatal("a primeira gravação deveria retornar inserted=true")
 	}
 
 	inserted, err = d.InsertSettingIfAbsent(key, "second")
@@ -33,7 +33,7 @@ func TestInsertSettingIfAbsentDoesNotOverwrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	if inserted {
-		t.Fatal("键已存在时应返回 inserted=false")
+		t.Fatal("quando a key já existe deveria retornar inserted=false")
 	}
 
 	got, ok, err := d.GetSetting(key)
@@ -41,6 +41,6 @@ func TestInsertSettingIfAbsentDoesNotOverwrite(t *testing.T) {
 		t.Fatalf("GetSetting: ok=%v err=%v", ok, err)
 	}
 	if got != "first" {
-		t.Fatalf("值被覆盖成 %q，应保持 %q", got, "first")
+		t.Fatalf("o valor foi sobrescrito para %q, deveria permanecer %q", got, "first")
 	}
 }

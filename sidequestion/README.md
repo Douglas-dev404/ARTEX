@@ -1,66 +1,66 @@
 # ARTEX `/btw`
 
-普通聊天、任务 MainAgent 和当前任务自己的 Worker 支持独立旁路提问。主输入框输入 `/btw 问题` 即可提交，空 `/btw` 或“旁路提问”按钮打开历史。桌面使用可调整宽度的侧栏，移动端使用 Drawer。
+O chat comum, o MainAgent da tarefa e os próprios Workers da tarefa atual suportam perguntas paralelas independentes. Basta digitar `/btw pergunta` na caixa de entrada principal para enviar; um `/btw` vazio ou o botão "pergunta paralela" abre o histórico. No desktop usa-se uma barra lateral de largura ajustável; no mobile, um Drawer.
 
-旁路回答根据提交时的 Agent 上下文快照生成，支持流式显示、追问、停止和清空。关闭面板、刷新页面或断开 SSE 都不会取消模型请求。停止只影响当前旁路；清空会取消旁路并删除旁路历史，同时保留主上下文快照。
+A resposta paralela é gerada a partir do snapshot do contexto do Agent no momento do envio, com suporte a exibição em streaming, perguntas de acompanhamento, interrupção e limpeza. Fechar o painel, atualizar a página ou desconectar o SSE não cancela a requisição ao modelo. Interromper afeta apenas a pergunta paralela atual; limpar cancela as perguntas paralelas e apaga o histórico paralelo, preservando o snapshot do contexto principal.
 
-## 实现边界
+## Limites da implementação
 
-沿用 Go、norma v0.3.7、Next.js、现有 Markdown / ResizablePanel / Drawer / AlertDialog 组件；没有修改 norma 源码或为旁路添加依赖。Planner、继承自其他任务的 Worker、工具型子任务升级不在本次范围内。
+Reutiliza Go, norma v0.3.7, Next.js e os componentes existentes de Markdown / ResizablePanel / Drawer / AlertDialog; não modifica o código-fonte do norma nem adiciona dependências para a pergunta paralela. Planner, Workers herdados de outras tarefas e a promoção de subtarefas do tipo ferramenta ficam fora do escopo desta entrega.
 
 ```mermaid
 flowchart LR
-    A[主 Agent QueryDeps] --> B[实际 Provider 绑定]
-    B --> C[不可变结构化快照]
-    B --> D[主 Agent 正常工具循环]
-    C --> E[(PostgreSQL 最新快照)]
-    E --> F[快照 + 最近成功旁路问答 + 问题]
-    F --> G[SideQuestionService 单次 Provider 请求]
-    G --> H[(独立旁路历史和用量)]
-    H --> I[累计回答 SSE / 旁路面板]
+    A[Agent principal QueryDeps] --> B[Vínculo com o Provider real]
+    B --> C[Snapshot estruturado imutável]
+    B --> D[Loop normal de ferramentas do Agent principal]
+    C --> E[(Último snapshot no PostgreSQL)]
+    E --> F[Snapshot + últimas perguntas paralelas bem-sucedidas + pergunta]
+    F --> G[SideQuestionService: requisição única ao Provider]
+    G --> H[(Histórico e uso paralelos independentes)]
+    H --> I[Resposta acumulada via SSE / painel paralelo]
 ```
 
-- `capture.go` 只在 `Options.Deps.CallModel / CallModelSync` 标记主循环请求。Provider 装饰器位于具体模型内部、路由池外层选择之后，因此记录实际选中的模型；压缩和摘要请求不覆盖快照。
-- 请求开始、完整模型回复、运行终态发布快照。正在生成的半段回复不发布；工具调用通过 norma 的 `MessagesForAPI` 保持配对，工具结果在下一次主模型请求或运行终态进入快照。流式中止保留上一个有效边界。
-- 快照通过 JSON 深拷贝保留结构化消息、系统提示、工具定义及生成参数。模型推理不持有快照锁或数据库事务。
-- `SideQuestionService` 调用具体 Provider；必要时先生成旁路摘要，最终回答仅在首次上下文超限且尚未输出文本/工具调用时允许缩减后重试一次。不创建 agent session，不接入工具执行器、主 transcript、活动流或任务图，也不经过任务模型切换链。回答保留工具定义是为兼容既有结构化工具上下文；摘要请求不提供工具。新返回的工具调用没有执行路径。
-- 每个父会话一个运行请求，单个服务进程最多四个，单次超时 120 秒。旁路使用服务生命周期下的独立取消上下文。
-- 旁路请求保留模型配置引用和非敏感身份摘要；请求时从现有配置取得凭据。配置被删除，或模型、协议、地址等身份字段变化，要求先运行主 Agent 更新快照。测试不会改变产品默认模型。
+- `capture.go` só marca as requisições do loop principal em `Options.Deps.CallModel / CallModelSync`. O decorador do Provider fica dentro do modelo concreto, depois da seleção externa do pool de roteamento, de modo que registra o modelo efetivamente escolhido; requisições de compactação e de resumo não sobrescrevem o snapshot.
+- O snapshot é publicado no início da requisição, na resposta completa do modelo e no estado terminal da execução. Respostas parciais em geração não são publicadas; as chamadas de ferramenta mantêm o pareamento via `MessagesForAPI` do norma, e os resultados das ferramentas entram no snapshot na próxima requisição do modelo principal ou no estado terminal da execução. Uma interrupção de streaming mantém o último limite válido.
+- O snapshot preserva, por cópia profunda em JSON, as mensagens estruturadas, o prompt de sistema, as definições de ferramentas e os parâmetros de geração. A inferência do modelo não segura o lock do snapshot nem transação do banco de dados.
+- `SideQuestionService` chama o Provider concreto; quando necessário, gera antes um resumo paralelo, e a resposta final só pode ser reduzida e reenviada uma vez, quando o contexto inicial estoura o limite e ainda não houve saída de texto/chamada de ferramenta. Não cria agent session, não se conecta ao executor de ferramentas, ao transcript principal, ao fluxo de atividades nem ao grafo de tarefas, e também não passa pela cadeia de troca de modelo da tarefa. A resposta mantém as definições de ferramentas para ser compatível com o contexto estruturado de ferramentas existente; a requisição de resumo não fornece ferramentas. Chamadas de ferramenta recém-retornadas não têm caminho de execução.
+- Uma requisição em execução por sessão-pai, no máximo quatro por processo de serviço, com timeout de 120 segundos por requisição. A pergunta paralela usa um contexto de cancelamento independente, sob o ciclo de vida do serviço.
+- A requisição paralela guarda a referência à configuração do modelo e um resumo de identidade não sensível; a credencial é obtida da configuração existente no momento da requisição. Se a configuração for excluída, ou se campos de identidade como modelo, protocolo ou endereço mudarem, é preciso antes executar o Agent principal para atualizar o snapshot. Os testes não alteram o modelo padrão do produto.
 
-## 持久化和恢复
+## Persistência e recuperação
 
-`db/schema.sql` 自动创建 `side_question_sessions` 和 `side_question_requests`。前者保存父资源、最新快照、运行编号、版本和清理版本；后者保存问题、累计回答、状态、模型、快照时间、用量、事件序号和分页序号。
+`db/schema.sql` cria automaticamente `side_question_sessions` e `side_question_requests`. A primeira guarda o recurso-pai, o último snapshot, o número da execução, a versão e a versão de limpeza; a segunda guarda a pergunta, a resposta acumulada, o estado, o modelo, o horário do snapshot, o uso, o número de sequência de eventos e o número de sequência de paginação.
 
-父会话键使用 conversation ID，或 task ID + exploration ID + intent ID。Worker 不使用可复用的执行槽位命名。
+A chave da sessão-pai usa o conversation ID, ou task ID + exploration ID + intent ID. O Worker não usa nomes de slot de execução reutilizáveis.
 
-快照按父会话合并写入，每 250 ms 刷新一次，数据库比较 `(run_id, version)` 防止旧版本覆盖。旁路提交前再次保存选定快照。成功保存后释放内存中的大快照；失败时保留待写版本。回答累计内容在流式事件到来时最多每 250 ms 写入一次，终态立即保存并在数据库错误时有限重试。
+Os snapshots são gravados de forma mesclada por sessão-pai, com flush a cada 250 ms, e o banco compara `(run_id, version)` para impedir que versões antigas sobrescrevam. Antes de enviar a pergunta paralela, o snapshot selecionado é salvo de novo. Após o salvamento bem-sucedido, o snapshot grande em memória é liberado; em caso de falha, a versão pendente de gravação é mantida. O conteúdo acumulado da resposta é gravado no máximo a cada 250 ms conforme chegam os eventos de streaming; o estado terminal é salvo imediatamente, com número limitado de novas tentativas em caso de erro do banco.
 
-服务启动将遗留 `running` 请求标记为 `interrupted`，保留已落库的部分回答和用量，不自动重放请求。最近成功保存的上下文可直接用于下一次提问。旧会话没有快照时要求先运行主 Agent，不从 UI 活动记录重建上下文。
+Na inicialização, o serviço marca as requisições `running` remanescentes como `interrupted`, preserva as respostas parciais e o uso já gravados e não reexecuta a requisição automaticamente. O último contexto salvo com sucesso pode ser usado diretamente na pergunta seguinte. Sessões antigas sem snapshot exigem executar antes o Agent principal, sem reconstruir o contexto a partir dos registros de atividade da UI.
 
-清空操作递增清理版本并删除请求；条件更新阻止迟到的回调重新写回。物理父资源删除依靠外键级联，Worker 逻辑删除在同一事务中删除旁路数据，并拒绝后续迟到快照。任务归档先阻止新请求、等待主流程停止、取消并等待旁路落库；归档格式为 v3，同时兼容不含旁路表的 v1/v2。
+A operação de limpeza incrementa a versão de limpeza e exclui as requisições; atualizações condicionais impedem que callbacks atrasados regravem. A exclusão física do recurso-pai depende do cascade de chaves estrangeiras; a exclusão lógica do Worker apaga os dados paralelos na mesma transação e rejeita snapshots tardios subsequentes. O arquivamento de tarefa primeiro bloqueia novas requisições, espera o fluxo principal parar, cancela e espera a gravação da pergunta paralela; o formato de arquivo é v3, compatível também com v1/v2 sem tabelas paralelas.
 
-历史完整保存，按序号游标每页最多返回 20 条。模型请求最多回放最近 20 组成功问答原文，同时按 token 预算限制回放量；较旧问答维护独立滚动摘要。主上下文超预算时仅摘要旁路副本的旧部分，保留近期结构化工具调用与结果。摘要、准备进度与用量一起纳入旁路的并发、取消和 120 秒超时限制。详见 [上下文预算与开源参考](CONTEXT_BUDGET.md)。
+O histórico é salvo por completo, retornando no máximo 20 itens por página com cursor por número de sequência. A requisição ao modelo reproduz no máximo os últimos 20 grupos de perguntas e respostas bem-sucedidas em texto original, também limitando o volume reproduzido pelo orçamento de tokens; as perguntas e respostas mais antigas mantêm um resumo contínuo independente. Quando o contexto principal estoura o orçamento, apenas a parte antiga da cópia paralela é resumida, preservando as chamadas de ferramenta estruturadas recentes e seus resultados. O resumo, o progresso de preparação e o uso entram juntos nos limites de concorrência, cancelamento e timeout de 120 segundos da pergunta paralela. Detalhes em [Orçamento de contexto e referências de código aberto](CONTEXT_BUDGET.md).
 
-## HTTP 契约
+## Contrato HTTP
 
-以下路径作为 `{parent}`，沿用现有认证及资源校验：
+Os caminhos abaixo são tratados como `{parent}`, reutilizando a autenticação e a validação de recursos existentes:
 
 - `/api/conversations/{id}`
 - `/api/tasks/{id}/chat`
 - `/api/tasks/{id}/intents/{iid}`
 
-| 请求 | 返回及行为 |
+| Requisição | Retorno e comportamento |
 | --- | --- |
-| `GET {parent}/side-questions?before={ordinal}` | `items` 按新到旧排列、独立 `current` 运行状态、`snapshot` 元信息、`next_cursor`；游标为 0 表示最新页 / 无下一页 |
-| `POST {parent}/side-questions` | JSON `{ "question": "…", "client_request_id": "UUID" }`；新请求返回 202 及请求对象；相同 ID 和问题返回既有对象 200 |
-| `DELETE {parent}/side-questions` | 取消并清空当前父会话的旁路问答 |
-| `GET /api/side-questions/{requestID}/events` | `snapshot` SSE 事件，`id` 为递增序号，`data` 为完整累计请求对象；清空时发送 `cleared` |
-| `POST /api/side-questions/{requestID}/cancel` | 显式取消；终态可从历史或 SSE 读取 |
+| `GET {parent}/side-questions?before={ordinal}` | `items` do mais novo para o mais antigo, estado de execução `current` independente, metadados de `snapshot`, `next_cursor`; cursor 0 significa a página mais recente / sem próxima página |
+| `POST {parent}/side-questions` | JSON `{ "question": "…", "client_request_id": "UUID" }`; uma requisição nova retorna 202 e o objeto da requisição; o mesmo ID com a mesma pergunta retorna o objeto existente com 200 |
+| `DELETE {parent}/side-questions` | Cancela e limpa as perguntas paralelas da sessão-pai atual |
+| `GET /api/side-questions/{requestID}/events` | Evento SSE `snapshot`, com `id` de sequência crescente e `data` com o objeto completo e acumulado da requisição; ao limpar, envia `cleared` |
+| `POST /api/side-questions/{requestID}/cancel` | Cancelamento explícito; o estado terminal pode ser lido do histórico ou do SSE |
 
-问题上限 4000 字符。无快照、模型配置变化、同一父会话忙或幂等 ID 冲突返回 409；全局并发上限返回 429。每次 SSE 连接都先发送累计状态，不依赖客户端之前收到的文本片段。前端按请求 ID + 序号合并，并在切换父会话、清空时废弃旧回调。
+Limite da pergunta: 4000 caracteres. Ausência de snapshot, mudança na configuração do modelo, sessão-pai ocupada ou conflito de ID de idempotência retornam 409; o limite global de concorrência retorna 429. Cada conexão SSE envia primeiro o estado acumulado, sem depender dos fragmentos de texto recebidos antes pelo cliente. O front-end mescla por ID da requisição + número de sequência e descarta callbacks antigos ao trocar de sessão-pai ou ao limpar.
 
-## 验证与参考
+## Validação e referências
 
-自动化检查、实际模型使用及已知限制见 [VALIDATION.md](VALIDATION.md)。
+As verificações automatizadas, o uso real de modelos e as limitações conhecidas estão em [VALIDATION.md](VALIDATION.md).
 
-独立请求参考 [Grok CLI side-question.ts（固定提交）](https://github.com/superagent-ai/grok-cli/blob/fb97af83f06dca873281d60168430f06c8de6324/src/utils/side-question.ts)，运行隔离参考 [OpenCode（固定提交）](https://github.com/anomalyco/opencode/tree/b3f1a96c6dd7adeb28b36dd11add1998fc84d67b)。ARTEX 的上下文使用 norma 的结构化消息，未采用从前端日志拼接文本的方式。
+Referência de requisição independente: [Grok CLI side-question.ts (commit fixo)](https://github.com/superagent-ai/grok-cli/blob/fb97af83f06dca873281d60168430f06c8de6324/src/utils/side-question.ts); referência de isolamento de execução: [OpenCode (commit fixo)](https://github.com/anomalyco/opencode/tree/b3f1a96c6dd7adeb28b36dd11add1998fc84d67b). O contexto do ARTEX usa as mensagens estruturadas do norma, sem adotar a abordagem de montar texto a partir dos logs do front-end.

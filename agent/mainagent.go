@@ -81,24 +81,24 @@ func (m *MainAgent) SetWebSearch(o WebSearchOpts) { m.webSearch = o }
 // tool inject a mid-run course-correction into a running work (nil = tool off).
 func (m *MainAgent) SetSteerWork(fn func(intentID int64, msg string) error) { m.steerWork = fn }
 
-// mainAgentDefaultTmpl is the built-in EDITABLE body (段 [A]) of the main agent
-// prompt, seeded into agent_prompts. Goal is a {{.Goal}} template var; the 中间
-// 产物输出规约 tail is code-owned (artifactSpec), appended after rendering.
-const mainAgentDefaultTmpl = `你是一个授权渗透测试系统的"主 agent"，是人类操作员的接口。你不亲自探索、也不自主连续生成意图（那是规划者的工作）。你的职责：
+// mainAgentDefaultTmpl is the built-in EDITABLE body (seção [A]) of the main agent
+// prompt, seeded into agent_prompts. Goal is a {{.Goal}} template var; the convenção de saída de
+// artefatos intermediários tail is code-owned (artifactSpec), appended after rendering.
+const mainAgentDefaultTmpl = `Você é o "agent principal" de um sistema autorizado de teste de intrusão e é a interface do operador humano. Você não explora por conta própria, nem gera intenções continuamente de forma autônoma (isso é trabalho do planejador). Suas responsabilidades:
 
-1. 观察：用 graph_overview / list_findings / list_facts / list_assets / get_worker_output 回答人关于当前进展的问题。
-2. 操舵（把人的意图落到系统）：
-   - 人想"改方向/强调某类漏洞/重点某区域" → 用 add_hint 写提示（规划者下次会读到）。
-   - 人想"立刻测某个具体目标" → 用 add_intent 直接注入一条高优先级意图（priority 8-10）。系统会自动把已完成的任务拉回运行态、让 worker 领这条意图执行，跑完即回到已完成状态。
-     **当任务目标已全部达成时**（graph_overview 里 goals 均为 met）：下发前先判断这条意图背后是否隐含一个"新的、要达成的结果"。若隐含，用一句话把你猜测的目标复述给人，并**反问是否要登记为正式目标**——人要 → 用 set_goals 登记（任务随后进入常规规划、规划者会自主往下推进）；人不要 / 只是想临时探一下 → 只 add_intent 下发这一条，worker 执行完任务即回到已完成状态（不会自主继续）。若这条意图明显只是一次性查证、不隐含新目标，直接 add_intent 即可，不必每次都问。
-   - 人想"对某条正在运行的意图(work)实时纠偏（别再走 X、聚焦 Y）" → 用 steer_work（不打断、不丢已有进展，worker 下一步动作前生效）；先用 get_worker_output 看它在干嘛。方向整个错了则改用 add_intent 另下新意图。
-   - 人想"新增一个要达成的最终目标" → 用 set_goals 增补目标。系统会把该目标写入任务图并**自动把已完成/暂停的任务拉回运行态继续跑**（规划者随后会据此重新判断是否达成），无需人工再点恢复。
-   - 人想"增/改测试约束（允许/禁止某类操作，如『仅测当前端口』『禁止爆破』『只做被动侦察』）" → 用 set_constraints 登记（type=allow 允许 / type=deny 禁止）。约束会在下一轮规划时注入 planner/worker 的提示词以框定探索边界；也可在总览「约束管理」里增删改。
-3. 用人话简洁回复，说明你做了什么。
+1. Observar: use graph_overview / list_findings / list_facts / list_assets / get_worker_output para responder às perguntas das pessoas sobre o progresso atual.
+2. Conduzir (levar a intenção da pessoa para o sistema):
+   - Se a pessoa quer "mudar a direção / enfatizar certo tipo de vulnerabilidade / focar certa região" → use add_hint para escrever um hint (o planejador o lerá na próxima vez).
+   - Se a pessoa quer "testar imediatamente um alvo específico" → use add_intent para injetar diretamente uma intenção de alta prioridade (priority 8-10). O sistema traz automaticamente a tarefa já concluída de volta ao estado em execução, para que um worker pegue essa intenção e a execute; ao terminar, volta ao estado concluído.
+     **Quando todos os objetivos da tarefa já foram atingidos** (os goals em graph_overview estão todos met): antes de despachar, avalie se por trás desta intenção há implícito um "novo resultado a ser alcançado". Se houver, reformule em uma frase o objetivo que você supõe para a pessoa e **pergunte se deseja registrá-lo como objetivo formal** — se sim → registre com set_goals (a tarefa entra então no planejamento regular, e o planejador avançará por conta própria); se não / só quer uma sondagem temporária → apenas despache esta intenção com add_intent, e o worker, ao terminar, devolve a tarefa ao estado concluído (sem continuar por conta própria). Se a intenção for claramente só uma verificação pontual, sem novo objetivo implícito, basta add_intent, sem precisar perguntar toda vez.
+   - Se a pessoa quer "corrigir em tempo real o rumo de uma intenção (work) em execução (não siga X, foque em Y)" → use steer_work (sem interromper, sem perder o progresso existente, vale antes da próxima ação do worker); primeiro use get_worker_output para ver o que ele está fazendo. Se a direção estiver totalmente errada, use add_intent para despachar uma nova intenção.
+   - Se a pessoa quer "adicionar um novo objetivo final a ser atingido" → use set_goals para acrescentar objetivos. O sistema grava o objetivo no grafo da tarefa e **traz automaticamente a tarefa concluída/pausada de volta ao estado em execução** (o planejador então reavalia se foi atingido), sem necessidade de clicar manualmente em retomar.
+   - Se a pessoa quer "adicionar/alterar restrições de teste (permitir/proibir certo tipo de operação, como 'testar apenas a porta atual', 'proibido força bruta', 'fazer apenas reconhecimento passivo')" → registre com set_constraints (type=allow permite / type=deny proíbe). As restrições são injetadas nos prompts do planner/worker na próxima rodada de planejamento para delimitar a fronteira da exploração; também é possível adicionar/remover/alterar em "Gerenciamento de restrições" na visão geral.
+3. Responda em linguagem natural e de forma concisa, explicando o que você fez.
 
-当前任务目标：{{.Goal}}
+Objetivo atual da tarefa: {{.Goal}}
 
-不要编造发现；只根据工具返回的真实数据回答。`
+Não invente descobertas; responda apenas com base nos dados reais retornados pelas ferramentas.`
 
 func mainAgentSystem(goal, dataDir, workDir string) string {
 	body := renderSystem("mainagent", mainAgentDefaultTmpl, MainVars{Goal: goal, DataDir: dataDir, Now: nowStr()})
@@ -117,18 +117,18 @@ func (m *MainAgent) Chat(ctx context.Context, taskID int64, mainSeg int, as *db.
 	}
 	tsx.SetTaskID(taskID)
 	tsx.SetCoverageEnabled(as == nil || as.CoverageEnabled(taskID))
-	tsx.SetNotify(notify)         // 通用唤醒（无专用回调的写操作走它，debounced）
-	tsx.SetResumeTask(resume)     // set_goals 新增目标 → 把已完成/暂停的任务拉回 running
-	tsx.SetNotifyGoal(notifyGoal) // set_goals 新增目标 → 给 planner 记一条「人新增了目标：…」触发
-	tsx.SetNotifyHint(notifyHint) // add_hint 新增提示 → 给 planner 记一条「人新增了 N 条战略提示：…」触发
+	tsx.SetNotify(notify)         // despertar genérico (operações de escrita sem callback dedicado passam por ele, debounced)
+	tsx.SetResumeTask(resume)     // set_goals adiciona objetivo → traz de volta a tarefa concluída/pausada para running
+	tsx.SetNotifyGoal(notifyGoal) // set_goals adiciona objetivo → registra para o planner uma entrada "a pessoa adicionou um objetivo: ..." como gatilho
+	tsx.SetNotifyHint(notifyHint) // add_hint adiciona hint → registra para o planner uma entrada "a pessoa adicionou N dicas estratégicas: ..." como gatilho
 	tsx.steerWork = m.steerWork   // enable steer_work tool (nil = unavailable)
-	// 领域工具 + 基础默认工具集（Read/Write/Edit/MultiEdit/LS/Glob/Grep/Bash）
-	// 资产覆盖度功能关闭时剔除 add_task_scope/list_untested_assets（不入 prompt）。
+	// Ferramentas de domínio + conjunto básico de ferramentas padrão (Read/Write/Edit/MultiEdit/LS/Glob/Grep/Bash)
+	// Com a função de cobertura de ativos desativada, remove add_task_scope/list_untested_assets (não entram no prompt).
 	base := append(tsx.DropCoverageTools(tsx.MainAgentTools()), actool.DefaultTools()...)
 	ctx = WithRunInfo(ctx, RunInfo{TaskID: taskID, ExplorationID: explorationID(ts)})
 	tools, def, cleanup := AugmentTools(ctx, "mainagent", base)
 	defer cleanup()
-	// 本任务的工作目录 <workDir>/tasks/<taskID>，先建好。
+	// Diretório de trabalho desta tarefa <workDir>/tasks/<taskID>, criado antes.
 	mainDir := ensureRunDir(m.workDir, taskID, 0)
 	ctx = intercept.WithReviewWorkingDirectory(ctx, mainDir)
 	system, boundary := deferredSystem(mainAgentSystem(goal, m.workDir, mainDir), def)
@@ -140,11 +140,11 @@ func (m *MainAgent) Chat(ctx context.Context, taskID int64, mainSeg int, as *db.
 		DeferredTools:   def.Deferred,
 		UnlockSet:       def.Unlock,
 		PermissionMode:  permission.ModeBypass,
-		EnableWebFetch:  true, // 走记录代理留痕；载入代理 CA 验证 MITM 重签的 HTTPS 证书
+		EnableWebFetch:  true, // passa pelo proxy de registro para deixar rastro; carrega a CA do proxy para validar certificados HTTPS reassinados pelo MITM
 		WebFetchProxy:   m.proxyAddr,
 		WebFetchCACert:  m.proxyCACert,
-		// 联网搜索(可选)。ddgs 无需 key；brave-free 需 BraveKey；tavily 需 TavilyKey。
-		// WebSearchProxy 是独立出口代理(http/https/socks5)，与记录流量的 MITM 代理无关；空则直连。
+		// Busca na web (opcional). ddgs não precisa de key; brave-free precisa de BraveKey; tavily precisa de TavilyKey.
+		// WebSearchProxy é um proxy de saída independente (http/https/socks5), sem relação com o proxy MITM que registra o tráfego; vazio = conexão direta.
 		EnableWebSearch:       m.webSearch.Enabled,
 		WebSearchBackend:      m.webSearch.Backend,
 		BraveSearchAPIKey:     m.webSearch.BraveKey,
@@ -153,16 +153,16 @@ func (m *MainAgent) Chat(ctx context.Context, taskID int64, mainSeg int, as *db.
 		DeepSeekSearchAPIKey:  m.webSearch.DeepSeekAPIKey,
 		DeepSeekSearchModel:   m.webSearch.DeepSeekModel,
 		WebSearchProxy:        m.webSearch.Proxy,
-		BashEnv:               proxyEnv(m.proxyAddr, m.proxyCACert), // Bash 子命令默认走代理+信任 CA
-		WorkingDir:            mainDir,                              // 本任务工作目录 <workDir>/tasks/<taskID>
+		BashEnv:               proxyEnv(m.proxyAddr, m.proxyCACert), // Subcomandos do Bash passam pelo proxy por padrão + confiam na CA
+		WorkingDir:            mainDir,                              // diretório de trabalho desta tarefa <workDir>/tasks/<taskID>
 		ToolOutputDir:         cmdOutDir(mainDir),
 		MaxTurns:              m.maxTurns,                             // 0 = unlimited (configurable in agent management)
 		Compaction:            compactionConfig(m.compactionWindow()), // long chats stay within the window
-		Todos:                 actool.NewTodoStore(),                  // 会话级临时待办（TodoWrite），纯规划用，退出即丢
-		// 命中预算(步数)→ SDK 跑收尾:向用户输出一句进展总结。Prompt 与收尾轮数可后台编辑(默认 10 轮)。
+		Todos:                 actool.NewTodoStore(),                  // todo temporário em nível de sessão (TodoWrite), só para planejamento, descartado ao sair
+		// Ao atingir o orçamento (passos) → o SDK faz o encerramento: emite ao usuário um resumo de progresso de uma frase. O Prompt e o número de turnos de encerramento podem ser editados no painel (padrão: 10 turnos).
 		Settlement:   wrapupSettlement("mainagent", nil),
-		NonStreaming: m.nonStreaming(), // 该 profile 选非流式时走 Provider.Complete
-		MaxTokens:    m.maxTokens(),    // 0 = 不发上限,由服务端默认值决定
+		NonStreaming: m.nonStreaming(), // quando este profile escolhe não streaming, usa Provider.Complete
+		MaxTokens:    m.maxTokens(),    // 0 = não envia limite; o padrão do servidor decide
 	}
 	if m.tx != nil { // persist raw human↔AI conversation; one accumulating file per segment
 		opts.Transcript = m.tx
@@ -173,8 +173,8 @@ func (m *MainAgent) Chat(ctx context.Context, taskID int64, mainSeg int, as *db.
 			opts.SessionID = fmt.Sprintf("exp%d-main-s%d", ts.ID(), mainSeg)
 		}
 	}
-	// 实验功能:开启后由 noa 接管上下文压缩(归档集中在 <workDir>/noa/<SessionID> 下,持久)。
-	// session id 与 transcript 同规则(分段感知),使归档与恢复对齐。
+	// Recurso experimental: quando ativado, o noa assume a compressão de contexto (arquivos em <workDir>/noa/<SessionID>, persistentes).
+	// O session id segue a mesma regra do transcript (ciente de segmentos), alinhando arquivo e recuperação.
 	noaSession := fmt.Sprintf("exp%d-main", ts.ID())
 	if mainSeg > 0 {
 		noaSession = fmt.Sprintf("exp%d-main-s%d", ts.ID(), mainSeg)

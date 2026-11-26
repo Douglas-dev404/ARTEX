@@ -9,33 +9,33 @@ import (
 	"time"
 )
 
-// 本文件是投递任务的领取与状态流转。
+// Este arquivo trata da reivindicação das tarefas de entrega e das transições de estado.
 //
-// 领取用「租约」而非长事务：把行置为 sending 并把 next_attempt_at 推到未来作为
-// 租约到期时间，提交事务后再去做网络投递。这样投递期间不持有数据库锁——
-// 网络请求可能耗时数秒（客户端超时 15 秒），占着行锁不放会拖垮同库的其它写操作。
+// A reivindicação usa um "lease" e não uma transação longa: a linha vai para sending e next_attempt_at é empurrado para o futuro como
+// horário de expiração do lease; só depois do commit da transação é feita a entrega pela rede. Assim nenhum lock do banco é mantido durante a entrega —
+// uma requisição de rede pode levar alguns segundos (timeout do cliente de 15 segundos), e segurar o lock da linha prejudicaria as outras escritas no mesmo banco.
 //
-// 代价是进程若在投递途中崩溃，行会停在 sending。这是**可自愈**的：租约到期后
-// next_attempt_at 落入过去，下一轮领取会把同一行重新捞起来（见领取条件里的
-// state IN ('pending','sending')）。重试计数在领取时就已 +1，所以崩溃不会造成
-// 无限重试——MaxNotifyAttempts 次机会用完后落入 failed 等人工处理。
+// O custo é que, se o processo cair no meio da entrega, a linha fica em sending. Isso é **autorrecuperável**: após o lease expirar,
+// next_attempt_at cai no passado e a próxima rodada de reivindicação pega a mesma linha de novo (ver a condição de reivindicação
+// state IN ('pending','sending')). A contagem de tentativas já foi +1 na reivindicação, então uma queda não causa
+// retentativas infinitas — esgotadas as MaxNotifyAttempts chances, vai para failed à espera de tratamento manual.
 
-// MaxNotifyAttempts 是一条投递的最大尝试次数（含首次）。
-// 定义在这里而非投递引擎里：它是状态机自身的策略，引擎只是执行者。
+// MaxNotifyAttempts é o número máximo de tentativas de uma entrega (incluindo a primeira).
+// Definido aqui e não no motor de entrega: é a política da própria máquina de estados, e o motor é apenas o executor.
 const MaxNotifyAttempts = 3
 
-// MaxDigestBatchSize 是单个汇总批次一次最多合并多少条投递。
+// MaxDigestBatchSize é o número máximo de entregas que um único lote de resumo pode mesclar de uma vez.
 //
-// 存在的理由是资源：一个汇总周期内如果扫出几万个漏洞（完全可能——一次全量扫描
-// 就能做到），不设上界的话领取会把全部行读进内存、渲染成一条超长消息，
-// 然后被渠道的长度上限截掉大半——既浪费内存，又**静默丢失**被截掉的那些漏洞。
-// 设上界后，超出的部分留在库里成为下一个批次，下个周期自然发出去，不会丢。
+// Existe por razão de recursos: se um ciclo de resumo varrer dezenas de milhares de vulnerabilidades (perfeitamente possível — uma única varredura completa
+// faz isso), sem limite superior a reivindicação leria todas as linhas na memória e as renderizaria em uma mensagem gigante,
+// que o limite de tamanho do canal truncaria em grande parte — desperdício de memória e **perda silenciosa** das vulnerabilidades cortadas.
+// Com o limite, o excedente fica no banco e vira o próximo lote, saindo naturalmente no ciclo seguinte, sem perda.
 //
-// 取 500 的依据：它是渲染成消息后在企微 4096 字节上限内还"有内容可读"的量级；
-// 再大也只是让截断发生在更靠后的位置而已。
+// Por que 500: é a ordem de grandeza que, depois de renderizada em mensagem, ainda "tem conteúdo legível" dentro do limite de 4096 bytes do WeCom;
+// maior que isso só empurra o corte para uma posição mais adiante.
 const MaxDigestBatchSize = 500
 
-// NotificationDelivery 是一条投递任务，含渲染所需的渠道配置与事件快照。
+// NotificationDelivery é uma tarefa de entrega, com a configuração do canal e o snapshot do evento necessários para a renderização.
 type NotificationDelivery struct {
 	ID            int64           `json:"id"`
 	EventID       int64           `json:"event_id"`
@@ -48,12 +48,12 @@ type NotificationDelivery struct {
 	CreatedAt     time.Time       `json:"created_at"`
 	SentAt        *time.Time      `json:"sent_at,omitempty"`
 	Snapshot      json.RawMessage `json:"snapshot,omitempty"`
-	// 联合加载的渲染上下文，不进 JSON（由 server 层组装 DTO）。
+	// Contexto de renderização carregado por join, não entra no JSON (o DTO é montado pela camada server).
 	Channel *NotificationChannel `json:"-"`
-	// FindingID/EventKind 从事件带出，供历史列表直接跳转漏洞详情。
+	// FindingID/EventKind vêm do evento, para a lista de histórico saltar direto aos detalhes da vulnerabilidade.
 	FindingID int64  `json:"finding_id,string"`
 	EventKind string `json:"event_kind"`
-	// ChannelName/ChannelKind 是列表展示用的冗余字段，省掉前端二次查询。
+	// ChannelName/ChannelKind são campos redundantes para exibição na lista, economizando uma segunda consulta do frontend.
 	ChannelName string `json:"channel_name"`
 	ChannelKind string `json:"channel_kind"`
 }
@@ -61,8 +61,8 @@ type NotificationDelivery struct {
 const notificationDeliveryCols = `d.id, d.event_id, d.channel_id, d.state, d.attempts, d.next_attempt_at,
        d.last_error, d.batch_id, d.created_at, d.sent_at`
 
-// joinedDeliveryQuery 是投递行的统一读取形状：投递 + 事件快照 + 渠道配置。
-// 渲染一条消息三者缺一不可，分开查会写出三次往返。
+// joinedDeliveryQuery é a forma unificada de leitura das linhas de entrega: entrega + snapshot do evento + configuração do canal.
+// Renderizar uma mensagem exige os três; consultar separadamente seriam três idas e voltas.
 const joinedDeliveryQuery = `SELECT ` + notificationDeliveryCols + `,
        e.snapshot, e.kind, e.finding_id,
        c.id, c.name, c.kind, c.enabled, c.config, c.mode, c.filter, c.rate_per_min
@@ -103,24 +103,24 @@ func scanNotificationDelivery(sc interface{ Scan(...any) error }) (*Notification
 	return &dl, nil
 }
 
-// claimQuery 描述一次领取：先按 sel 选出候选并加锁，再把它们置为 sending 并
-// 延长租约。sel 里的 lease 位置由调用方用 $n 占位并自行传参。
+// claimQuery descreve uma reivindicação: primeiro seleciona candidatos por sel e os trava, depois os põe em sending e
+// estende o lease. A posição de lease dentro de sel é marcada pelo chamador com $n, e o chamador passa o argumento.
 type claimQuery struct {
 	sql  string
 	args []any
 }
 
-// ClaimRealtimeDeliveries 领取某渠道一批到期的实时投递，最多 limit 条。
+// ClaimRealtimeDeliveries reivindica um lote de entregas em tempo real vencidas de um canal, no máximo limit.
 //
-// 刻意按**单个渠道**领取而不是「全局领一批再挑着发」：限流闸在投递引擎里按渠道
-// 维护，只有先知道这个渠道这一轮还能发几条、再去领同样多的行，限流才不会消耗
-// 重试次数。若反过来先领后弃，被限流挡下的行已经被计过一次 attempts，
-// 3 次预算会被纯粹的等待耗光，最后落进 failed。
+// Reivindica deliberadamente por **canal individual**, e não "reivindicar um lote global e escolher o que enviar": o portão de limite de taxa
+// é mantido por canal dentro do motor de entrega; só sabendo antes quantas mensagens o canal ainda pode enviar nesta rodada e reivindicando
+// exatamente essa quantidade de linhas é que o limite de taxa não consome tentativas. Se fosse ao contrário (reivindicar e depois descartar), as linhas barradas pelo limite
+// já teriam contado um attempts, e o orçamento de 3 tentativas seria gasto só com espera, indo parar em failed.
 //
-// 条件含「租约已过期的 sending」——那是崩溃自愈的落点。lease 必须显著大于单次
-// 投递的最坏耗时（渠道 HTTP 客户端超时 15 秒），否则同一行会被两个 dispatcher
-// 同时投递。同时挡掉已停用渠道：停用操作已把存量投递标记为 skipped，
-// 这里再拦一道，避免停用与领取并发时的漏网。
+// A condição inclui "sending com lease expirado" — é o ponto de autorrecuperação de quedas. O lease precisa ser bem maior que o pior caso
+// de uma única entrega (timeout do cliente HTTP do canal de 15 segundos), senão a mesma linha seria entregue
+// por dois dispatchers ao mesmo tempo. Também filtra canais desativados: a operação de desativar já marcou as entregas existentes como skipped,
+// e aqui há mais uma barreira, para evitar escapes quando desativação e reivindicação ocorrem concorrentemente.
 func (d *DB) ClaimRealtimeDeliveries(ctx context.Context, channelID int64, limit int, lease time.Duration) ([]*NotificationDelivery, error) {
 	if limit <= 0 {
 		return nil, nil
@@ -137,15 +137,15 @@ LIMIT $5`,
 	}, nil)
 }
 
-// DigestBatchDue 报告该渠道是否已攒够一个到期批次：存在待发投递，且**最老的那条**
-// 年龄已达到汇总周期。
+// DigestBatchDue informa se o canal já acumulou um lote vencido: há entregas pendentes e a **mais antiga**
+// já atingiu a idade do ciclo de resumo.
 //
-// 判定依据是最老投递的年龄而非墙上时钟：这样刚建好的渠道不会因为对齐到整点而
-// 立刻吐出一条只有一条的「汇总」，积压很久的批次也不会再白等一轮。
+// O critério é a idade da entrega mais antiga e não o relógio de parede: assim um canal recém-criado não emite, por alinhar na hora cheia,
+// um "resumo" de um único item, e um lote acumulado há muito tempo também não espera mais uma rodada à toa.
 //
-// 与 ClaimDigestBatch 分开是因为语义不同：本函数只回答「该不该发」，
-// 而领取要拿走该渠道**全部**待发行（包括尚未满年龄的那些）——否则一个周期
-// 会被拆成多条消息，汇总就失去意义了。
+// É separada de ClaimDigestBatch porque a semântica é diferente: esta função só responde "deve enviar ou não",
+// enquanto a reivindicação leva **todas** as linhas pendentes do canal (inclusive as que ainda não atingiram a idade) — senão um ciclo
+// seria dividido em várias mensagens e o resumo perderia o sentido.
 func (d *DB) DigestBatchDue(ctx context.Context, channelID int64, minAge time.Duration) (bool, error) {
 	var due bool
 	err := d.QueryRowContext(ctx, `SELECT EXISTS (
@@ -158,28 +158,28 @@ func (d *DB) DigestBatchDue(ctx context.Context, channelID int64, minAge time.Du
 	return due, err
 }
 
-// ClaimDigestBatch 领取某渠道当前到期的待发投递，作为一个汇总批次，
-// 单批最多 MaxDigestBatchSize 条。
+// ClaimDigestBatch reivindica as entregas pendentes vencidas de um canal, como um lote de resumo,
+// com no máximo MaxDigestBatchSize itens por lote.
 //
-// 同批次的所有投递共享 batch_id，用集合里的最小 id 作批次号（稳定、可读、
-// 无需额外序列）。重试时用 COALESCE 保留原批次号，使「这批 N 条是一起发的」
-// 在多次重试后依然成立。
+// Todas as entregas do mesmo lote compartilham batch_id, usando o menor id do conjunto como número do lote (estável, legível,
+// sem precisar de sequência extra). Na retentativa, COALESCE preserva o número original do lote, para que "estas N foram enviadas juntas"
+// continue valendo após várias retentativas.
 //
-// 按 id 升序取前 N 条而非随机取：最早产生的投递最先发出去，积压时不会出现
-// 「新漏洞先发、老漏洞永远排在后面」的饥饿。
+// Pega os N primeiros por id crescente e não aleatórios: a entrega gerada mais cedo sai primeiro, e em caso de acúmulo não ocorre a inanição de
+// "vulnerabilidade nova sai primeiro, antiga fica sempre no fim".
 func (d *DB) ClaimDigestBatch(ctx context.Context, channelID int64, limit int, lease time.Duration) ([]*NotificationDelivery, error) {
 	if limit <= 0 {
 		return nil, nil
 	}
-	// limit 是**内存上界**，调用方传 MaxDigestBatchSize；这里再夹一道，
-	// 防止调用方传进一个更大的值。
+	// limit é o **teto de memória**, o chamador passa MaxDigestBatchSize; aqui há mais uma trava,
+	// para evitar que o chamador passe um valor maior.
 	//
-	// 刻意不接受「限流额度」充当批次大小：限流的单位是消息条数——一个批次只发
-	// 一条消息、消耗一个令牌，由 server 层的 takeTokens 扣除——与「一批装几条
-	// 漏洞」是两个不同的量纲。曾经为了让 rate_per_min 对 digest 生效而把每轮
-	// 请求预算传进来当批次大小，结果 rate=20/min 的渠道每批只装 1 条漏洞，
-	// digest 退化成带汇总文案的实时推送。要改限流请改 takeTokens 的 want，
-	// 不要动这里。
+	// Deliberadamente não aceita a "cota de limite de taxa" como tamanho do lote: a unidade do limite de taxa é o número de mensagens — um lote envia só
+	// uma mensagem e consome um token, descontado por takeTokens na camada server — e é uma dimensão diferente de "quantas
+	// vulnerabilidades cabem num lote". Já se passou o orçamento de requisições de cada rodada como tamanho do lote para fazer rate_per_min valer para digest,
+	// e o resultado foi que um canal com rate=20/min colocava só 1 vulnerabilidade por lote,
+	// e o digest degenerava em push em tempo real com texto de resumo. Para mudar o limite de taxa, altere o want de takeTokens,
+	// não mexa aqui.
 	if limit > MaxDigestBatchSize {
 		limit = MaxDigestBatchSize
 	}
@@ -206,14 +206,14 @@ WHERE id IN (`+ph+`)`, append([]any{batchID}, idArgs...)...)
 	return out, err
 }
 
-// claimDeliveries 执行「选取 + 置 sending 延长租约 + 读取完整行」，全在一个事务里。
-// postClaim 是可选的附加步骤（汇总批次用它写入 batch_id）。
+// claimDeliveries executa "selecionar + pôr em sending estendendo o lease + ler a linha completa", tudo em uma transação.
+// postClaim é um passo adicional opcional (o lote de resumo o usa para gravar batch_id).
 func (d *DB) claimDeliveries(ctx context.Context, lease time.Duration, cq claimQuery, postClaim func(*sql.Tx, []int64) error) ([]*NotificationDelivery, error) {
 	tx, err := d.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback() //nolint:errcheck // 提交成功后是 no-op
+	defer tx.Rollback() //nolint:errcheck // no-op após o commit bem-sucedido
 
 	ids, err := selectForClaim(ctx, tx, cq.sql, cq.args...)
 	if err != nil {
@@ -222,8 +222,8 @@ func (d *DB) claimDeliveries(ctx context.Context, lease time.Duration, cq claimQ
 	if len(ids) == 0 {
 		return nil, tx.Commit()
 	}
-	// 置 sending 并把 next_attempt_at 推到未来：这个未来时刻即租约到期时间，
-	// 「租约未到期」与「未到重试时间」因此共用同一个条件表达，不需要新增列。
+	// Põe em sending e empurra next_attempt_at para o futuro: esse instante futuro é o horário de expiração do lease,
+	// então "lease não expirado" e "ainda não é hora de retentar" compartilham a mesma expressão de condição, sem precisar de nova coluna.
 	ph, idArgs := placeholders(3, ids)
 	if _, err := tx.ExecContext(ctx, `UPDATE notification_deliveries
 SET state=$1, attempts=attempts+1, next_attempt_at=now()+make_interval(secs => $2)
@@ -278,7 +278,7 @@ func loadDeliveriesTx(ctx context.Context, tx *sql.Tx, ids []int64) ([]*Notifica
 	return out, rows.Err()
 }
 
-// MarkDeliveriesSent 把一批投递标记为已送达。
+// MarkDeliveriesSent marca um lote de entregas como entregue.
 func (d *DB) MarkDeliveriesSent(ctx context.Context, ids []int64) error {
 	ph, args := placeholders(2, ids)
 	if len(args) == 0 {
@@ -289,10 +289,10 @@ SET state=$1, sent_at=now(), last_error='' WHERE id IN (`+ph+`)`, append([]any{N
 	return err
 }
 
-// RescheduleDeliveries 把一批投递退回 pending 并推后重试时间。
+// RescheduleDeliveries devolve um lote de entregas a pending e adia o horário de retentativa.
 //
-// 退回 pending 而不是引入新的中间状态，是为了让「还剩几次机会」只由一个地方
-// 表达（MaxNotifyAttempts），避免状态机的分支随重试策略膨胀。
+// Devolve a pending em vez de introduzir um novo estado intermediário, para que "quantas chances restam" seja expresso em um único lugar
+// (MaxNotifyAttempts), evitando que os ramos da máquina de estados inchem com a política de retentativa.
 func (d *DB) RescheduleDeliveries(ctx context.Context, ids []int64, delay time.Duration, errMsg string) error {
 	ph, args := placeholders(4, ids)
 	if len(args) == 0 {
@@ -305,15 +305,15 @@ WHERE id IN (`+ph+`)`,
 	return err
 }
 
-// DeferDeliveries 把一批投递退回 pending、立即可再领，并**撤销领取时计的那一次尝试**。
+// DeferDeliveries devolve um lote de entregas a pending, imediatamente reivindicáveis de novo, e **desfaz a tentativa contada na reivindicação**.
 //
-// 用途只有一个：汇总消息按渠道长度上限分段发送时，没装进本条的条目要留到下一批。
-// 那不是失败，所以不该消耗重试预算——领取时 attempts 已经乐观地 +1 了，
-// 这里必须减回去。否则一个 500 条的积压会按每段 20 条切成 25 段，
-// 尾部条目在第 3 段就被 MaxNotifyAttempts 判成 failed，而它们从未出过任何错。
+// Tem um único uso: quando uma mensagem de resumo é enviada em segmentos conforme o limite de tamanho do canal, os itens que não couberam nesta ficam para o próximo lote.
+// Isso não é falha, então não deve consumir o orçamento de retentativas — na reivindicação attempts já foi otimisticamente +1,
+// e aqui é preciso subtrair de volta. Senão, um acúmulo de 500 itens seria cortado em 25 segmentos de 20,
+// e os itens do final seriam julgados failed por MaxNotifyAttempts já no 3º segmento, sem nunca terem tido erro algum.
 //
-// GREATEST(...,0) 兜住「有人手工重发把 attempts 清零后又走到这里」的情况，
-// 不让计数变成负数。
+// GREATEST(...,0) cobre o caso de "alguém reenviou manualmente, zerando attempts, e depois chegou aqui",
+// para que a contagem não fique negativa.
 func (d *DB) DeferDeliveries(ctx context.Context, ids []int64, reason string) error {
 	ph, args := placeholders(3, ids)
 	if len(args) == 0 {
@@ -326,9 +326,9 @@ WHERE id IN (`+ph+`)`,
 	return err
 }
 
-// FailDeliveries 把一批投递标记为最终失败，等待人工在投递历史里重发。
+// FailDeliveries marca um lote de entregas como falha final, à espera de reenvio manual no histórico de entregas.
 func (d *DB) FailDeliveries(ctx context.Context, ids []int64, errMsg string) error {
-	// 占位符从 $3 开始：$1 是 state、$2 是 last_error。
+	// Os placeholders começam em $3: $1 é state e $2 é last_error.
 	ph, args := placeholders(3, ids)
 	if len(args) == 0 {
 		return nil
@@ -338,9 +338,9 @@ func (d *DB) FailDeliveries(ctx context.Context, ids []int64, errMsg string) err
 	return err
 }
 
-// RetryNotificationDelivery 手动重发一条投递：重置为 pending、清零重试计数、
-// 立即到期。清计数是刻意的——人工点「重发」意味着前几次失败的原因已被处理，
-// 再拿旧计数限制它没有道理。
+// RetryNotificationDelivery reenvia manualmente uma entrega: redefine para pending, zera a contagem de tentativas e
+// a torna vencida imediatamente. Zerar a contagem é deliberado — quando uma pessoa clica em "reenviar", subentende-se que a causa das falhas anteriores foi tratada,
+// e limitá-la pela contagem antiga não faz sentido.
 func (d *DB) RetryNotificationDelivery(ctx context.Context, id int64) error {
 	res, err := d.ExecContext(ctx, `UPDATE notification_deliveries
 SET state=$2, attempts=0, next_attempt_at=now(), last_error=''
@@ -349,12 +349,12 @@ WHERE id=$1 AND state IN ($3,$4)`, id, NotifyStatePending, NotifyStateFailed, No
 		return err
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		return fmt.Errorf("投递 %d 不存在或当前状态不允许重发", id)
+		return fmt.Errorf("a entrega %d não existe ou o estado atual não permite reenvio", id)
 	}
 	return nil
 }
 
-// NotificationDeliveryFilter 是投递历史的查询条件。
+// NotificationDeliveryFilter são as condições de consulta do histórico de entregas.
 type NotificationDeliveryFilter struct {
 	ChannelID int64
 	State     string
@@ -382,7 +382,7 @@ func (f NotificationDeliveryFilter) where() (string, []any) {
 	return " WHERE " + strings.Join(conds, " AND "), args
 }
 
-// ListNotificationDeliveries 分页返回投递历史，新的在前。
+// ListNotificationDeliveries retorna o histórico de entregas paginado, as mais novas primeiro.
 func (d *DB) ListNotificationDeliveries(ctx context.Context, f NotificationDeliveryFilter, page, pageSize int) ([]*NotificationDelivery, int, error) {
 	if page < 1 {
 		page = 1
@@ -416,14 +416,14 @@ JOIN notification_events e ON e.id = d.event_id`+where, args...).Scan(&total); e
 	return out, total, rows.Err()
 }
 
-// truncateNotifyError 把错误信息截到列可接受的长度。渠道返回的响应体可能很长
-// （通用 Webhook 打到自建服务时尤甚），不截断会让历史列表的载荷膨胀。
+// truncateNotifyError corta a mensagem de erro para um tamanho aceitável pela coluna. O corpo de resposta devolvido pelo canal pode ser muito longo
+// (especialmente quando um Webhook genérico bate em um serviço próprio); sem truncar, o payload da lista de histórico incharia.
 func truncateNotifyError(msg string) string {
 	const max = 500
 	if len(msg) <= max {
 		return msg
 	}
-	// 按字符边界回退，避免留下半个 UTF-8 字符让前端显示成乱码。
+	// Recua no limite de caractere, para não deixar meio caractere UTF-8 e o frontend exibir texto corrompido.
 	cut := max
 	for cut > 0 && !isUTF8Start(msg[cut]) {
 		cut--
@@ -433,8 +433,8 @@ func truncateNotifyError(msg string) string {
 
 func isUTF8Start(b byte) bool { return b&0xC0 != 0x80 }
 
-// placeholders 生成从 start 开始的 $n 占位串及对应参数，供 IN (...) 使用。
-// 例如 start=3, ids=[7,8] → "$3,$4", [7,8]。
+// placeholders gera a string de placeholders $n a partir de start e os argumentos correspondentes, para uso em IN (...).
+// Por exemplo start=3, ids=[7,8] -> "$3,$4", [7,8].
 func placeholders(start int, ids []int64) (string, []any) {
 	ph := make([]string, 0, len(ids))
 	args := make([]any, 0, len(ids))
