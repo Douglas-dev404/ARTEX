@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { BarChart3Icon, ChevronLeftIcon, ChevronRightIcon, Loader2Icon, SearchIcon, TerminalIcon } from "lucide-react";
 
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -126,14 +127,16 @@ export default function CommandsPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <TerminalIcon className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl font-semibold tracking-tight">Execução de ferramentas</h1>
-          <Badge variant="secondary">{total}</Badge>
-        </div>
-      </div>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <TerminalIcon className="size-5 text-muted-foreground" />
+            Execução de ferramentas
+            <Badge variant="secondary">{total}</Badge>
+          </span>
+        }
+        description="Histórico de chamadas de ferramenta feitas pelos agentes"
+      />
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
@@ -258,7 +261,7 @@ export default function CommandsPage() {
                             Falha
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="text-xs text-emerald-600">
+                          <Badge variant="secondary" className="text-xs text-state-done">
                             Sucesso
                           </Badge>
                         )}
@@ -278,7 +281,9 @@ export default function CommandsPage() {
           <DialogHeader>
             <DialogTitle>Estatísticas de chamadas de ferramenta</DialogTitle>
             <DialogDescription>
-              {taskFilter || queryQ ? "Todos os registros sob os filtros atuais" : "Todos os registros de execução de ferramentas"}
+              {taskFilter || queryQ
+                ? "Todos os registros sob os filtros atuais"
+                : "Todos os registros de execução de ferramentas"}
               {stats.length > 0 && (
                 <>
                   {" · "}
@@ -287,7 +292,7 @@ export default function CommandsPage() {
                   {statsErrors > 0 && (
                     <>
                       {" · Falhas "}
-                      <span className="tabular-nums text-red-600 dark:text-red-400">{statsErrors}</span>
+                      <span className="tabular-nums text-sev-high">{statsErrors}</span>
                     </>
                   )}
                 </>
@@ -309,7 +314,7 @@ export default function CommandsPage() {
                     <div className="flex items-center gap-2">
                       <span className="truncate font-mono text-xs font-medium">{s.tool}</span>
                       {s.errors > 0 && (
-                        <span className="text-[11px] tabular-nums text-red-600 dark:text-red-400">Falhas {s.errors}</span>
+                        <span className="text-[11px] tabular-nums text-sev-high">Falhas {s.errors}</span>
                       )}
                     </div>
                     <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -354,7 +359,7 @@ export default function CommandsPage() {
                       Falha
                     </Badge>
                   ) : (
-                    <Badge variant="secondary" className="text-xs text-emerald-600">
+                    <Badge variant="secondary" className="text-xs text-state-done">
                       Sucesso
                     </Badge>
                   )}
@@ -375,7 +380,7 @@ export default function CommandsPage() {
                     <pre
                       className={cn(
                         "p-5 font-mono text-xs break-all whitespace-pre-wrap",
-                        selected.is_error && "text-red-600 dark:text-red-400",
+                        selected.is_error && "text-sev-high",
                       )}
                     >
                       {selected.output || "(vazio)"}

@@ -653,7 +653,7 @@ export default function SkillsPage() {
     return (
       <div key="__inline_create__" className="flex items-center gap-1 py-0.5 pr-2" style={{ paddingLeft: indent }}>
         {creating?.kind === "dir" ? (
-          <FolderIcon className="size-3.5 shrink-0 text-amber-500" />
+          <FolderIcon className="size-3.5 shrink-0 text-sev-medium" />
         ) : (
           <FileTextIcon className="size-3.5 shrink-0 text-muted-foreground" />
         )}
@@ -696,9 +696,9 @@ export default function SkillsPage() {
             >
               <ChevronRightIcon className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")} />
               {open ? (
-                <FolderOpenIcon className="size-3.5 shrink-0 text-amber-500" />
+                <FolderOpenIcon className="size-3.5 shrink-0 text-sev-medium" />
               ) : (
-                <FolderIcon className="size-3.5 shrink-0 text-amber-500" />
+                <FolderIcon className="size-3.5 shrink-0 text-sev-medium" />
               )}
               <span className="min-w-0 flex-1 truncate" title={node.path}>
                 {node.name}
@@ -809,7 +809,7 @@ export default function SkillsPage() {
           <Popover>
             <PopoverTrigger asChild>
               <Button size="sm" variant="outline" className="ml-auto">
-                <AlertTriangleIcon className="size-3.5 text-amber-500" />
+                <AlertTriangleIcon className="size-3.5 text-sev-medium" />
                 {missing.length} chamadas sem correspondência
               </Button>
             </PopoverTrigger>
@@ -886,9 +886,9 @@ export default function SkillsPage() {
                         className={cn("size-3.5 shrink-0 transition-transform", isOpen && "rotate-90")}
                       />
                       {isOpen ? (
-                        <FolderOpenIcon className="size-3.5 shrink-0 text-blue-500" />
+                        <FolderOpenIcon className="size-3.5 shrink-0 text-state-running" />
                       ) : (
-                        <FolderIcon className="size-3.5 shrink-0 text-blue-500" />
+                        <FolderIcon className="size-3.5 shrink-0 text-state-running" />
                       )}
                       <span className="min-w-0 flex-1 truncate font-semibold" title={s.name}>
                         {s.name}

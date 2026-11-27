@@ -135,7 +135,7 @@ function groupByAgent(conversations: Conversation[], agentByKey: Map<string, Age
 // console — shown while a turn is streaming.
 function LiveBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded bg-state-running/15 px-1.5 py-0.5 text-[10px] font-medium text-state-running dark:text-state-running">
+    <span className="inline-flex items-center gap-1 rounded bg-state-running/15 px-1.5 py-0.5 text-[10px] font-medium text-state-running">
       <span className="size-1 animate-pulse rounded-full bg-blue-500" />
       Ao vivo
     </span>

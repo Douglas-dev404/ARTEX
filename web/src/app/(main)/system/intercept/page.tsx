@@ -1,55 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
-import {
-  BotIcon,
-  ListFilterIcon,
-  PencilIcon,
-  PlusIcon,
-  ShieldAlertIcon,
-  Trash2Icon,
-} from "lucide-react";
 
+import { BotIcon, ListFilterIcon, PencilIcon, PlusIcon, ShieldAlertIcon, Trash2Icon } from "lucide-react";
+import { toast } from "sonner";
+
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import type {
   InterceptAction,
@@ -109,34 +78,35 @@ function sdkTool(key: string, description: string): Tool {
 }
 
 const SDK_EXEC: Tool[] = [
-  sdkTool("Bash",        "Executa comandos no shell"),
-  sdkTool("WebFetch",    "Faz requisições HTTP/HTTPS (com suporte a proxy)"),
-  sdkTool("web_search",  "Busca na web"),
-  sdkTool("shell_open",  "Abre uma sessão interativa PTY persistente"),
-  sdkTool("shell_send",  "Envia entrada para a sessão interativa"),
-  sdkTool("shell_read",  "Lê a saída da sessão interativa"),
+  sdkTool("Bash", "Executa comandos no shell"),
+  sdkTool("WebFetch", "Faz requisições HTTP/HTTPS (com suporte a proxy)"),
+  sdkTool("web_search", "Busca na web"),
+  sdkTool("shell_open", "Abre uma sessão interativa PTY persistente"),
+  sdkTool("shell_send", "Envia entrada para a sessão interativa"),
+  sdkTool("shell_read", "Lê a saída da sessão interativa"),
   sdkTool("shell_close", "Fecha a sessão interativa"),
-  sdkTool("shell_list",  "Lista todas as sessões interativas"),
+  sdkTool("shell_list", "Lista todas as sessões interativas"),
 ];
 
 const SDK_WRITE: Tool[] = [
-  sdkTool("Write",     "Grava arquivo"),
-  sdkTool("Edit",      "Edita arquivo (substituição exata)"),
+  sdkTool("Write", "Grava arquivo"),
+  sdkTool("Edit", "Edita arquivo (substituição exata)"),
   sdkTool("MultiEdit", "Edita arquivo em lote"),
 ];
 
 const SDK_KEYS = new Set([...SDK_EXEC, ...SDK_WRITE].map((t) => t.key));
 
 function groupTools(dbTools: Tool[]) {
-  const sys: Tool[] = [], custom: Tool[] = [];
+  const sys: Tool[] = [],
+    custom: Tool[] = [];
   for (const t of dbTools) {
     if (SDK_KEYS.has(t.key)) continue; // already covered by hardcoded groups
     if (t.system) sys.push(t);
-    else          custom.push(t);
+    else custom.push(t);
   }
   return [
-    { label: "Execução",           tools: SDK_EXEC },
-    { label: "Gravação/edição",    tools: SDK_WRITE },
+    { label: "Execução", tools: SDK_EXEC },
+    { label: "Gravação/edição", tools: SDK_WRITE },
     { label: "Ferramentas do sistema", tools: sys },
     { label: "Ferramentas personalizadas", tools: custom },
   ].filter((g) => g.tools.length > 0);
@@ -176,16 +146,18 @@ const defaultForm = (): RuleForm => ({
 
 function ActionBadge({ action }: { action: InterceptAction }) {
   if (action === "allow") return <Badge variant="secondary">Permitir</Badge>;
-  if (action === "deny")  return <Badge variant="destructive">Proibir</Badge>;
-  return <Badge variant="outline" className="border-amber-400 text-amber-600">Solicitar</Badge>;
+  if (action === "deny") return <Badge variant="destructive">Proibir</Badge>;
+  return (
+    <Badge variant="outline" className="border-sev-medium/50 text-sev-medium">
+      Solicitar
+    </Badge>
+  );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        {label}
-      </Label>
+      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</Label>
       {children}
     </div>
   );
@@ -288,7 +260,10 @@ function JudgeCard() {
           <div>
             <p className="text-sm font-semibold leading-tight">Aprovação de fallback pelo modelo</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Só os comandos que estão dentro do <span className="font-medium text-foreground">escopo de interceptação</span> e para os quais <span className="font-medium text-foreground">nenhuma regra de interceptação correspondeu</span> passam pelo julgamento semântico do modelo (permitir / encaminhar a humano / interceptar)
+              Só os comandos que estão dentro do{" "}
+              <span className="font-medium text-foreground">escopo de interceptação</span> e para os quais{" "}
+              <span className="font-medium text-foreground">nenhuma regra de interceptação correspondeu</span> passam
+              pelo julgamento semântico do modelo (permitir / encaminhar a humano / interceptar)
             </p>
           </div>
         </div>
@@ -306,7 +281,8 @@ function JudgeCard() {
               <div>
                 <p className="text-sm font-medium">Consumo de tokens da aprovação</p>
                 <p className="text-xs text-muted-foreground">
-                  Uso acumulado da aprovação de fallback pelo modelo, medido à parte (worker=judge), sem se misturar às estatísticas das configurações de cada modelo
+                  Uso acumulado da aprovação de fallback pelo modelo, medido à parte (worker=judge), sem se misturar às
+                  estatísticas das configurações de cada modelo
                 </p>
               </div>
               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={loadUsage}>
@@ -340,7 +316,9 @@ function JudgeCard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">Prompt de aprovação</p>
-                  <p className="text-xs text-muted-foreground">O modelo julga ALLOW / ASK / DENY com base nele; pode ser editado diretamente</p>
+                  <p className="text-xs text-muted-foreground">
+                    O modelo julga ALLOW / ASK / DENY com base nele; pode ser editado diretamente
+                  </p>
                 </div>
                 <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={restorePrompt} disabled={saving}>
                   Restaurar modelo padrão
@@ -361,10 +339,14 @@ function JudgeCard() {
           <Card className="lg:col-span-2">
             <CardContent className="space-y-5 p-4">
               <div className="space-y-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Modelo e política de julgamento</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Modelo e política de julgamento
+                </p>
                 <Field label="Modelo de aprovação">
                   <Select value={String(cfg.profile_id || 0)} onValueChange={(v) => patch({ profile_id: Number(v) })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={FOLLOW_ACTIVE}>Segue a configuração ativa</SelectItem>
                       {profiles.map((p) => (
@@ -387,8 +369,13 @@ function JudgeCard() {
                   />
                 </Field>
                 <Field label="Quando o modelo falhar (erro / timeout / impossível de interpretar)">
-                  <Select value={cfg.fail_action} onValueChange={(v) => patch({ fail_action: v as JudgeConfig["fail_action"] })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={cfg.fail_action}
+                    onValueChange={(v) => patch({ fail_action: v as JudgeConfig["fail_action"] })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="allow">Permitir</SelectItem>
                       <SelectItem value="ask">Encaminhar a aprovação humana</SelectItem>
@@ -401,7 +388,9 @@ function JudgeCard() {
               <Separator />
 
               <div className="space-y-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Aprovação humana (quando o modelo decide &quot;encaminhar a humano&quot;)</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Aprovação humana (quando o modelo decide &quot;encaminhar a humano&quot;)
+                </p>
                 <Field label="Timeout de espera da aprovação (segundos)">
                   <Input
                     type="number"
@@ -414,8 +403,13 @@ function JudgeCard() {
                   />
                 </Field>
                 <Field label="Ação padrão após o timeout">
-                  <Select value={cfg.ask_timeout_action} onValueChange={(v) => patch({ ask_timeout_action: v as JudgeConfig["ask_timeout_action"] })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={cfg.ask_timeout_action}
+                    onValueChange={(v) => patch({ ask_timeout_action: v as JudgeConfig["ask_timeout_action"] })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="deny">Interceptar</SelectItem>
                       <SelectItem value="allow">Permitir</SelectItem>
@@ -440,22 +434,22 @@ function JudgeCard() {
 // ---- page ----
 
 export default function InterceptPage() {
-  const [rules, setRules]     = React.useState<InterceptRule[]>([]);
+  const [rules, setRules] = React.useState<InterceptRule[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [open, setOpen]       = React.useState(false);
+  const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<InterceptRule | null>(null);
-  const [form, setForm]       = React.useState<RuleForm>(defaultForm());
-  const [saving, setSaving]   = React.useState(false);
+  const [form, setForm] = React.useState<RuleForm>(defaultForm());
+  const [saving, setSaving] = React.useState(false);
   const [regexErr, setRegexErr] = React.useState("");
   const [regexWarn, setRegexWarn] = React.useState(false); // true = o JS não consegue interpretar, mas pode ser sintaxe Go válida
 
   // ---- tool scope dialog ----
-  const [scopeOpen, setScopeOpen]       = React.useState(false);
-  const [allTools, setAllTools]         = React.useState<Tool[]>([]);
+  const [scopeOpen, setScopeOpen] = React.useState(false);
+  const [allTools, setAllTools] = React.useState<Tool[]>([]);
   const [enabledTools, setEnabledTools] = React.useState<Set<string>>(new Set());
   const [scopeLoading, setScopeLoading] = React.useState(false);
-  const [scopeSaving, setScopeSaving]   = React.useState(false);
-  const [scopeTools, setScopeTools]     = React.useState<string[]>([]); // faixa de informações do cabeçalho: ferramentas atualmente sob interceptação
+  const [scopeSaving, setScopeSaving] = React.useState(false);
+  const [scopeTools, setScopeTools] = React.useState<string[]>([]); // faixa de informações do cabeçalho: ferramentas atualmente sob interceptação
 
   // ---- data ----
 
@@ -479,10 +473,17 @@ export default function InterceptPage() {
     }
   }, []);
 
-  React.useEffect(() => { load(); loadScope(); }, [load, loadScope]);
+  React.useEffect(() => {
+    load();
+    loadScope();
+  }, [load, loadScope]);
 
   React.useEffect(() => {
-    if (form.match_type !== "regex" || !form.pattern) { setRegexErr(""); setRegexWarn(false); return; }
+    if (form.match_type !== "regex" || !form.pattern) {
+      setRegexErr("");
+      setRegexWarn(false);
+      return;
+    }
     try {
       new RegExp(form.pattern);
       setRegexErr("");
@@ -497,7 +498,9 @@ export default function InterceptPage() {
 
   // ---- rule handlers ----
 
-  function set(patch: Partial<RuleForm>) { setForm(f => ({ ...f, ...patch })); }
+  function set(patch: Partial<RuleForm>) {
+    setForm((f) => ({ ...f, ...patch }));
+  }
 
   function openNew() {
     setEditing(null);
@@ -509,10 +512,16 @@ export default function InterceptPage() {
   function openEdit(rule: InterceptRule) {
     setEditing(rule);
     setForm({
-      name: rule.name, enabled: rule.enabled, priority: rule.priority,
-      match_target: rule.match_target, match_type: rule.match_type,
-      pattern: rule.pattern, action: rule.action, message: rule.message,
-      timeout_enabled: rule.timeout_enabled, timeout_seconds: rule.timeout_seconds,
+      name: rule.name,
+      enabled: rule.enabled,
+      priority: rule.priority,
+      match_target: rule.match_target,
+      match_type: rule.match_type,
+      pattern: rule.pattern,
+      action: rule.action,
+      message: rule.message,
+      timeout_enabled: rule.timeout_enabled,
+      timeout_seconds: rule.timeout_seconds,
       timeout_action: rule.timeout_action,
     });
     setRegexErr("");
@@ -520,9 +529,18 @@ export default function InterceptPage() {
   }
 
   async function handleSave() {
-    if (!form.name.trim())    { toast.error("O nome não pode ser vazio"); return; }
-    if (!form.pattern.trim()) { toast.error("O padrão não pode ser vazio"); return; }
-    if (regexErr)             { toast.error("Sintaxe de expressão regular inválida"); return; }
+    if (!form.name.trim()) {
+      toast.error("O nome não pode ser vazio");
+      return;
+    }
+    if (!form.pattern.trim()) {
+      toast.error("O padrão não pode ser vazio");
+      return;
+    }
+    if (regexErr) {
+      toast.error("Sintaxe de expressão regular inválida");
+      return;
+    }
     setSaving(true);
     try {
       if (editing) {
@@ -577,9 +595,10 @@ export default function InterceptPage() {
   }
 
   function toggleTool(key: string, val: boolean) {
-    setEnabledTools(prev => {
+    setEnabledTools((prev) => {
       const next = new Set(prev);
-      if (val) next.add(key); else next.delete(key);
+      if (val) next.add(key);
+      else next.delete(key);
       return next;
     });
   }
@@ -604,36 +623,34 @@ export default function InterceptPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-5 p-6">
-
-      {/* ---- header ---- */}
-      <div className="flex items-center gap-2.5">
-        <ShieldAlertIcon className="h-5 w-5 shrink-0" />
-        <div>
-          <h1 className="text-lg font-semibold leading-tight">Interceptação de comandos</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Antes de executar a ferramenta, ela é comparada com as regras de interceptação; comandos sem correspondência podem ser julgados pelo modelo como fallback
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2.5">
+            <ShieldAlertIcon className="size-5 shrink-0" />
+            Interceptação de comandos
+          </span>
+        }
+        description="Antes de executar a ferramenta, ela é comparada com as regras de interceptação; comandos sem correspondência podem ser julgados pelo modelo como fallback"
+      />
 
       {/* ---- Faixa de informações do escopo de interceptação (compartilhada pelo casamento de regras e pelo fallback do modelo: ferramentas fora do escopo não passam por nenhum dos dois) ---- */}
       <div
         className={`flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5 ${
-          scopeTools.length === 0
-            ? "border-amber-400/60 bg-amber-50/50 dark:bg-amber-950/20"
-            : "bg-muted/40"
+          scopeTools.length === 0 ? "border-sev-medium/60 bg-sev-medium-bg" : "bg-muted/40"
         }`}
       >
         <div className="flex min-w-0 items-center gap-2 text-sm">
           <ListFilterIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="shrink-0 font-medium">Escopo de interceptação</span>
           {scopeTools.length === 0 ? (
-            <span className="text-amber-700 dark:text-amber-500">
+            <span className="text-sev-medium">
               Nenhuma ferramenta ativada — nem as regras de interceptação nem o fallback do modelo terão efeito
             </span>
           ) : (
             <>
-              <Badge variant="secondary" className="shrink-0">{scopeTools.length} ferramentas</Badge>
+              <Badge variant="secondary" className="shrink-0">
+                {scopeTools.length} ferramentas
+              </Badge>
               <span className="truncate text-muted-foreground" title={scopeTools.join(", ")}>
                 {scopeTools.join(", ")}
               </span>
@@ -661,7 +678,8 @@ export default function InterceptPage() {
         <TabsContent value="rules" className="mt-4 flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              Casamento regra a regra por prioridade (quanto maior o número, mais cedo), vale a primeira regra que corresponder
+              Casamento regra a regra por prioridade (quanto maior o número, mais cedo), vale a primeira regra que
+              corresponder
             </p>
             <Button onClick={openNew} size="sm" className="shrink-0">
               <PlusIcon className="h-4 w-4" />
@@ -671,84 +689,79 @@ export default function InterceptPage() {
 
           <Card>
             <CardContent className="p-0">
-          {loading ? (
-            <p className="p-6 text-sm text-muted-foreground">Carregando…</p>
-          ) : rules.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-              <ShieldAlertIcon className="h-8 w-8 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">Nenhuma regra</p>
-              <Button size="sm" variant="outline" onClick={openNew}>
-                <PlusIcon className="h-4 w-4" />
-                Criar a primeira regra
-              </Button>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[72px]">Prioridade</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead className="w-[90px]">Alvo</TableHead>
-                  <TableHead className="w-[80px]">Tipo</TableHead>
-                  <TableHead>Padrão</TableHead>
-                  <TableHead className="w-[72px]">Política</TableHead>
-                  <TableHead className="w-[64px] text-center">Ativa</TableHead>
-                  <TableHead className="w-[80px]" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rules.map((rule) => (
-                  <TableRow key={rule.id} className={!rule.enabled ? "opacity-40" : ""}>
-                    <TableCell>
-                      <span className="font-mono text-xs tabular-nums">{rule.priority}</span>
-                    </TableCell>
-                    <TableCell className="font-medium text-sm">{rule.name}</TableCell>
-                    <TableCell>
-                      <span className="text-xs text-muted-foreground">
-                        {rule.match_target === "tool_name" ? "Nome da ferramenta" : "Conteúdo de entrada"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs text-muted-foreground">
-                        {rule.match_type === "regex" ? "Regex" : "String"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="max-w-[220px]">
-                      <code className="block truncate rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
-                        {rule.pattern}
-                      </code>
-                    </TableCell>
-                    <TableCell>
-                      <ActionBadge action={rule.action} />
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Switch
-                        checked={rule.enabled}
-                        onCheckedChange={() => handleToggle(rule)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-0.5">
-                        <Button
-                          size="icon" variant="ghost" className="h-7 w-7"
-                          onClick={() => openEdit(rule)}
-                        >
-                          <PencilIcon className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon" variant="ghost"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={() => handleDelete(rule.id)}
-                        >
-                          <Trash2Icon className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+              {loading ? (
+                <p className="p-6 text-sm text-muted-foreground">Carregando…</p>
+              ) : rules.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+                  <ShieldAlertIcon className="h-8 w-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">Nenhuma regra</p>
+                  <Button size="sm" variant="outline" onClick={openNew}>
+                    <PlusIcon className="h-4 w-4" />
+                    Criar a primeira regra
+                  </Button>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="w-[72px]">Prioridade</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead className="w-[90px]">Alvo</TableHead>
+                      <TableHead className="w-[80px]">Tipo</TableHead>
+                      <TableHead>Padrão</TableHead>
+                      <TableHead className="w-[72px]">Política</TableHead>
+                      <TableHead className="w-[64px] text-center">Ativa</TableHead>
+                      <TableHead className="w-[80px]" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rules.map((rule) => (
+                      <TableRow key={rule.id} className={!rule.enabled ? "opacity-40" : ""}>
+                        <TableCell>
+                          <span className="font-mono text-xs tabular-nums">{rule.priority}</span>
+                        </TableCell>
+                        <TableCell className="font-medium text-sm">{rule.name}</TableCell>
+                        <TableCell>
+                          <span className="text-xs text-muted-foreground">
+                            {rule.match_target === "tool_name" ? "Nome da ferramenta" : "Conteúdo de entrada"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs text-muted-foreground">
+                            {rule.match_type === "regex" ? "Regex" : "String"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="max-w-[220px]">
+                          <code className="block truncate rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
+                            {rule.pattern}
+                          </code>
+                        </TableCell>
+                        <TableCell>
+                          <ActionBadge action={rule.action} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Switch checked={rule.enabled} onCheckedChange={() => handleToggle(rule)} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-0.5">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(rule)}>
+                              <PencilIcon className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(rule.id)}
+                            >
+                              <Trash2Icon className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -765,7 +778,8 @@ export default function InterceptPage() {
           <SheetHeader className="border-b px-6 py-4">
             <SheetTitle>{editing ? "Editar regra" : "Nova regra"}</SheetTitle>
             <SheetDescription className="text-xs">
-              Quanto maior a prioridade, mais cedo é comparada; vale a primeira regra que corresponder e as seguintes são puladas
+              Quanto maior a prioridade, mais cedo é comparada; vale a primeira regra que corresponder e as seguintes
+              são puladas
             </SheetDescription>
           </SheetHeader>
 
@@ -793,7 +807,9 @@ export default function InterceptPage() {
                 value={form.match_target}
                 onValueChange={(v) => set({ match_target: v as RuleForm["match_target"] })}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="tool_name">Nome da ferramenta (tool_name)</SelectItem>
                   <SelectItem value="tool_input">Conteúdo de entrada (tool_input JSON)</SelectItem>
@@ -802,11 +818,10 @@ export default function InterceptPage() {
             </Field>
 
             <Field label="Tipo de comparação">
-              <Select
-                value={form.match_type}
-                onValueChange={(v) => set({ match_type: v as RuleForm["match_type"] })}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={form.match_type} onValueChange={(v) => set({ match_type: v as RuleForm["match_type"] })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="string">Contém a string</SelectItem>
                   <SelectItem value="regex">Expressão regular</SelectItem>
@@ -821,22 +836,22 @@ export default function InterceptPage() {
                 onChange={(e) => set({ pattern: e.target.value })}
                 className={regexErr ? "border-destructive focus-visible:ring-destructive" : ""}
               />
-              {regexErr && (
-                <p className="text-xs text-destructive mt-1">{regexErr}</p>
-              )}
+              {regexErr && <p className="text-xs text-destructive mt-1">{regexErr}</p>}
               {regexWarn && (
-                <p className="text-xs text-amber-600 mt-1">Contém sintaxe estendida do Go RE2 (como <code className="font-mono">(?i)</code>), o navegador não consegue pré-visualizar; será validada pelo servidor após o envio</p>
+                <p className="text-xs text-sev-medium mt-1">
+                  Contém sintaxe estendida do Go RE2 (como <code className="font-mono">(?i)</code>), o navegador não
+                  consegue pré-visualizar; será validada pelo servidor após o envio
+                </p>
               )}
             </Field>
 
             <Separator />
 
             <Field label="Política de interceptação">
-              <Select
-                value={form.action}
-                onValueChange={(v) => set({ action: v as InterceptAction })}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={form.action} onValueChange={(v) => set({ action: v as InterceptAction })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="allow">Permitir — libera direto, pula as regras seguintes</SelectItem>
                   <SelectItem value="deny">Proibir — bloqueia e devolve mensagem de recusa ao modelo</SelectItem>
@@ -846,7 +861,13 @@ export default function InterceptPage() {
             </Field>
 
             {form.action !== "allow" && (
-              <Field label={form.action === "deny" ? "Mensagem de recusa (devolvida ao modelo)" : "Descrição da aprovação (opcional)"}>
+              <Field
+                label={
+                  form.action === "deny"
+                    ? "Mensagem de recusa (devolvida ao modelo)"
+                    : "Descrição da aprovação (opcional)"
+                }
+              >
                 <Textarea
                   placeholder={form.action === "deny" ? "Operação bloqueada pela política de segurança" : ""}
                   value={form.message}
@@ -863,12 +884,11 @@ export default function InterceptPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">Ativar timeout da aprovação</p>
-                    <p className="text-xs text-muted-foreground">Após o timeout, trata automaticamente, sem esperar mais</p>
+                    <p className="text-xs text-muted-foreground">
+                      Após o timeout, trata automaticamente, sem esperar mais
+                    </p>
                   </div>
-                  <Switch
-                    checked={form.timeout_enabled}
-                    onCheckedChange={(v) => set({ timeout_enabled: v })}
-                  />
+                  <Switch checked={form.timeout_enabled} onCheckedChange={(v) => set({ timeout_enabled: v })} />
                 </div>
                 {form.timeout_enabled && (
                   <div className="flex items-end gap-3">
@@ -889,7 +909,9 @@ export default function InterceptPage() {
                         value={form.timeout_action}
                         onValueChange={(v) => set({ timeout_action: v as "deny" | "allow" })}
                       >
-                        <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="deny">Recusar automaticamente</SelectItem>
                           <SelectItem value="allow">Permitir automaticamente</SelectItem>
@@ -904,17 +926,17 @@ export default function InterceptPage() {
             <Separator />
 
             <div className="flex items-center gap-3">
-              <Switch
-                id="rule-enabled"
-                checked={form.enabled}
-                onCheckedChange={(v) => set({ enabled: v })}
-              />
-              <Label htmlFor="rule-enabled" className="cursor-pointer">Ativar esta regra</Label>
+              <Switch id="rule-enabled" checked={form.enabled} onCheckedChange={(v) => set({ enabled: v })} />
+              <Label htmlFor="rule-enabled" className="cursor-pointer">
+                Ativar esta regra
+              </Label>
             </div>
           </div>
 
           <SheetFooter className="border-t px-6 py-4 flex-row justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
             <Button onClick={handleSave} disabled={saving || !!regexErr}>
               {saving ? "Salvando…" : "Salvar"}
             </Button>
@@ -924,7 +946,10 @@ export default function InterceptPage() {
 
       {/* ---- scope dialog ---- */}
       <Dialog open={scopeOpen} onOpenChange={setScopeOpen}>
-        <DialogContent className="sm:max-w-lg flex flex-col overflow-hidden p-0 gap-0" style={{ maxHeight: "min(80vh, 560px)" }}>
+        <DialogContent
+          className="sm:max-w-lg flex flex-col overflow-hidden p-0 gap-0"
+          style={{ maxHeight: "min(80vh, 560px)" }}
+        >
           <DialogHeader className="shrink-0 border-b px-6 py-4">
             <DialogTitle className="flex items-center gap-2">
               <ListFilterIcon className="h-4 w-4" />
@@ -956,8 +981,10 @@ export default function InterceptPage() {
                         <label htmlFor={`scope-${t.key}`} className="flex-1 min-w-0 cursor-pointer">
                           <div className="flex items-center gap-1.5">
                             <span className="font-mono text-sm">{t.key}</span>
-                            {(t.kind && t.kind !== "builtin") && (
-                              <Badge variant="outline" className="px-1 py-0 text-[10px]">{t.kind}</Badge>
+                            {t.kind && t.kind !== "builtin" && (
+                              <Badge variant="outline" className="px-1 py-0 text-[10px]">
+                                {t.kind}
+                              </Badge>
                             )}
                           </div>
                           {t.description && (
@@ -973,7 +1000,9 @@ export default function InterceptPage() {
           </div>
 
           <div className="shrink-0 border-t px-6 py-3 flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setScopeOpen(false)}>Cancelar</Button>
+            <Button variant="outline" size="sm" onClick={() => setScopeOpen(false)}>
+              Cancelar
+            </Button>
             <Button size="sm" onClick={saveScope} disabled={scopeSaving || scopeLoading}>
               {scopeSaving ? "Salvando…" : "Salvar"}
             </Button>

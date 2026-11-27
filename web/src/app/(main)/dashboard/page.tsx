@@ -16,12 +16,14 @@ import {
 } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Tooltip as RechartsTooltip, XAxis, YAxis } from "recharts";
 
+import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Progress } from "@/components/ui/progress";
 import { api } from "@/lib/api";
+import { httpStatusBgClass, httpStatusTextClass } from "@/lib/http-status";
 import type {
   Activity,
   Agent,
@@ -90,19 +92,10 @@ const ASSET_COLORS: Record<string, string> = {
   endpoint: "bg-emerald-500",
 };
 
-function statusColor(code: number): string {
-  if (code < 300) return "text-emerald-500";
-  if (code < 400) return "text-blue-400";
-  if (code < 500) return "text-amber-400";
-  return "text-red-400";
-}
-
-function statusBg(code: number): string {
-  if (code < 300) return "bg-emerald-500";
-  if (code < 400) return "bg-blue-400";
-  if (code < 500) return "bg-amber-400";
-  return "bg-red-400";
-}
+// A cor por faixa de status vem de @/lib/http-status: era a quarta cópia desta
+// mesma regra no projeto, e cada uma escolhia um matiz um pouco diferente.
+const statusColor = httpStatusTextClass;
+const statusBg = httpStatusBgClass;
 
 // ── sub-components ────────────────────────────────────────────────────────────
 
@@ -483,26 +476,20 @@ export default function DashboardPage() {
   function workerColor(w: string): string {
     if (w === "planner") return "text-violet-400";
     if (w === "mainagent") return "text-cyan-400";
-    return "text-blue-400";
+    return "text-state-running";
   }
 
   function workerBg(w: string): string {
     if (w === "planner") return "bg-violet-500/10 text-violet-400 border-violet-500/20";
     if (w === "mainagent") return "bg-cyan-500/10 text-cyan-400 border-cyan-500/20";
-    return "bg-blue-500/10 text-blue-400 border-blue-500/20";
+    return "bg-blue-500/10 text-state-running border-blue-500/20";
   }
 
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-1 flex-col gap-4 pb-6">
-      {/* ── Header ── */}
-      <div>
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">Visão geral</h1>
-          <p className="text-xs text-muted-foreground">Status global do sistema · atualização em tempo real</p>
-        </div>
-      </div>
+      <PageHeader title="Visão geral" description="Status global do sistema · atualização em tempo real" />
 
       {/* ── Row 1: 5 stat cards ── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -519,10 +506,10 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[10px]">
             {(tasksByStatus.running ?? 0) > 0 && (
-              <span className="text-blue-400">Explorando {tasksByStatus.running}</span>
+              <span className="text-state-running">Explorando {tasksByStatus.running}</span>
             )}
             {(tasksByStatus.paused ?? 0) > 0 && <span className="text-amber-400">Pausadas {tasksByStatus.paused}</span>}
-            {(tasksByStatus.done ?? 0) > 0 && <span className="text-emerald-400">Concluídas {tasksByStatus.done}</span>}
+            {(tasksByStatus.done ?? 0) > 0 && <span className="text-state-done">Concluídas {tasksByStatus.done}</span>}
             {tasks.length === 0 && <span className="text-muted-foreground">Nenhuma tarefa</span>}
           </CardContent>
         </Card>
@@ -536,10 +523,13 @@ export default function DashboardPage() {
             <div className="text-2xl font-semibold tabular-nums">{findings.length}</div>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2.5 text-[10px]">
-            <span className="text-rose-500">Crítico {findingsBySev.critical}</span>
-            <span className="text-red-400">Alto {findingsBySev.high}</span>
-            <span className="text-amber-400">Médio {findingsBySev.medium}</span>
-            <span className="text-slate-400">Baixo {findingsBySev.low}</span>
+            {/* A escala segue os tokens --sev-*: mesma cor do selo na lista de
+                achados e da barra da linha. "Baixo" é azul, não cinza, para não
+                se confundir com os estados neutros de ignorado/descartado. */}
+            <span className="text-sev-critical">Crítico {findingsBySev.critical}</span>
+            <span className="text-sev-high">Alto {findingsBySev.high}</span>
+            <span className="text-sev-medium">Médio {findingsBySev.medium}</span>
+            <span className="text-sev-low">Baixo {findingsBySev.low}</span>
           </CardContent>
         </Card>
 
@@ -668,7 +658,7 @@ export default function DashboardPage() {
                         "rounded px-1 py-0 text-[8px]",
                         tokenTab === resolvedKey
                           ? "bg-background/20 text-background"
-                          : "bg-emerald-500/20 text-emerald-400",
+                          : "bg-emerald-500/20 text-state-done",
                       )}
                     >
                       Padrão
@@ -703,13 +693,13 @@ export default function DashboardPage() {
                     label: "Entrada (sem cache)",
                     value: displayedTokens.input - displayedTokens.cacheRead,
                     barColor: dailyTrendConfig.input.color!,
-                    text: "text-blue-400",
+                    text: "text-state-running",
                   },
                   {
                     label: "Acerto de cache",
                     value: displayedTokens.cacheRead,
                     barColor: dailyTrendConfig.cacheRead.color!,
-                    text: "text-emerald-400",
+                    text: "text-state-done",
                   },
                   {
                     label: "Saída",
@@ -746,7 +736,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2 text-[10px]">
                   <span className="text-muted-foreground">Taxa de acerto do cache</span>
                   <span
-                    className={cn("font-semibold tabular-nums", hitPct > 50 ? "text-emerald-400" : "text-amber-400")}
+                    className={cn("font-semibold tabular-nums", hitPct > 50 ? "text-state-done" : "text-amber-400")}
                   >
                     {hitPct}%
                   </span>
@@ -1111,8 +1101,8 @@ export default function DashboardPage() {
                         className={cn(
                           "shrink-0 rounded border px-1 py-0 font-mono text-[9px]",
                           e.method === "GET"
-                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                            : "border-blue-500/30 bg-blue-500/10 text-blue-400",
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-state-done"
+                            : "border-blue-500/30 bg-blue-500/10 text-state-running",
                         )}
                       >
                         {e.method}
@@ -1142,8 +1132,8 @@ export default function DashboardPage() {
                 className={cn(
                   "text-[10px]",
                   stats?.llm_configured
-                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                    : "border-red-500/30 bg-red-500/10 text-red-400",
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-state-done"
+                    : "border-sev-high/30 bg-red-500/10 text-sev-high",
                 )}
               >
                 {stats?.llm_configured ? "Configurado" : "Não configurado"}
@@ -1205,7 +1195,7 @@ export default function DashboardPage() {
 
           {pendingCount === 0 && (
             <div className="mt-3 rounded-lg border bg-muted/10 px-3 py-3 text-center text-[10px] text-muted-foreground">
-              <ShieldCheckIcon className="mx-auto mb-1 size-4 text-emerald-500/50" />
+              <ShieldCheckIcon className="mx-auto mb-1 size-4 text-state-done/50" />
               Nenhuma interceptação aguardando aprovação
             </div>
           )}

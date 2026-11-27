@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 
 import { AssetDslSearch } from "@/components/asset-dsl-search";
+import { MethodBadge } from "@/components/method-badge";
 import { PageHeader } from "@/components/page-header";
 import { ScopeTextEditor } from "@/components/scope-text-editor";
 import {
@@ -63,30 +64,6 @@ import { api } from "@/lib/api";
 import { parseCompanyScopeText } from "@/lib/company-scope";
 import type { Asset, Company, CompanyScopeRule } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-const METHOD_COLOR: Record<string, string> = {
-  GET: "bg-emerald-100 text-emerald-700",
-  POST: "bg-blue-100 text-blue-700",
-  PUT: "bg-amber-100 text-amber-700",
-  PATCH: "bg-orange-100 text-orange-700",
-  DELETE: "bg-red-100 text-red-700",
-  HEAD: "bg-purple-100 text-purple-700",
-  OPTIONS: "bg-slate-100 text-slate-600",
-};
-
-function MethodBadge({ method }: { method: string }) {
-  const m = method.toUpperCase();
-  return (
-    <span
-      className={cn(
-        "inline-block rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-none",
-        METHOD_COLOR[m] ?? "bg-muted text-muted-foreground",
-      )}
-    >
-      {m || "—"}
-    </span>
-  );
-}
 
 function statusTone(code: number) {
   if (code >= 500) return "text-sev-high";
@@ -621,12 +598,7 @@ export default function AssetsPage() {
               let domainCell: React.ReactNode = "—";
               if (isHttp && a.url) {
                 domainCell = (
-                  <a
-                    href={a.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-state-running hover:underline dark:text-state-running"
-                  >
+                  <a href={a.url} target="_blank" rel="noreferrer" className="text-state-running hover:underline">
                     {a.domain || a.url}
                   </a>
                 );

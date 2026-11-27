@@ -14,6 +14,7 @@ import {
   XIcon,
 } from "lucide-react";
 
+import { PageHeader } from "@/components/page-header";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -108,7 +109,7 @@ function CopyButton({ text }: { text: string }) {
       title={copied ? "Copiado" : "Copiar conteúdo"}
       onClick={copy}
     >
-      {copied ? <CheckIcon className="size-3 text-emerald-600" /> : <CopyIcon className="size-3" />}
+      {copied ? <CheckIcon className="size-3 text-state-done" /> : <CopyIcon className="size-3" />}
     </Button>
   );
 }
@@ -270,14 +271,16 @@ export default function LLMRecordsPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <RadioIcon className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl font-semibold tracking-tight">Gravações de LLM</h1>
-          <Badge variant="secondary">{total}</Badge>
-        </div>
-      </div>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <RadioIcon className="size-5 text-muted-foreground" />
+            Gravações de LLM
+            <Badge variant="secondary">{total}</Badge>
+          </span>
+        }
+        description="Chamadas ao modelo registradas na íntegra · prompt, resposta e consumo"
+      />
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
@@ -435,7 +438,7 @@ export default function LLMRecordsPage() {
                         <span className="text-xs font-mono">{rec.model || "-"}</span>
                       </TableCell>
                       <TableCell>
-                        <span className={cn("text-xs", rec.latency_ms > 30000 && "text-amber-500")}>
+                        <span className={cn("text-xs", rec.latency_ms > 30000 && "text-sev-medium")}>
                           {fmtLatency(rec.latency_ms)}
                         </span>
                       </TableCell>
@@ -446,7 +449,7 @@ export default function LLMRecordsPage() {
                       </TableCell>
                       <TableCell>
                         {rec.status === "ok" ? (
-                          <Badge variant="secondary" className="text-xs text-emerald-600">
+                          <Badge variant="secondary" className="text-xs text-state-done">
                             OK
                           </Badge>
                         ) : (
@@ -483,11 +486,11 @@ export default function LLMRecordsPage() {
                 </Badge>
               )}
               <span className="text-xs text-muted-foreground">{fmtTime(selected.ts)}</span>
-              <span className={cn("text-xs", selected.latency_ms > 30000 && "text-amber-500")}>
+              <span className={cn("text-xs", selected.latency_ms > 30000 && "text-sev-medium")}>
                 {fmtLatency(selected.latency_ms)}
               </span>
               {selected.status === "ok" ? (
-                <Badge variant="secondary" className="text-xs text-emerald-600">
+                <Badge variant="secondary" className="text-xs text-state-done">
                   OK
                 </Badge>
               ) : (
@@ -548,7 +551,7 @@ export default function LLMRecordsPage() {
                     <pre
                       className={cn(
                         "p-3 font-mono text-xs break-all whitespace-pre-wrap",
-                        selected.status !== "ok" && "text-red-600 dark:text-red-400",
+                        selected.status !== "ok" && "text-sev-high",
                       )}
                     >
                       {respText || "(vazio)"}

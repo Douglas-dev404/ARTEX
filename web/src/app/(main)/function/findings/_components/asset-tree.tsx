@@ -307,8 +307,9 @@ export function AssetTree({
 
       {truncated && (
         <p className="px-1 text-xs text-muted-foreground">
-          Ativos demais; níveis ocultados: {(droppedKinds ?? []).map((k) => KIND_LABEL[k as FindingAssetKind] ?? k).join(" / ")}
-          . As contagens continuam somadas ao nível superior. Use o filtro ou a caixa de busca para restringir e ver a hierarquia completa.
+          Ativos demais; níveis ocultados:{" "}
+          {(droppedKinds ?? []).map((k) => KIND_LABEL[k as FindingAssetKind] ?? k).join(" / ")}. As contagens continuam
+          somadas ao nível superior. Use o filtro ou a caixa de busca para restringir e ver a hierarquia completa.
         </p>
       )}
     </div>
@@ -362,12 +363,12 @@ function AssetTreeRow({
       </button>
       <span className="flex shrink-0 items-center gap-1 text-xs tabular-nums">
         {node.critical > 0 && (
-          <span className="text-rose-600" title={`Crítico ${node.critical}`}>
+          <span className="text-sev-critical" title={`Crítico ${node.critical}`}>
             {node.critical}
           </span>
         )}
         {node.high > 0 && (
-          <span className="text-red-500" title={`Alto ${node.high}`}>
+          <span className="text-sev-high" title={`Alto ${node.high}`}>
             {node.high}
           </span>
         )}

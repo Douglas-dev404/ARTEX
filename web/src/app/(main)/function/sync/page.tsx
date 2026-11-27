@@ -5,6 +5,7 @@ import * as React from "react";
 import { AlertCircleIcon, CheckCircle2Icon, DownloadIcon, PlugZapIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,10 +37,11 @@ const ASSET_TYPES: { key: string; label: string }[] = [
 export default function AssetSyncPage() {
   return (
     <div className="p-4 md:p-6">
-      <div className="mb-4">
-        <h1 className="font-semibold text-xl">Sincronização de ativos</h1>
-        <p className="text-muted-foreground text-sm">Sincronize ativos de fontes de dados externas para a base</p>
-      </div>
+      <PageHeader
+        className="mb-4"
+        title="Sincronização de ativos"
+        description="Sincronize ativos de fontes de dados externas para a base"
+      />
       <Tabs defaultValue="scopesentry">
         <TabsList>
           <TabsTrigger value="scopesentry">ScopeSentry</TabsTrigger>
@@ -149,7 +151,8 @@ function DataSourceCard({
         {!status?.exists ? (
           <div className="flex items-center justify-between gap-4">
             <p className="text-muted-foreground text-sm">
-              A fonte de dados ScopeSentry ainda não foi criada. Ao criá-la, será adicionado um MCP provisório (endereço/chave vazios, desativado).
+              A fonte de dados ScopeSentry ainda não foi criada. Ao criá-la, será adicionado um MCP provisório
+              (endereço/chave vazios, desativado).
             </p>
             <Button onClick={create} disabled={busy}>
               Criar fonte de dados
@@ -158,12 +161,14 @@ function DataSourceCard({
         ) : (
           <>
             {!status.configured && (
-              <p className="text-amber-600 text-sm dark:text-amber-500">
+              <p className="text-sev-medium text-sm">
                 A fonte de dados foi criada, mas não configurada; informe o endereço do MCP e a API Key para ativá-la.
               </p>
             )}
             {status.configured && !status.enabled && (
-              <p className="text-amber-600 text-sm dark:text-amber-500">A fonte de dados está configurada, mas não ativada; será ativada automaticamente ao salvar.</p>
+              <p className="text-sev-medium text-sm">
+                A fonte de dados está configurada, mas não ativada; será ativada automaticamente ao salvar.
+              </p>
             )}
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1.5">
@@ -266,7 +271,8 @@ function SyncWorkbench() {
   const chosenTypes = ASSET_TYPES.filter((t) => assetTypes[t.key]).map((t) => t.key);
 
   const runSync = async () => {
-    if (selected.size === 0) return toast.error(`Selecione pelo menos um(a) ${dimension === "project" ? "projeto" : "tarefa"}`);
+    if (selected.size === 0)
+      return toast.error(`Selecione pelo menos um(a) ${dimension === "project" ? "projeto" : "tarefa"}`);
     if (chosenTypes.length === 0) return toast.error("Selecione pelo menos um tipo de ativo");
     setSyncing(true);
     setResult(null);
@@ -467,7 +473,7 @@ function SyncResult({ result }: { result: Awaited<ReturnType<typeof api.ssSync>>
         <p className="text-muted-foreground">Empresas criadas/atualizadas: {result.companies.join(", ")}</p>
       )}
       {result.warnings && result.warnings.length > 0 && (
-        <ul className="list-inside list-disc text-amber-600 dark:text-amber-500">
+        <ul className="list-inside list-disc text-sev-medium">
           {result.warnings.map((wm) => (
             <li key={wm}>{wm}</li>
           ))}

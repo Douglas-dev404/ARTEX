@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 
 import { FindingRetestDialog } from "@/components/finding-retest-dialog";
+import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { TablePagination } from "@/components/table-pagination";
 import { Button } from "@/components/ui/button";
@@ -753,11 +754,11 @@ export default function FindingsPage() {
 
   const statCards = [
     { label: "Total de achados", value: stats.total, icon: BugIcon },
-    { label: "Pendentes", value: stats.pending, tone: "text-amber-500", icon: ClockIcon },
-    { label: "Crítico", value: stats.critical, tone: "text-rose-600", icon: ShieldAlertIcon },
-    { label: "Alto", value: stats.high, tone: "text-red-500", icon: TriangleAlertIcon },
-    { label: "Médio", value: stats.medium, tone: "text-amber-500", icon: TriangleAlertIcon },
-    { label: "Baixo", value: stats.low, tone: "text-slate-500", icon: InfoIcon },
+    { label: "Pendentes", value: stats.pending, tone: "text-sev-medium", icon: ClockIcon },
+    { label: "Crítico", value: stats.critical, tone: "text-sev-critical", icon: ShieldAlertIcon },
+    { label: "Alto", value: stats.high, tone: "text-sev-high", icon: TriangleAlertIcon },
+    { label: "Médio", value: stats.medium, tone: "text-sev-medium", icon: TriangleAlertIcon },
+    { label: "Baixo", value: stats.low, tone: "text-sev-low", icon: InfoIcon },
   ];
 
   // Contagem de "Filtro atual" no diálogo de exportação: o filtro é o mesmo nas duas visões, só muda a origem do critério estatístico.
@@ -816,19 +817,21 @@ export default function FindingsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Achados</h1>
-          <p className="text-muted-foreground text-sm">Resumo de vulnerabilidades entre tarefas</p>
-        </div>
-        <Tabs value={view} onValueChange={(v) => setView(v as FindingView)}>
-          <TabsList>
-            <TabsTrigger value="flat">Todos os achados</TabsTrigger>
-            <TabsTrigger value="grouped">Agrupar por tarefa</TabsTrigger>
-            <TabsTrigger value="asset">Por ativo</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      <PageHeader
+        title="Achados"
+        description="Resumo de vulnerabilidades entre tarefas"
+        actions={
+          <>
+            <Tabs value={view} onValueChange={(v) => setView(v as FindingView)}>
+              <TabsList>
+                <TabsTrigger value="flat">Todos os achados</TabsTrigger>
+                <TabsTrigger value="grouped">Agrupar por tarefa</TabsTrigger>
+                <TabsTrigger value="asset">Por ativo</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </>
+        }
+      />
       <div className="flex flex-1 flex-col gap-4 md:gap-6">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           {statCards.map((stat) => {
@@ -1093,7 +1096,11 @@ export default function FindingsPage() {
                         </div>
                       ) : (
                         <>
-                          <FindingsTable items={state.items} selectAllLabel="Selecionar todos da página atual deste grupo" {...rowProps} />
+                          <FindingsTable
+                            items={state.items}
+                            selectAllLabel="Selecionar todos da página atual deste grupo"
+                            {...rowProps}
+                          />
                           <TablePagination
                             page={state.page}
                             pageSize={state.pageSize}
@@ -1110,7 +1117,9 @@ export default function FindingsPage() {
             })}
             {groups.length === 0 && (
               <Card>
-                <CardContent className="py-12 text-center text-sm text-muted-foreground">Nenhum achado correspondente.</CardContent>
+                <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                  Nenhum achado correspondente.
+                </CardContent>
               </Card>
             )}
             <TablePagination
@@ -1161,7 +1170,8 @@ export default function FindingsPage() {
           <DialogHeader>
             <DialogTitle>Aprofundar exploração da vulnerabilidade</DialogTitle>
             <DialogDescription className="break-words">
-              Será criada, na tarefa original #{deepenFinding?.task_id}, uma intenção de Worker com prioridade 10 para fazer uma segunda validação com base na vulnerabilidade atual:
+              Será criada, na tarefa original #{deepenFinding?.task_id}, uma intenção de Worker com prioridade 10 para
+              fazer uma segunda validação com base na vulnerabilidade atual:
               {deepenFinding?.name || deepenFinding?.vulnclass || deepenFinding?.summary}
             </DialogDescription>
           </DialogHeader>
@@ -1205,7 +1215,9 @@ export default function FindingsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Exportar achados</DialogTitle>
-            <DialogDescription>Escolha o escopo e o formato da exportação; depois de gerado, o navegador fará o download automaticamente.</DialogDescription>
+            <DialogDescription>
+              Escolha o escopo e o formato da exportação; depois de gerado, o navegador fará o download automaticamente.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-5 py-1">
@@ -1213,8 +1225,8 @@ export default function FindingsPage() {
               <span className="text-xs text-muted-foreground">Escopo da exportação</span>
               <RadioGroup value={exportScope} onValueChange={(v) => setExportScope(v as typeof exportScope)}>
                 <label htmlFor="export-scope-filtered" className="flex items-center gap-2 text-sm">
-                  <RadioGroupItem id="export-scope-filtered" value="filtered" /> Exportar o resultado do filtro atual ({filteredTotal}{" "}
-                  registros)
+                  <RadioGroupItem id="export-scope-filtered" value="filtered" /> Exportar o resultado do filtro atual (
+                  {filteredTotal} registros)
                 </label>
                 <label htmlFor="export-scope-all" className="flex items-center gap-2 text-sm">
                   <RadioGroupItem id="export-scope-all" value="all" /> Exportar tudo
@@ -1233,10 +1245,12 @@ export default function FindingsPage() {
               <span className="text-xs text-muted-foreground">Formato da exportação</span>
               <RadioGroup value={exportFormat} onValueChange={(v) => setExportFormat(v as typeof exportFormat)}>
                 <label htmlFor="export-format-md-single" className="flex items-center gap-2 text-sm">
-                  <RadioGroupItem id="export-format-md-single" value="md-single" /> Relatório consolidado em Markdown (um único arquivo .md)
+                  <RadioGroupItem id="export-format-md-single" value="md-single" /> Relatório consolidado em Markdown
+                  (um único arquivo .md)
                 </label>
                 <label htmlFor="export-format-md-zip" className="flex items-center gap-2 text-sm">
-                  <RadioGroupItem id="export-format-md-zip" value="md-zip" /> Markdown em arquivos separados (um .md por vulnerabilidade, empacotado em .zip)
+                  <RadioGroupItem id="export-format-md-zip" value="md-zip" /> Markdown em arquivos separados (um .md por
+                  vulnerabilidade, empacotado em .zip)
                 </label>
                 <label htmlFor="export-format-csv" className="flex items-center gap-2 text-sm">
                   <RadioGroupItem id="export-format-csv" value="csv" /> Tabela CSV (.csv)

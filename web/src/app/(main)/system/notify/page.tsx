@@ -5,6 +5,7 @@ import * as React from "react";
 import { BellIcon, PlusIcon, SendIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -265,27 +266,27 @@ export default function NotifyPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Notificações push</h1>
-          <p className="text-muted-foreground text-sm">
-            Ao encontrar vulnerabilidades, envia para canais como DingTalk / Feishu / WeCom · cada canal pode ter seu próprio momento de envio e regras de filtro
-          </p>
-        </div>
-        {meta && (
-          // Usa-se div em vez de label: o Switch já tem aria-label, e envolvê-lo em outro label
-          // não se associaria a nenhum controle nativo e ainda faria parecer que clicar no texto deveria alternar.
-          <div className="flex shrink-0 items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Chave geral</span>
-            <Switch
-              checked={meta.enabled}
-              disabled={globalSaving}
-              onCheckedChange={toggleGlobal}
-              aria-label="Chave geral de notificações"
-            />
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title="Notificações push"
+        description="Ao encontrar vulnerabilidades, envia para canais como DingTalk / Feishu / WeCom · cada canal pode ter seu próprio momento de envio e regras de filtro"
+        actions={
+          <>
+            {meta && (
+              // Usa-se div em vez de label: o Switch já tem aria-label, e envolvê-lo em outro label
+              // não se associaria a nenhum controle nativo e ainda faria parecer que clicar no texto deveria alternar.
+              <div className="flex shrink-0 items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Chave geral</span>
+                <Switch
+                  checked={meta.enabled}
+                  disabled={globalSaving}
+                  onCheckedChange={toggleGlobal}
+                  aria-label="Chave geral de notificações"
+                />
+              </div>
+            )}
+          </>
+        }
+      />
 
       {meta && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -316,7 +317,10 @@ export default function NotifyPage() {
               value={baseURL}
               onChange={(e) => setBaseURL(e.target.value)}
             />
-            <p className="text-muted-foreground text-xs">Endereço para o qual aponta o botão &quot;Ver detalhes&quot; na mensagem. Deixe vazio para não incluir o botão.</p>
+            <p className="text-muted-foreground text-xs">
+              Endereço para o qual aponta o botão &quot;Ver detalhes&quot; na mensagem. Deixe vazio para não incluir o
+              botão.
+            </p>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="n-digest">Período de resumo (minutos)</Label>
@@ -446,7 +450,8 @@ export default function NotifyPage() {
                 </Select>
                 {editing && (
                   <p className="text-muted-foreground text-xs">
-                    O tipo de canal não pode ser alterado — mudar o tipo equivale a trocar de credenciais, crie um novo canal.
+                    O tipo de canal não pode ser alterado — mudar o tipo equivale a trocar de credenciais, crie um novo
+                    canal.
                   </p>
                 )}
               </div>
@@ -463,7 +468,8 @@ export default function NotifyPage() {
 
               {fields.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  O formulário deste canal ainda não foi definido (falta a entrada em CHANNEL_FIELDS no frontend); complete-a e tente de novo.
+                  O formulário deste canal ainda não foi definido (falta a entrada em CHANNEL_FIELDS no frontend);
+                  complete-a e tente de novo.
                 </p>
               ) : (
                 fields.map((d) => (
@@ -484,12 +490,15 @@ export default function NotifyPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="realtime">Tempo real · cada vulnerabilidade gera uma mensagem própria</SelectItem>
+                    <SelectItem value="realtime">
+                      Tempo real · cada vulnerabilidade gera uma mensagem própria
+                    </SelectItem>
                     <SelectItem value="digest">Resumo · agrupa em uma mensagem por período</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-muted-foreground text-xs">
-                  Para ter "alta em tempo real, o resto em resumo", crie dois canais: um em tempo real com limiar alto e outro em resumo sem limite de nível.
+                  Para ter "alta em tempo real, o resto em resumo", crie dois canais: um em tempo real com limiar alto e
+                  outro em resumo sem limite de nível.
                 </p>
               </div>
 
@@ -504,7 +513,8 @@ export default function NotifyPage() {
                   onChange={(e) => setF({ ratePerMin: e.target.value })}
                 />
                 <p className="text-muted-foreground text-xs">
-                  Deixe vazio para usar o padrão do canal; 0 significa sem limite. Exceder o limite não perde mensagens, apenas adia o envio.
+                  Deixe vazio para usar o padrão do canal; 0 significa sem limite. Exceder o limite não perde mensagens,
+                  apenas adia o envio.
                 </p>
               </div>
 
@@ -538,7 +548,8 @@ export default function NotifyPage() {
                       onChange={(e) => setF({ includeText: e.target.value })}
                     />
                     <p className="text-muted-foreground text-xs">
-                      Uma palavra-chave por linha, correspondência de substring sem distinção de maiúsculas/minúsculas. Vazio = todos os tipos.
+                      Uma palavra-chave por linha, correspondência de substring sem distinção de maiúsculas/minúsculas.
+                      Vazio = todos os tipos.
                     </p>
                   </div>
                   <div className="grid gap-2">
@@ -549,7 +560,9 @@ export default function NotifyPage() {
                       value={form.excludeText}
                       onChange={(e) => setF({ excludeText: e.target.value })}
                     />
-                    <p className="text-muted-foreground text-xs">A exclusão tem prioridade sobre a inclusão: se ambas corresponderem, será excluído.</p>
+                    <p className="text-muted-foreground text-xs">
+                      A exclusão tem prioridade sobre a inclusão: se ambas corresponderem, será excluído.
+                    </p>
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="n-tasks">Limitar a IDs de tarefa</Label>
@@ -568,7 +581,9 @@ export default function NotifyPage() {
                       value={form.assetIDsText}
                       onChange={(e) => setF({ assetIDsText: e.target.value })}
                     />
-                    <p className="text-muted-foreground text-xs">Tarefas/ativos vazios = sem limite; ao preencher, exige-se interseção com a vulnerabilidade.</p>
+                    <p className="text-muted-foreground text-xs">
+                      Tarefas/ativos vazios = sem limite; ao preencher, exige-se interseção com a vulnerabilidade.
+                    </p>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Switch

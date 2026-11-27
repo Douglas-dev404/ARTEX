@@ -5,6 +5,7 @@ import * as React from "react";
 import { BanIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,7 +25,12 @@ import type { AssetInterceptKind, AssetInterceptRule } from "@/lib/types";
 const KIND_OPTIONS: { value: AssetInterceptKind; label: string; group: string; placeholder: string }[] = [
   { value: "exact_domain", label: "Domínio (exato)", group: "Correspondência exata", placeholder: "example.gov.cn" },
   { value: "exact_ip", label: "IP (exato)", group: "Correspondência exata", placeholder: "203.0.113.10" },
-  { value: "exact_url", label: "URL (exata)", group: "Correspondência exata", placeholder: "https://example.gov.cn/login" },
+  {
+    value: "exact_url",
+    label: "URL (exata)",
+    group: "Correspondência exata",
+    placeholder: "https://example.gov.cn/login",
+  },
   { value: "fuzzy_domain", label: "Domínio (aproximado)", group: "Correspondência aproximada", placeholder: ".gov.cn" },
   { value: "fuzzy_ip", label: "IP (aproximado)", group: "Correspondência aproximada", placeholder: "203.0.113." },
   { value: "fuzzy_url", label: "URL (aproximada)", group: "Correspondência aproximada", placeholder: "/admin" },
@@ -47,8 +53,8 @@ function KindBadge({ kind }: { kind: AssetInterceptKind }) {
         cidr
           ? "border-sky-400 text-sky-600"
           : fuzzy
-            ? "border-amber-400 text-amber-600"
-            : "border-emerald-400 text-emerald-600"
+            ? "border-sev-medium/50 text-sev-medium"
+            : "border-state-done/50 text-state-done"
       }
     >
       {KIND_LABEL[kind]}
@@ -176,20 +182,20 @@ export default function AssetInterceptPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-5 p-6">
-      {/* header */}
-      <div className="flex items-center gap-2.5">
-        <BanIcon className="h-5 w-5 shrink-0" />
-        <div>
-          <h1 className="text-lg font-semibold leading-tight">Interceptação de ativos</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Lista negra global de ativos: domínios / IPs / URLs / faixas de rede que corresponderem serão interceptados e nenhuma ação será executada contra eles
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2.5">
+            <BanIcon className="size-5 shrink-0" />
+            Interceptação de ativos
+          </span>
+        }
+        description="Lista negra global de ativos: domínios / IPs / URLs / faixas de rede que corresponderem serão interceptados e nenhuma ação será executada contra eles"
+      />
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
-          Suporta domínios / IPs / URLs com correspondência exata e aproximada, além de faixas CIDR; por padrão há regras aproximadas embutidas que interceptam sites governamentais (.gov / .gov.cn) e educacionais (.edu /
+          Suporta domínios / IPs / URLs com correspondência exata e aproximada, além de faixas CIDR; por padrão há
+          regras aproximadas embutidas que interceptam sites governamentais (.gov / .gov.cn) e educacionais (.edu /
           .edu.cn)
         </p>
         <Button onClick={openNew} size="sm" className="shrink-0">
@@ -273,8 +279,12 @@ export default function AssetInterceptPage() {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-md">
           <SheetHeader className="border-b px-6 py-4">
-            <SheetTitle>{editing ? "Editar regra de interceptação de ativos" : "Nova regra de interceptação de ativos"}</SheetTitle>
-            <SheetDescription className="text-xs">Os ativos-alvo que corresponderem a esta regra serão interceptados globalmente</SheetDescription>
+            <SheetTitle>
+              {editing ? "Editar regra de interceptação de ativos" : "Nova regra de interceptação de ativos"}
+            </SheetTitle>
+            <SheetDescription className="text-xs">
+              Os ativos-alvo que corresponderem a esta regra serão interceptados globalmente
+            </SheetDescription>
           </SheetHeader>
 
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-5">

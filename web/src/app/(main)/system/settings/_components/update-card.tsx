@@ -20,7 +20,7 @@ import { api, sseUrl } from "@/lib/api";
 import type { UpdateCheck, UpdateProgress } from "@/lib/types";
 
 /** Tempo máximo de espera para a nova versão ficar no ar. Uma atualização passa por três inicializações de processo (preparação → troca → nova versão),
-  *  cada uma leva segundos; três minutos bastam para cobrir discos lentos e a recriação de contêiner Docker. */
+ *  cada uma leva segundos; três minutos bastam para cobrir discos lentos e a recriação de contêiner Docker. */
 const RESTART_TIMEOUT_MS = 180_000;
 
 function humanSize(n?: number): string {
@@ -94,7 +94,9 @@ export function UpdateCard() {
       }
     }
     setRestarting(false);
-    toast.error("Tempo esgotado aguardando o serviço reiniciar. Verifique os logs do backend ou confirme que o artex foi iniciado por start.sh / start.bat.");
+    toast.error(
+      "Tempo esgotado aguardando o serviço reiniciar. Verifique os logs do backend ou confirme que o artex foi iniciado por start.sh / start.bat.",
+    );
   }, []);
 
   // Assina o progresso da atualização. O SSE não passa pelo rewrite /api do Next (essa camada faz buffer e os eventos não saem).
@@ -191,7 +193,10 @@ export function UpdateCard() {
           <DownloadIcon className="size-4" />
           Versão e atualizações
         </CardTitle>
-        <CardDescription>Verifica e instala novas versões a partir do GitHub. A atualização reinicia o programa e as tarefas em execução serão interrompidas.</CardDescription>
+        <CardDescription>
+          Verifica e instala novas versões a partir do GitHub. A atualização reinicia o programa e as tarefas em
+          execução serão interrompidas.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -228,7 +233,7 @@ export function UpdateCard() {
         </div>
 
         {info?.boot_notice && (
-          <p className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-400">
+          <p className="flex items-start gap-2 rounded-md border border-sev-medium/40 bg-sev-medium-bg p-2 text-xs text-sev-medium">
             <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
             {info.boot_notice}
           </p>
@@ -237,8 +242,7 @@ export function UpdateCard() {
         {info?.error && (
           <p className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
             <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
-            Não foi possível conectar ao GitHub: {info.error}
-            {" "}Configure um proxy global acima e tente novamente.
+            Não foi possível conectar ao GitHub: {info.error} Configure um proxy global acima e tente novamente.
           </p>
         )}
 
@@ -247,28 +251,29 @@ export function UpdateCard() {
         {info?.has_update && info.asset_available === false && (
           <p className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
             <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
-            {info.latest} não fornece pacote de release para {info.os}/{info.arch} (falta {info.asset}), não é possível atualizar automaticamente.
+            {info.latest} não fornece pacote de release para {info.os}/{info.arch} (falta {info.asset}), não é possível
+            atualizar automaticamente.
           </p>
         )}
 
         {info?.has_update && info.asset_available !== false && (
           <p className="text-xs text-muted-foreground">
             Vai baixar <span className="font-mono">{info.asset}</span>
-            {info.size ? ` (${humanSize(info.size)})` : ""}, verificar o SHA256 e fazer um smoke test antes de substituir; em caso de falha, a versão atual é mantida automaticamente.
+            {info.size ? ` (${humanSize(info.size)})` : ""}, verificar o SHA256 e fazer um smoke test antes de
+            substituir; em caso de falha, a versão atual é mantida automaticamente.
           </p>
         )}
 
         {info && !info.has_update && info.comparable && !info.error && (
           <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CheckCircle2Icon className="size-3.5 text-emerald-600" />
-            A versão atual já é a mais recente.
+            <CheckCircle2Icon className="size-3.5 text-state-done" />A versão atual já é a mais recente.
           </p>
         )}
 
         {info?.mode === "docker" && info.has_update && (
           <p className="text-xs text-muted-foreground">
-            A atualização no Docker substitui apenas o programa em si, não atualiza as ferramentas como playwright / nmap da imagem, e
-            <span className="font-mono"> docker compose up -d </span>
+            A atualização no Docker substitui apenas o programa em si, não atualiza as ferramentas como playwright /
+            nmap da imagem, e<span className="font-mono"> docker compose up -d </span>
             ao recriar o contêiner volta para a versão que acompanha a imagem. Para atualizar também a imagem, execute
             <span className="font-mono"> docker compose pull artex &amp;&amp; docker compose up -d artex</span>.
           </p>
@@ -278,7 +283,9 @@ export function UpdateCard() {
           <div className="space-y-1.5">
             <Progress value={pct} className={downloading ? undefined : "animate-pulse"} />
             <p className="text-xs text-muted-foreground">
-              {restarting ? "Reiniciando e aplicando a nova versão, aguarde (a página será atualizada automaticamente)…" : progress?.message}
+              {restarting
+                ? "Reiniciando e aplicando a nova versão, aguarde (a página será atualizada automaticamente)…"
+                : progress?.message}
             </p>
           </div>
         )}
@@ -305,8 +312,10 @@ export function UpdateCard() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          A atualização com um clique depende do script guardião para reiniciar o programa. Inicie o ARTEX por <span className="font-mono">start.sh</span> (no Windows,
-          <span className="font-mono"> start.bat</span>); ao executar o binário artex diretamente, o programa não será reiniciado automaticamente depois de sair.
+          A atualização com um clique depende do script guardião para reiniciar o programa. Inicie o ARTEX por{" "}
+          <span className="font-mono">start.sh</span> (no Windows,
+          <span className="font-mono"> start.bat</span>); ao executar o binário artex diretamente, o programa não será
+          reiniciado automaticamente depois de sair.
         </p>
       </CardContent>
     </Card>

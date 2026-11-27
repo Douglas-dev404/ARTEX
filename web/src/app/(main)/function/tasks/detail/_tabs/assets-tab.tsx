@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 
 import { AssetDslSearch } from "@/components/asset-dsl-search";
+import { MethodBadge } from "@/components/method-badge";
 import { ScopeTextEditor } from "@/components/scope-text-editor";
 import {
   AlertDialog,
@@ -45,16 +46,6 @@ import type { Asset, NewAssetType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZES = [25, 50, 100, 200];
-
-const METHOD_COLOR: Record<string, string> = {
-  DELETE: "bg-red-100 text-red-700",
-  GET: "bg-emerald-100 text-emerald-700",
-  HEAD: "bg-purple-100 text-purple-700",
-  OPTIONS: "bg-slate-100 text-slate-600",
-  PATCH: "bg-orange-100 text-orange-700",
-  POST: "bg-blue-100 text-blue-700",
-  PUT: "bg-amber-100 text-amber-700",
-};
 
 const TABS: { key: NewAssetType; label: string; icon: LucideIcon }[] = [
   { key: "root_domain", label: "Domínio raiz", icon: GlobeIcon },
@@ -88,20 +79,6 @@ function assetLabel(asset: Asset): string {
   }
 }
 
-function MethodBadge({ method }: { method: string }) {
-  const normalized = method.toUpperCase();
-  return (
-    <span
-      className={cn(
-        "inline-block rounded px-1.5 py-0.5 font-mono font-semibold text-[10px] leading-none",
-        METHOD_COLOR[normalized] ?? "bg-muted text-muted-foreground",
-      )}
-    >
-      {normalized || "—"}
-    </span>
-  );
-}
-
 function statusTone(code: number) {
   if (code >= 500) return "text-sev-high";
   if (code >= 400) return "text-sev-medium";
@@ -133,7 +110,10 @@ function Chips({ items, mono }: { items: string[]; mono?: boolean }) {
 
 function SourceCell({ asset }: { asset: Asset }) {
   const source = firstText([asset.task_source], "legacy");
-  const summary = firstText([asset.task_source_summary], "Migrado da associação de ativos de tarefas antigas; sem descrição de origem mais detalhada");
+  const summary = firstText(
+    [asset.task_source_summary],
+    "Migrado da associação de ativos de tarefas antigas; sem descrição de origem mais detalhada",
+  );
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -309,7 +289,8 @@ function AddTaskAssetsSheet({
         <SheetHeader>
           <SheetTitle>Adicionar ativo de teste</SheetTitle>
           <SheetDescription>
-            Informe diretamente o escopo de teste. Domínios e IPs criam ou reutilizam ativos globais; CIDR, ICP e palavras-chave servem de contexto de escopo para o Agent.
+            Informe diretamente o escopo de teste. Domínios e IPs criam ou reutilizam ativos globais; CIDR, ICP e
+            palavras-chave servem de contexto de escopo para o Agent.
           </SheetDescription>
         </SheetHeader>
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4">
@@ -521,7 +502,10 @@ export function AssetsTab({ taskId }: { taskId: string }) {
         </TabsContent>
 
         <TabsContent value="ip" className="mt-0 flex min-h-0 flex-1 flex-col">
-          <AssetCard cols={["IP", "Faixa C", "Domínios vinculados", "Portas abertas", "Origem", "Ações"]} {...commonCardProps}>
+          <AssetCard
+            cols={["IP", "Faixa C", "Domínios vinculados", "Portas abertas", "Origem", "Ações"]}
+            {...commonCardProps}
+          >
             {rows.map((asset) => (
               <TableRow key={asset.id}>
                 <TableCell className="font-medium font-mono text-xs">{asset.ip}</TableCell>
@@ -547,7 +531,10 @@ export function AssetsTab({ taskId }: { taskId: string }) {
         </TabsContent>
 
         <TabsContent value="subdomain" className="mt-0 flex min-h-0 flex-1 flex-col">
-          <AssetCard cols={["Domínio", "Domínio raiz", "Tipo de resolução", "Valor resolvido", "Origem", "Ações"]} {...commonCardProps}>
+          <AssetCard
+            cols={["Domínio", "Domínio raiz", "Tipo de resolução", "Valor resolvido", "Origem", "Ações"]}
+            {...commonCardProps}
+          >
             {rows.map((asset) => (
               <TableRow key={asset.id}>
                 <TableCell className="font-medium font-mono text-xs">{asset.domain}</TableCell>
@@ -566,7 +553,10 @@ export function AssetsTab({ taskId }: { taskId: string }) {
         </TabsContent>
 
         <TabsContent value="app" className="mt-0 flex min-h-0 flex-1 flex-col">
-          <AssetCard cols={["App", "Endereço", "Categoria", "Título", "Fingerprint", "Origem", "Ações"]} {...commonCardProps}>
+          <AssetCard
+            cols={["App", "Endereço", "Categoria", "Título", "Fingerprint", "Origem", "Ações"]}
+            {...commonCardProps}
+          >
             {rows.map((asset) => (
               <TableRow key={asset.id}>
                 <TableCell className="max-w-48 truncate font-medium text-xs">{asset.app_name || "—"}</TableCell>
@@ -589,7 +579,16 @@ export function AssetsTab({ taskId }: { taskId: string }) {
 
         <TabsContent value="service" className="mt-0 flex min-h-0 flex-1 flex-col">
           <AssetCard
-            cols={["Endereço / serviço", "Código de status", "Título", "Tamanho da resposta", "Fingerprint", "Autenticação", "Origem", "Ações"]}
+            cols={[
+              "Endereço / serviço",
+              "Código de status",
+              "Título",
+              "Tamanho da resposta",
+              "Fingerprint",
+              "Autenticação",
+              "Origem",
+              "Ações",
+            ]}
             {...commonCardProps}
           >
             {rows.map((asset) => {

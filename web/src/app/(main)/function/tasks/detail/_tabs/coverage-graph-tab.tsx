@@ -1,29 +1,15 @@
 "use client";
 
 import * as React from "react";
+
 import type { Graph as G6Graph } from "@antv/g6";
-import {
-  AppWindow,
-  Building2,
-  Globe,
-  Link2,
-  type LucideIcon,
-  Radio,
-  RefreshCw,
-  Server,
-  Waypoints,
-} from "lucide-react";
+import { AppWindow, Building2, Globe, Link2, type LucideIcon, Radio, RefreshCw, Server, Waypoints } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { api } from "@/lib/api";
 import type { CoverageAssetRef, CoverageAssetRefs, CoverageGraphEdge, CoverageGraphNode } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -331,7 +317,9 @@ function AssetSheet({
           <>
             <SheetHeader className="border-b p-4">
               <div className="flex items-center gap-2.5 pr-8">
-                <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm", meta.iconBg)}>
+                <span
+                  className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm", meta.iconBg)}
+                >
                   <Icon className="size-4 text-white" />
                 </span>
                 <div className="min-w-0">
@@ -350,7 +338,7 @@ function AssetSheet({
                   <DetailRow label="Status do teste">
                     {node.in_scope ? (
                       node.tested ? (
-                        <span className="text-state-done dark:text-state-done">Testado</span>
+                        <span className="text-state-done">Testado</span>
                       ) : (
                         <span className="text-neutral-500">Não testado</span>
                       )
@@ -416,7 +404,9 @@ function FoldSheet({
               <SheetTitle className="text-base">
                 {meta.label} não exibidos ({fold.hidden.length})
               </SheetTitle>
-              <p className="text-muted-foreground text-xs">Os testados aparecem primeiro. Clique em "Mostrar mais" para trazer o próximo lote para o grafo.</p>
+              <p className="text-muted-foreground text-xs">
+                Os testados aparecem primeiro. Clique em "Mostrar mais" para trazer o próximo lote para o grafo.
+              </p>
             </SheetHeader>
             <ScrollArea className="min-h-0 flex-1">
               <div className="flex flex-col gap-1 p-3">
@@ -506,7 +496,10 @@ function GraphInner({ taskId, coverageEnabled = true }: { taskId: string; covera
   // Assinatura estrutural: só reconstrói o grafo + reexecuta o layout quando o conjunto de nós/arestas visíveis muda, evitando tremor desnecessário.
   const sig = React.useMemo(
     () =>
-      `${renderNodes.map((n) => `${n.key}:${n.fold ? "f" : n.node.tested ? "t" : "u"}`).sort().join(",")}|${renderEdges.length}`,
+      `${renderNodes
+        .map((n) => `${n.key}:${n.fold ? "f" : n.node.tested ? "t" : "u"}`)
+        .sort()
+        .join(",")}|${renderEdges.length}`,
     [renderNodes, renderEdges],
   );
 
@@ -648,13 +641,14 @@ function GraphInner({ taskId, coverageEnabled = true }: { taskId: string; covera
               {coverageEnabled && (
                 <>
                   {" "}
-                  · Testados{" "}
-                  <span className="font-semibold tabular-nums text-state-done dark:text-state-done">{tested}</span>
+                  · Testados <span className="font-semibold tabular-nums text-state-done">{tested}</span>
                 </>
               )}
             </span>
           ) : (
-            <span className="text-muted-foreground">{loading ? "Carregando…" : "Nenhum ativo no escopo (ancore primeiro o escopo da tarefa)"}</span>
+            <span className="text-muted-foreground">
+              {loading ? "Carregando…" : "Nenhum ativo no escopo (ancore primeiro o escopo da tarefa)"}
+            </span>
           )}
           <Button variant="ghost" size="icon" className="size-6" onClick={fetchGraph} title="Atualizar">
             <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
@@ -686,11 +680,13 @@ function GraphInner({ taskId, coverageEnabled = true }: { taskId: string; covera
             </>
           )}
           <span className="inline-flex items-center gap-1.5">
-            <span className="size-3 rounded-full border border-dashed border-neutral-400 bg-neutral-200" /> Fora do escopo
+            <span className="size-3 rounded-full border border-dashed border-neutral-400 bg-neutral-200" /> Fora do
+            escopo
           </span>
         </div>
         <p className="text-muted-foreground/80 border-border/60 border-t pt-2 leading-relaxed">
-          Layout dirigido por forças: dá para arrastar nós e dar zoom com a roda; o "⋯" cinza é um nó recolhido, clique para expandir mais.
+          Layout dirigido por forças: dá para arrastar nós e dar zoom com a roda; o "⋯" cinza é um nó recolhido, clique
+          para expandir mais.
         </p>
       </div>
 

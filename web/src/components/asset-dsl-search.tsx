@@ -255,9 +255,9 @@ function applyDslSuggestion(text: string, s: DslSuggestion): { text: string; cur
 }
 
 const KIND_STYLE: Record<string, string> = {
-  field: "text-blue-500 dark:text-blue-400",
-  operator: "text-amber-500 dark:text-amber-400",
-  logic: "text-emerald-500 dark:text-emerald-400",
+  field: "text-state-running",
+  operator: "text-sev-medium",
+  logic: "text-state-done",
 };
 
 // AssetDslSearch is the shared DSL search box: a monospace input with a
@@ -375,7 +375,13 @@ export function AssetDslSearch({
       </div>
       {query.trim() && !open && (
         <p className="pl-1 text-[11px] text-muted-foreground">
-          {loading ? "Buscando…" : error ? <span className="text-destructive">{error}</span> : `${count ?? 0} encontrado(s)`}
+          {loading ? (
+            "Buscando…"
+          ) : error ? (
+            <span className="text-destructive">{error}</span>
+          ) : (
+            `${count ?? 0} encontrado(s)`
+          )}
         </p>
       )}
     </div>

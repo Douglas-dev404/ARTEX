@@ -1,19 +1,23 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
-import { EyeIcon, GitCompareIcon, InfoIcon, PencilIcon, RotateCcwIcon, SaveIcon, Trash2Icon, XIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import {
+  EyeIcon,
+  GitCompareIcon,
+  InfoIcon,
+  PencilIcon,
+  RotateCcwIcon,
+  SaveIcon,
+  Trash2Icon,
+  XIcon,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { Markdown } from "@/components/markdown";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -22,11 +26,27 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Markdown } from "@/components/markdown";
 import { api } from "@/lib/api";
+import type {
+  Agent,
+  AgentDetail,
+  AgentTrigger,
+  MCPServer,
+  PromptVar,
+  PromptVersion,
+  Settings,
+  SkillItem,
+  Tool,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
-import type { Agent, AgentDetail, AgentTrigger, MCPServer, PromptVar, PromptVersion, Settings, SkillItem, Tool } from "@/lib/types";
 
 // Traffic tools are host tools gated by the global traffic capture switch: bindable, but
 // only usable when capture is on. Keep this list in sync with traffic.SeedToolMetas.
@@ -70,10 +90,22 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   const [settings, setSettings] = React.useState<Settings | null>(null);
 
   React.useEffect(() => {
-    api.mcpServers().then(setMcp).catch(() => {});
-    api.skills().then(setSkills).catch(() => {});
-    api.tools().then(setTools).catch(() => {});
-    api.settings().then(setSettings).catch(() => {});
+    api
+      .mcpServers()
+      .then(setMcp)
+      .catch(() => {});
+    api
+      .skills()
+      .then(setSkills)
+      .catch(() => {});
+    api
+      .tools()
+      .then(setTools)
+      .catch(() => {});
+    api
+      .settings()
+      .then(setSettings)
+      .catch(() => {});
   }, []);
   // global gates: traffic tools need traffic capture, web search needs the master switch.
   const captureOn = !!settings?.traffic_capture;
@@ -143,7 +175,11 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
     try {
       const turns = Math.max(0, Math.floor(Number(wrapupTurns) || 0));
       await api.saveAgentWrapup(agentKey, wrapup, turns);
-      toast.success(wrapup.trim() || turns > 0 ? "Configuração de encerramento salva (vale a partir da próxima execução)" : "Limpo, será usado o padrão embutido");
+      toast.success(
+        wrapup.trim() || turns > 0
+          ? "Configuração de encerramento salva (vale a partir da próxima execução)"
+          : "Limpo, será usado o padrão embutido",
+      );
       reload();
     } catch (e) {
       toast.error("Falha ao salvar: " + (e as Error).message);
@@ -247,7 +283,10 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
     } catch (e) {
       toast.error("Falha ao salvar o vínculo de ferramentas: " + (e as Error).message);
       reload();
-      api.tools().then(setTools).catch(() => {});
+      api
+        .tools()
+        .then(setTools)
+        .catch(() => {});
     }
   }
 
@@ -285,9 +324,14 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
             <div className="grid gap-3 rounded-md border p-3">
               {showLLM && (
                 <div className="grid gap-1.5">
-                  <Label htmlFor="llm-profile" className="text-xs">Modelo padrão (configuração de LLM)</Label>
+                  <Label htmlFor="llm-profile" className="text-xs">
+                    Modelo padrão (configuração de LLM)
+                  </Label>
                   <div className="flex flex-wrap items-center gap-3">
-                    <Select value={llmProfileId || "__follow__"} onValueChange={(v) => setLlmProfileId(v === "__follow__" ? "" : v)}>
+                    <Select
+                      value={llmProfileId || "__follow__"}
+                      onValueChange={(v) => setLlmProfileId(v === "__follow__" ? "" : v)}
+                    >
                       <SelectTrigger id="llm-profile" className="h-8 w-72">
                         <SelectValue />
                       </SelectTrigger>
@@ -301,7 +345,8 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
                       </SelectContent>
                     </Select>
                     <span className="text-muted-foreground max-w-md text-xs">
-                      Vincula uma configuração fixa de LLM a este Agent (clique em "Salvar configuração" para aplicar). Prioridade: vínculo do Agent &gt; definida na tarefa/sessão &gt; global ativa.
+                      Vincula uma configuração fixa de LLM a este Agent (clique em "Salvar configuração" para aplicar).
+                      Prioridade: vínculo do Agent &gt; definida na tarefa/sessão &gt; global ativa.
                     </span>
                   </div>
                 </div>
@@ -310,14 +355,30 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
                 {showConfig && (
                   <>
                     <div className="grid gap-1.5">
-                      <Label htmlFor="max-turns" className="text-xs">Máximo de iterações (0 = sem limite)</Label>
-                      <Input id="max-turns" type="number" min={0} className="h-8 w-32"
-                        value={maxTurns} onChange={(e) => setMaxTurns(e.target.value)} />
+                      <Label htmlFor="max-turns" className="text-xs">
+                        Máximo de iterações (0 = sem limite)
+                      </Label>
+                      <Input
+                        id="max-turns"
+                        type="number"
+                        min={0}
+                        className="h-8 w-32"
+                        value={maxTurns}
+                        onChange={(e) => setMaxTurns(e.target.value)}
+                      />
                     </div>
                     <div className="grid gap-1.5">
-                      <Label htmlFor="run-seconds" className="text-xs">Duração da execução (segundos, 0 = sem limite)</Label>
-                      <Input id="run-seconds" type="number" min={0} className="h-8 w-32"
-                        value={runSecs} onChange={(e) => setRunSecs(e.target.value)} />
+                      <Label htmlFor="run-seconds" className="text-xs">
+                        Duração da execução (segundos, 0 = sem limite)
+                      </Label>
+                      <Input
+                        id="run-seconds"
+                        type="number"
+                        min={0}
+                        className="h-8 w-32"
+                        value={runSecs}
+                        onChange={(e) => setRunSecs(e.target.value)}
+                      />
                     </div>
                   </>
                 )}
@@ -334,26 +395,28 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
                     onCheckedChange={setWebSearch}
                   />
                   <div className="grid gap-0.5">
-                    <Label htmlFor="web-search" className="text-sm">Busca na web</Label>
+                    <Label htmlFor="web-search" className="text-sm">
+                      Busca na web
+                    </Label>
                     <span className="text-muted-foreground text-xs">
                       {webSearchGlobalOn
                         ? "Depois de ativar para este Agent (clique em salvar acima para aplicar), é possível usar web_search para pesquisar na internet"
-                        : "É preciso antes ativar a busca na web em \"Configuração do sistema\" e configurar o backend para poder habilitá-la aqui"}
+                        : 'É preciso antes ativar a busca na web em "Configuração do sistema" e configurar o backend para poder habilitá-la aqui'}
                     </span>
                   </div>
                 </div>
               )}
               {showInteractiveShell && (
                 <div className="flex items-center gap-3 border-t pt-3">
-                  <Switch
-                    id="interactive-shell"
-                    checked={interactiveShell}
-                    onCheckedChange={setInteractiveShell}
-                  />
+                  <Switch id="interactive-shell" checked={interactiveShell} onCheckedChange={setInteractiveShell} />
                   <div className="grid gap-0.5">
-                    <Label htmlFor="interactive-shell" className="text-sm">Shell interativo</Label>
+                    <Label htmlFor="interactive-shell" className="text-sm">
+                      Shell interativo
+                    </Label>
                     <span className="text-muted-foreground text-xs">
-                      Depois de ativar para este Agent (clique em salvar acima para aplicar), é possível usar as ferramentas de sessão PTY persistente (shell_open/send/read/close/list) para controlar programas interativos como msfconsole/ssh/REPL
+                      Depois de ativar para este Agent (clique em salvar acima para aplicar), é possível usar as
+                      ferramentas de sessão PTY persistente (shell_open/send/read/close/list) para controlar programas
+                      interativos como msfconsole/ssh/REPL
                     </span>
                   </div>
                 </div>
@@ -362,15 +425,23 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
           )}
 
           <div className="grid gap-2">
-            <Label className="text-muted-foreground text-xs">Variáveis (clique para inserir o placeholder; na renderização é substituído por dados em tempo de execução)</Label>
+            <Label className="text-muted-foreground text-xs">
+              Variáveis (clique para inserir o placeholder; na renderização é substituído por dados em tempo de
+              execução)
+            </Label>
             <div className="flex flex-wrap gap-2">
               {variables.map((v) => (
                 <Tooltip key={v.name}>
                   <TooltipTrigger asChild>
-                    <button type="button" onClick={() => setPrompt((p) => `${p}{{.${v.name}}}`)}
-                      className="hover:bg-muted inline-flex items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 font-mono text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setPrompt((p) => `${p}{{.${v.name}}}`)}
+                      className="hover:bg-muted inline-flex items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 font-mono text-xs"
+                    >
                       {`{{.${v.name}}}`}
-                      <Badge variant="secondary" className="px-1 py-0 text-[10px]">{v.source}</Badge>
+                      <Badge variant="secondary" className="px-1 py-0 text-[10px]">
+                        {v.source}
+                      </Badge>
                     </button>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
@@ -383,8 +454,13 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
             </div>
           </div>
 
-          <Textarea className="font-mono text-xs" rows={16} value={prompt}
-            placeholder="Deixe em branco para usar o prompt padrão embutido" onChange={(e) => setPrompt(e.target.value)} />
+          <Textarea
+            className="font-mono text-xs"
+            rows={16}
+            value={prompt}
+            placeholder="Deixe em branco para usar o prompt padrão embutido"
+            onChange={(e) => setPrompt(e.target.value)}
+          />
 
           <div className="flex flex-wrap gap-2">
             <Dialog>
@@ -396,7 +472,9 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
               <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Prévia da renderização</DialogTitle>
-                  <DialogDescription>Todos os {`{{.Var}}`} foram substituídos pelo backend com valores de exemplo.</DialogDescription>
+                  <DialogDescription>
+                    Todos os {`{{.Var}}`} foram substituídos pelo backend com valores de exemplo.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="max-h-[60vh] overflow-auto rounded-md border bg-muted/30 p-3">
                   <Markdown text={preview} />
@@ -411,19 +489,30 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
             </Button>
           </div>
 
-
           <Separator />
           <div className="grid gap-2">
             <Label className="text-muted-foreground text-xs">Histórico de versões</Label>
             <ul className="grid gap-1">
               {versions.map((ver, i) => (
-                <li key={ver.version} className="flex items-center gap-2 rounded-md px-1 py-0.5 text-xs hover:bg-muted/50">
+                <li
+                  key={ver.version}
+                  className="flex items-center gap-2 rounded-md px-1 py-0.5 text-xs hover:bg-muted/50"
+                >
                   <span className="font-mono shrink-0">v{ver.version}</span>
-                  {i === 0 && <Badge variant="secondary" className="px-1.5 py-0 shrink-0">Atual</Badge>}
+                  {i === 0 && (
+                    <Badge variant="secondary" className="px-1.5 py-0 shrink-0">
+                      Atual
+                    </Badge>
+                  )}
                   <span className="text-muted-foreground truncate flex-1">{ver.note}</span>
                   {ver.ts && (
                     <span className="text-muted-foreground/60 shrink-0 tabular-nums">
-                      {new Date(ver.ts).toLocaleDateString("pt-BR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      {new Date(ver.ts).toLocaleDateString("pt-BR", {
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </span>
                   )}
                   <Button variant="ghost" size="icon-sm" className="size-6 shrink-0" onClick={() => setViewVer(ver)}>
@@ -443,13 +532,20 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
           </div>
 
           {/* Dialog de visualização de versão */}
-          <Dialog open={!!viewVer} onOpenChange={(o) => { if (!o) setViewVer(null); }}>
+          <Dialog
+            open={!!viewVer}
+            onOpenChange={(o) => {
+              if (!o) setViewVer(null);
+            }}
+          >
             <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
                 <DialogTitle>
                   v{viewVer?.version}
                   {viewVer?.version === versions[0]?.version && (
-                    <Badge variant="secondary" className="ml-2 px-1.5 py-0 align-middle">Atual</Badge>
+                    <Badge variant="secondary" className="ml-2 px-1.5 py-0 align-middle">
+                      Atual
+                    </Badge>
                   )}
                 </DialogTitle>
                 <DialogDescription>
@@ -466,15 +562,31 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
               </pre>
               <div className="flex gap-2 justify-end">
                 {viewVer && viewVer.version !== versions[0]?.version && (
-                  <Button variant="outline" size="sm" onClick={() => {
-                    if (viewVer) { setDiffVer(viewVer); setViewVer(null); }
-                  }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (viewVer) {
+                        setDiffVer(viewVer);
+                        setViewVer(null);
+                      }
+                    }}
+                  >
                     <GitCompareIcon className="mr-1 size-3.5" /> Comparar com a versão atual
                   </Button>
                 )}
-                <Button size="sm" onClick={() => {
-                  if (viewVer) { setPrompt(viewVer.template_text); setViewVer(null); toast.success(`v${viewVer.version} carregada no editor; depois de confirmar, clique em "Salvar como nova versão"`); }
-                }}>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (viewVer) {
+                      setPrompt(viewVer.template_text);
+                      setViewVer(null);
+                      toast.success(
+                        `v${viewVer.version} carregada no editor; depois de confirmar, clique em "Salvar como nova versão"`,
+                      );
+                    }
+                  }}
+                >
                   Carregar no editor
                 </Button>
               </div>
@@ -482,14 +594,21 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
           </Dialog>
 
           {/* Dialog de comparação de versões */}
-          <Dialog open={!!diffVer} onOpenChange={(o) => { if (!o) setDiffVer(null); }}>
+          <Dialog
+            open={!!diffVer}
+            onOpenChange={(o) => {
+              if (!o) setDiffVer(null);
+            }}
+          >
             <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
-                <DialogTitle>Comparação de versões: v{diffVer?.version} → v{versions[0]?.version} (atual)</DialogTitle>
+                <DialogTitle>
+                  Comparação de versões: v{diffVer?.version} → v{versions[0]?.version} (atual)
+                </DialogTitle>
                 <DialogDescription>
                   <span className="inline-flex items-center gap-3 text-xs">
-                    <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-red-600 dark:text-red-400">- remoção</span>
-                    <span className="rounded bg-green-500/15 px-1.5 py-0.5 text-green-600 dark:text-green-400">+ adição</span>
+                    <span className="rounded bg-sev-high-bg px-1.5 py-0.5 text-sev-high">- remoção</span>
+                    <span className="rounded bg-state-done/15 px-1.5 py-0.5 text-state-done">+ adição</span>
                   </span>
                 </DialogDescription>
               </DialogHeader>
@@ -503,15 +622,21 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
       <TabsContent value="wrapup" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <div className="grid gap-3">
           <p className="text-muted-foreground text-xs leading-relaxed">
-            Quando este Agent é encerrado por <b>timeout</b> ou por <b>esgotamento de passos</b>, o sistema injeta este "prompt de encerramento" para rodar uma rodada final:
-            primeiro grava o que já foi identificado mas ainda não persistido, depois emite uma frase de resumo (evitando um final abrupto). Se ficar em branco, usa o padrão embutido.
+            Quando este Agent é encerrado por <b>timeout</b> ou por <b>esgotamento de passos</b>, o sistema injeta este
+            "prompt de encerramento" para rodar uma rodada final: primeiro grava o que já foi identificado mas ainda não
+            persistido, depois emite uma frase de resumo (evitando um final abrupto). Se ficar em branco, usa o padrão
+            embutido.
           </p>
           <div className="flex items-center gap-2">
             <Label className="text-xs">Texto do prompt de encerramento</Label>
             {wrapup.trim() ? (
-              <Badge variant="secondary" className="px-1.5 py-0">Personalizado</Badge>
+              <Badge variant="secondary" className="px-1.5 py-0">
+                Personalizado
+              </Badge>
             ) : (
-              <Badge variant="outline" className="px-1.5 py-0">Usando o padrão embutido</Badge>
+              <Badge variant="outline" className="px-1.5 py-0">
+                Usando o padrão embutido
+              </Badge>
             )}
           </div>
           <Textarea
@@ -523,20 +648,33 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
           />
           <div className="grid gap-1.5">
             <Label htmlFor="wrapup-turns" className="text-xs">
-              Rodadas de encerramento (máximo de rodadas da própria fase de encerramento; 0 = usar o padrão embutido, {wrapupTurnsDefault} rodadas)
+              Rodadas de encerramento (máximo de rodadas da própria fase de encerramento; 0 = usar o padrão embutido,{" "}
+              {wrapupTurnsDefault} rodadas)
             </Label>
-            <Input id="wrapup-turns" type="number" min={0} className="h-8 w-32"
-              value={wrapupTurns} onChange={(e) => setWrapupTurns(e.target.value)} />
+            <Input
+              id="wrapup-turns"
+              type="number"
+              min={0}
+              className="h-8 w-32"
+              value={wrapupTurns}
+              onChange={(e) => setWrapupTurns(e.target.value)}
+            />
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={saveWrapup}>Salvar</Button>
-            <Button size="sm" variant="outline" onClick={resetWrapup}>Restaurar padrão</Button>
+            <Button size="sm" onClick={saveWrapup}>
+              Salvar
+            </Button>
+            <Button size="sm" variant="outline" onClick={resetWrapup}>
+              Restaurar padrão
+            </Button>
           </div>
           {wrapupDefault && (
             <>
               <Separator />
               <div className="grid gap-1.5">
-                <Label className="text-muted-foreground text-xs">Padrão embutido (somente leitura, para referência)</Label>
+                <Label className="text-muted-foreground text-xs">
+                  Padrão embutido (somente leitura, para referência)
+                </Label>
                 <pre className="text-muted-foreground max-h-40 overflow-y-auto rounded-md border bg-muted/30 p-2 text-xs whitespace-pre-wrap">
                   {wrapupDefault}
                 </pre>
@@ -548,38 +686,60 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
             <>
               <Separator className="my-2" />
               <p className="text-muted-foreground text-xs leading-relaxed">
-                <b>Encerramento por timeout da tarefa</b> (são <b>dois conjuntos distintos</b> em relação ao encerramento per-run acima): injetado quando a <b>tarefa inteira</b> atinge o limite de timeout e está prestes a terminar.
-                Costuma ter semântica oposta à do per-run (por exemplo, planner: o per-run diz "não pare, continue planejando", e o timeout da tarefa diz "chegou a hora, pare e faça o veredito final"). Se ficar em branco, usa o padrão embutido.
+                <b>Encerramento por timeout da tarefa</b> (são <b>dois conjuntos distintos</b> em relação ao
+                encerramento per-run acima): injetado quando a <b>tarefa inteira</b> atinge o limite de timeout e está
+                prestes a terminar. Costuma ter semântica oposta à do per-run (por exemplo, planner: o per-run diz "não
+                pare, continue planejando", e o timeout da tarefa diz "chegou a hora, pare e faça o veredito final"). Se
+                ficar em branco, usa o padrão embutido.
               </p>
               <div className="flex items-center gap-2">
                 <Label className="text-xs">Texto do prompt de encerramento por timeout da tarefa</Label>
                 {ttWrapup.trim() ? (
-                  <Badge variant="secondary" className="px-1.5 py-0">Personalizado</Badge>
+                  <Badge variant="secondary" className="px-1.5 py-0">
+                    Personalizado
+                  </Badge>
                 ) : (
-                  <Badge variant="outline" className="px-1.5 py-0">Usando o padrão embutido</Badge>
+                  <Badge variant="outline" className="px-1.5 py-0">
+                    Usando o padrão embutido
+                  </Badge>
                 )}
               </div>
               <Textarea
                 className="font-mono text-xs"
                 rows={10}
                 value={ttWrapup}
-                placeholder={ttWrapupDefault || "Deixe em branco para usar o prompt padrão embutido de encerramento por timeout da tarefa"}
+                placeholder={
+                  ttWrapupDefault ||
+                  "Deixe em branco para usar o prompt padrão embutido de encerramento por timeout da tarefa"
+                }
                 onChange={(e) => setTtWrapup(e.target.value)}
               />
               <div className="grid gap-1.5">
                 <Label htmlFor="tt-turns" className="text-xs">
                   Rodadas de encerramento (0 = usar o padrão embutido, {ttTurnsDefault} rodadas)
                 </Label>
-                <Input id="tt-turns" type="number" min={0} className="h-8 w-32"
-                  value={ttTurns} onChange={(e) => setTtTurns(e.target.value)} />
+                <Input
+                  id="tt-turns"
+                  type="number"
+                  min={0}
+                  className="h-8 w-32"
+                  value={ttTurns}
+                  onChange={(e) => setTtTurns(e.target.value)}
+                />
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={saveTaskTimeoutWrapup}>Salvar</Button>
-                <Button size="sm" variant="outline" onClick={resetTaskTimeoutWrapup}>Restaurar padrão</Button>
+                <Button size="sm" onClick={saveTaskTimeoutWrapup}>
+                  Salvar
+                </Button>
+                <Button size="sm" variant="outline" onClick={resetTaskTimeoutWrapup}>
+                  Restaurar padrão
+                </Button>
               </div>
               {ttWrapupDefault && (
                 <div className="grid gap-1.5">
-                  <Label className="text-muted-foreground text-xs">Padrão embutido (somente leitura, para referência)</Label>
+                  <Label className="text-muted-foreground text-xs">
+                    Padrão embutido (somente leitura, para referência)
+                  </Label>
                   <pre className="text-muted-foreground max-h-40 overflow-y-auto rounded-md border bg-muted/30 p-2 text-xs whitespace-pre-wrap">
                     {ttWrapupDefault}
                   </pre>
@@ -630,10 +790,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
             return (
               <label
                 key={t.key}
-                className={cn(
-                  "flex items-center gap-2 rounded-md border p-2 text-sm",
-                  gated && "opacity-60",
-                )}
+                className={cn("flex items-center gap-2 rounded-md border p-2 text-sm", gated && "opacity-60")}
               >
                 <Checkbox
                   checked={t.agents.includes(agentKey)}
@@ -642,10 +799,14 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
                 />
                 <span className="font-mono text-xs">{t.key}</span>
                 {isTraffic && (
-                  <Badge variant="secondary" className="px-1 py-0 text-[9px]">Tráfego</Badge>
+                  <Badge variant="secondary" className="px-1 py-0 text-[9px]">
+                    Tráfego
+                  </Badge>
                 )}
                 {!t.enabled && (
-                  <Badge variant="outline" className="text-destructive px-1 py-0 text-[9px]">Desativado</Badge>
+                  <Badge variant="outline" className="text-destructive px-1 py-0 text-[9px]">
+                    Desativado
+                  </Badge>
                 )}
                 {gated ? (
                   <span className="text-muted-foreground ml-auto text-xs">Requer captura de tráfego ativada</span>
@@ -714,8 +875,8 @@ function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
           key={idx}
           className={cn(
             "whitespace-pre-wrap px-1",
-            l.type === "del" && "bg-red-500/15 text-red-700 dark:text-red-400",
-            l.type === "add" && "bg-green-500/15 text-green-700 dark:text-green-400",
+            l.type === "del" && "bg-sev-high-bg text-sev-high",
+            l.type === "add" && "bg-state-done/15 text-state-done",
             l.type === "same" && "text-muted-foreground",
           )}
         >
@@ -773,13 +934,19 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
   const [editingId, setEditingId] = React.useState<number | null>(null);
 
   const reload = React.useCallback(() => {
-    api.agentTriggers(agentKey).then(setTriggers).catch(() => setTriggers([]));
+    api
+      .agentTriggers(agentKey)
+      .then(setTriggers)
+      .catch(() => setTriggers([]));
   }, [agentKey]);
   React.useEffect(() => {
     reload();
   }, [reload]);
   React.useEffect(() => {
-    api.tools().then(setTools).catch(() => setTools([]));
+    api
+      .tools()
+      .then(setTools)
+      .catch(() => setTools([]));
   }, []);
 
   function toggleTool(key: string) {
@@ -915,13 +1082,17 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
   return (
     <div className="grid gap-4">
       <p className="text-muted-foreground text-xs">
-        Os gatilhos fazem este Agent personalizado rodar automaticamente: cada disparo <b>cria uma nova sessão de execução</b> (visível na página "Conversas").
-        As condições de gatilho podem ser múltiplas; o sistema anexa automaticamente à mensagem base que você escreveu "por que disparou desta vez + tarefa/finding/objetivo relacionados".
+        Os gatilhos fazem este Agent personalizado rodar automaticamente: cada disparo{" "}
+        <b>cria uma nova sessão de execução</b> (visível na página "Conversas"). As condições de gatilho podem ser
+        múltiplas; o sistema anexa automaticamente à mensagem base que você escreveu "por que disparou desta vez +
+        tarefa/finding/objetivo relacionados".
       </p>
 
       {/* Política de tratamento pós-gatilho */}
       <div className="grid gap-3 rounded-md border p-3">
-        <Label className="text-muted-foreground text-xs">Política de tratamento pós-gatilho (define como os disparos são enfileirados/mesclados)</Label>
+        <Label className="text-muted-foreground text-xs">
+          Política de tratamento pós-gatilho (define como os disparos são enfileirados/mesclados)
+        </Label>
         <div className="flex flex-wrap items-center gap-4">
           <div className="grid gap-1">
             <Label className="text-xs">Modo de execução</Label>
@@ -967,7 +1138,9 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
 
           {runMode === "parallel" && (
             <div className="grid gap-1">
-              <Label htmlFor="tr-maxpar" className="text-xs">Concorrência máxima (0 = sem limite)</Label>
+              <Label htmlFor="tr-maxpar" className="text-xs">
+                Concorrência máxima (0 = sem limite)
+              </Label>
               <Input
                 id="tr-maxpar"
                 type="number"
@@ -1011,13 +1184,26 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
           {onInterval && (
             <div className="grid gap-1.5">
               <div className="flex items-center gap-2">
-                <Label htmlFor="tr-interval" className="text-xs">A cada</Label>
-                <Input id="tr-interval" type="number" min={1} className="h-8 w-24"
-                  value={intervalSec} onChange={(e) => setIntervalSec(e.target.value)} />
+                <Label htmlFor="tr-interval" className="text-xs">
+                  A cada
+                </Label>
+                <Input
+                  id="tr-interval"
+                  type="number"
+                  min={1}
+                  className="h-8 w-24"
+                  value={intervalSec}
+                  onChange={(e) => setIntervalSec(e.target.value)}
+                />
                 <span className="text-muted-foreground text-xs">segundos</span>
               </div>
-              <Textarea className="text-xs" rows={2} value={intervalMsg}
-                placeholder="Mensagem enviada ao agent no disparo agendado, ex.: inspecionar todas as tarefas" onChange={(e) => setIntervalMsg(e.target.value)} />
+              <Textarea
+                className="text-xs"
+                rows={2}
+                value={intervalMsg}
+                placeholder="Mensagem enviada ao agent no disparo agendado, ex.: inspecionar todas as tarefas"
+                onChange={(e) => setIntervalMsg(e.target.value)}
+              />
             </div>
           )}
         </div>
@@ -1025,63 +1211,95 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
         {/* finding */}
         <div className="grid gap-1.5">
           <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={onFinding} onCheckedChange={(v) => setOnFinding(!!v)} /> Disparar quando um finding for encontrado
+            <Checkbox checked={onFinding} onCheckedChange={(v) => setOnFinding(!!v)} /> Disparar quando um finding for
+            encontrado
           </label>
           {onFinding && (
-            <Textarea className="text-xs" rows={2} value={findingMsg}
-              placeholder="Mensagem enviada ao agent quando um finding for encontrado (o sistema anexa os detalhes da tarefa e do finding)" onChange={(e) => setFindingMsg(e.target.value)} />
+            <Textarea
+              className="text-xs"
+              rows={2}
+              value={findingMsg}
+              placeholder="Mensagem enviada ao agent quando um finding for encontrado (o sistema anexa os detalhes da tarefa e do finding)"
+              onChange={(e) => setFindingMsg(e.target.value)}
+            />
           )}
         </div>
 
         {/* Objetivo atingido */}
         <div className="grid gap-1.5">
           <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={onGoalMet} onCheckedChange={(v) => setOnGoalMet(!!v)} /> Disparar quando o objetivo for atingido
+            <Checkbox checked={onGoalMet} onCheckedChange={(v) => setOnGoalMet(!!v)} /> Disparar quando o objetivo for
+            atingido
           </label>
           {onGoalMet && (
-            <Textarea className="text-xs" rows={2} value={goalMsg}
-              placeholder="Mensagem enviada ao agent quando o objetivo for atingido (o sistema anexa a tarefa e o objetivo atingido)" onChange={(e) => setGoalMsg(e.target.value)} />
+            <Textarea
+              className="text-xs"
+              rows={2}
+              value={goalMsg}
+              placeholder="Mensagem enviada ao agent quando o objetivo for atingido (o sistema anexa a tarefa e o objetivo atingido)"
+              onChange={(e) => setGoalMsg(e.target.value)}
+            />
           )}
         </div>
 
         {/* Timeout da tarefa */}
         <div className="grid gap-1.5">
           <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={onTaskTimeout} onCheckedChange={(v) => setOnTaskTimeout(!!v)} /> Disparar no timeout da tarefa
+            <Checkbox checked={onTaskTimeout} onCheckedChange={(v) => setOnTaskTimeout(!!v)} /> Disparar no timeout da
+            tarefa
           </label>
           {onTaskTimeout && (
-            <Textarea className="text-xs" rows={2} value={taskTimeoutMsg}
-              placeholder="Mensagem enviada ao agent no timeout da tarefa (o sistema anexa o número da tarefa e o objetivo)" onChange={(e) => setTaskTimeoutMsg(e.target.value)} />
+            <Textarea
+              className="text-xs"
+              rows={2}
+              value={taskTimeoutMsg}
+              placeholder="Mensagem enviada ao agent no timeout da tarefa (o sistema anexa o número da tarefa e o objetivo)"
+              onChange={(e) => setTaskTimeoutMsg(e.target.value)}
+            />
           )}
         </div>
 
         {/* Chamada de ferramenta */}
         <div className="grid gap-1.5">
           <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={onToolCall} onCheckedChange={(v) => setOnToolCall(!!v)} /> Disparar na chamada de ferramenta
+            <Checkbox checked={onToolCall} onCheckedChange={(v) => setOnToolCall(!!v)} /> Disparar na chamada de
+            ferramenta
           </label>
           {onToolCall && (
             <div className="grid gap-1.5">
               <div className="text-muted-foreground text-xs">
-                Selecione as ferramentas a monitorar (ao menos uma); durante a execução da tarefa, cada vez que uma delas <b>concluir uma chamada</b> o gatilho é disparado. {toolNames.length} selecionada(s).
+                Selecione as ferramentas a monitorar (ao menos uma); durante a execução da tarefa, cada vez que uma
+                delas <b>concluir uma chamada</b> o gatilho é disparado. {toolNames.length} selecionada(s).
               </div>
               <div className="max-h-40 overflow-y-auto rounded-md border p-2">
-                {tools.length === 0 && <span className="text-muted-foreground text-xs">(lista de ferramentas vazia)</span>}
+                {tools.length === 0 && (
+                  <span className="text-muted-foreground text-xs">(lista de ferramentas vazia)</span>
+                )}
                 <div className="grid gap-1">
                   {tools.map((tool) => (
                     <label key={tool.key} className="flex items-start gap-2 text-xs">
-                      <Checkbox className="mt-0.5" checked={toolNames.includes(tool.key)}
-                        onCheckedChange={() => toggleTool(tool.key)} />
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={toolNames.includes(tool.key)}
+                        onCheckedChange={() => toggleTool(tool.key)}
+                      />
                       <span className="min-w-0">
                         <span className="font-medium">{tool.key}</span>
-                        {tool.description && <span className="text-muted-foreground line-clamp-1"> {tool.description}</span>}
+                        {tool.description && (
+                          <span className="text-muted-foreground line-clamp-1"> {tool.description}</span>
+                        )}
                       </span>
                     </label>
                   ))}
                 </div>
               </div>
-              <Textarea className="text-xs" rows={2} value={toolCallMsg}
-                placeholder="Mensagem enviada ao agent quando a ferramenta for chamada (o sistema anexa as informações da tarefa, os parâmetros da ferramenta e o retorno)" onChange={(e) => setToolCallMsg(e.target.value)} />
+              <Textarea
+                className="text-xs"
+                rows={2}
+                value={toolCallMsg}
+                placeholder="Mensagem enviada ao agent quando a ferramenta for chamada (o sistema anexa as informações da tarefa, os parâmetros da ferramenta e o retorno)"
+                onChange={(e) => setToolCallMsg(e.target.value)}
+              />
             </div>
           )}
         </div>
@@ -1089,11 +1307,17 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
         {/* Criação de tarefa */}
         <div className="grid gap-1.5">
           <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={onTaskCreate} onCheckedChange={(v) => setOnTaskCreate(!!v)} /> Disparar na criação da tarefa
+            <Checkbox checked={onTaskCreate} onCheckedChange={(v) => setOnTaskCreate(!!v)} /> Disparar na criação da
+            tarefa
           </label>
           {onTaskCreate && (
-            <Textarea className="text-xs" rows={2} value={taskCreateMsg}
-              placeholder="Mensagem enviada ao agent quando a tarefa for criada (o sistema anexa o número da tarefa e o objetivo)" onChange={(e) => setTaskCreateMsg(e.target.value)} />
+            <Textarea
+              className="text-xs"
+              rows={2}
+              value={taskCreateMsg}
+              placeholder="Mensagem enviada ao agent quando a tarefa for criada (o sistema anexa o número da tarefa e o objetivo)"
+              onChange={(e) => setTaskCreateMsg(e.target.value)}
+            />
           )}
         </div>
 
@@ -1126,29 +1350,49 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="font-medium">{condLabel(t)}</span>
                 {!t.enabled && (
-                  <Badge variant="outline" className="text-destructive px-1 py-0 text-[9px]">Desativado</Badge>
+                  <Badge variant="outline" className="text-destructive px-1 py-0 text-[9px]">
+                    Desativado
+                  </Badge>
                 )}
               </div>
               <div className="text-muted-foreground grid gap-0.5 text-xs">
-                {t.interval_sec > 0 && t.interval_message && <div className="line-clamp-1">Agendado: {t.interval_message}</div>}
+                {t.interval_sec > 0 && t.interval_message && (
+                  <div className="line-clamp-1">Agendado: {t.interval_message}</div>
+                )}
                 {t.on_finding && t.finding_message && <div className="line-clamp-1">finding: {t.finding_message}</div>}
                 {t.on_goal_met && t.goal_message && <div className="line-clamp-1">Objetivo: {t.goal_message}</div>}
-                {t.on_task_timeout && t.task_timeout_message && <div className="line-clamp-1">Timeout: {t.task_timeout_message}</div>}
-                {t.on_task_create && t.task_create_message && <div className="line-clamp-1">Criação da tarefa: {t.task_create_message}</div>}
+                {t.on_task_timeout && t.task_timeout_message && (
+                  <div className="line-clamp-1">Timeout: {t.task_timeout_message}</div>
+                )}
+                {t.on_task_create && t.task_create_message && (
+                  <div className="line-clamp-1">Criação da tarefa: {t.task_create_message}</div>
+                )}
                 {t.on_tool_call && (
                   <>
-                    <div className="line-clamp-1">Ferramentas: {t.tool_names.join(", ") || "(nenhuma selecionada)"}</div>
+                    <div className="line-clamp-1">
+                      Ferramentas: {t.tool_names.join(", ") || "(nenhuma selecionada)"}
+                    </div>
                     {t.tool_call_message && <div className="line-clamp-1">Mensagem: {t.tool_call_message}</div>}
                   </>
                 )}
               </div>
             </div>
-            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground"
-              onClick={() => startEdit(t)} title="Editar">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => startEdit(t)}
+              title="Editar"
+            >
               <PencilIcon className="size-3.5" />
             </Button>
-            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive"
-              onClick={() => del(t.id)} title="Excluir">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={() => del(t.id)}
+              title="Excluir"
+            >
               <Trash2Icon className="size-3.5" />
             </Button>
           </div>

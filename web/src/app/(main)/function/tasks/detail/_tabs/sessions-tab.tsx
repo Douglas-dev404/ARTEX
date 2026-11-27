@@ -406,12 +406,12 @@ function SessionItem({
         )}
         {hasPending && <ShieldAlertIcon className="size-3.5 shrink-0 text-sev-medium" />}
         {!active && unread ? (
-          <span className="inline-flex min-w-4 items-center justify-center rounded-full bg-state-running/15 px-1 text-[10px] font-medium tabular-nums text-state-running dark:text-state-running">
+          <span className="inline-flex min-w-4 items-center justify-center rounded-full bg-state-running/15 px-1 text-[10px] font-medium tabular-nums text-state-running">
             {unread > 99 ? "99+" : unread}
           </span>
         ) : null}
         {s.live && (
-          <span className="inline-flex items-center gap-1 rounded bg-state-running/15 px-1.5 py-0.5 text-[10px] font-medium text-state-running dark:text-state-running">
+          <span className="inline-flex items-center gap-1 rounded bg-state-running/15 px-1.5 py-0.5 text-[10px] font-medium text-state-running">
             <span className="size-1 animate-pulse rounded-full bg-blue-500" />
             Ao vivo
           </span>
@@ -612,13 +612,19 @@ export function SessionsTab({ taskId }: { taskId: string }) {
           // exclusão definitiva: a intenção e os nós a jusante exclusivos foram removidos fisicamente; remove a linha da lista.
           patchIntentState(session.intent_id);
           const d = res.deleted;
-          const extra = d ? ` (incluindo ${d.intents} intenções / ${d.facts} fatos / ${d.findings} vulnerabilidades)` : "";
-          toast.success(`Worker #${session.intent_id} e seus nós a jusante exclusivos foram excluídos definitivamente${extra}`);
+          const extra = d
+            ? ` (incluindo ${d.intents} intenções / ${d.facts} fatos / ${d.findings} vulnerabilidades)`
+            : "";
+          toast.success(
+            `Worker #${session.intent_id} e seus nós a jusante exclusivos foram excluídos definitivamente${extra}`,
+          );
           setCancelReason("");
         } else {
           // exclusão lógica: marca a intenção como deleted, registra o motivo da exclusão e mantém nós e resultados.
           patchIntentState(session.intent_id, "deleted");
-          toast.success(`Worker #${session.intent_id} excluído (motivo registrado; o planejador replanejará com base nele)`);
+          toast.success(
+            `Worker #${session.intent_id} excluído (motivo registrado; o planejador replanejará com base nele)`,
+          );
           setCancelReason("");
         }
       } catch (error) {
@@ -1594,7 +1600,7 @@ export function SessionsTab({ taskId }: { taskId: string }) {
                       · {activeDisplayTitle}
                     </span>
                     {hiddenUnread > 0 && (
-                      <span className="inline-flex min-w-4 shrink-0 items-center justify-center rounded-full bg-state-running/15 px-1 text-[10px] font-medium tabular-nums text-state-running lg:hidden dark:text-state-running">
+                      <span className="inline-flex min-w-4 shrink-0 items-center justify-center rounded-full bg-state-running/15 px-1 text-[10px] font-medium tabular-nums text-state-running lg:hidden">
                         {hiddenUnread > 99 ? "99+" : hiddenUnread}
                       </span>
                     )}
@@ -1607,7 +1613,11 @@ export function SessionsTab({ taskId }: { taskId: string }) {
                     "inline-flex items-center gap-1 text-[10px]",
                     sseLive ? "text-state-done" : "text-sev-medium",
                   )}
-                  title={sseLive ? "Conexão em tempo real normal" : "Conexão em tempo real interrompida, reconectando automaticamente (o histórico continua visível)"}
+                  title={
+                    sseLive
+                      ? "Conexão em tempo real normal"
+                      : "Conexão em tempo real interrompida, reconectando automaticamente (o histórico continua visível)"
+                  }
                 >
                   {sseLive ? (
                     <>
@@ -1637,8 +1647,8 @@ export function SessionsTab({ taskId }: { taskId: string }) {
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  Entrada {taskTokens.input_tokens.toLocaleString()} · Saída {taskTokens.output_tokens.toLocaleString()} ·
-                  Leitura de cache {taskTokens.cache_read_tokens.toLocaleString()} · Escrita de cache{" "}
+                  Entrada {taskTokens.input_tokens.toLocaleString()} · Saída {taskTokens.output_tokens.toLocaleString()}{" "}
+                  · Leitura de cache {taskTokens.cache_read_tokens.toLocaleString()} · Escrita de cache{" "}
                   {taskTokens.cache_write_tokens.toLocaleString()}
                 </TooltipContent>
               </Tooltip>
@@ -1763,7 +1773,9 @@ export function SessionsTab({ taskId }: { taskId: string }) {
                       variant="outline"
                       className="max-w-28 shrink-0 font-normal"
                       aria-label={
-                        activeResolution.available ? `Configuração atual: ${resolutionLabel(activeResolution)}` : "Modelo indisponível"
+                        activeResolution.available
+                          ? `Configuração atual: ${resolutionLabel(activeResolution)}`
+                          : "Modelo indisponível"
                       }
                     >
                       <span className="truncate">
@@ -1783,13 +1795,16 @@ export function SessionsTab({ taskId }: { taskId: string }) {
                 <Badge variant="outline">Tarefa de origem #{active.source_task_id} · histórico somente leitura</Badge>
               )}
               {active.live && (
-                <span className="inline-flex items-center gap-1 rounded bg-state-running/15 px-1.5 py-0.5 text-[10px] font-medium text-state-running dark:text-state-running">
+                <span className="inline-flex items-center gap-1 rounded bg-state-running/15 px-1.5 py-0.5 text-[10px] font-medium text-state-running">
                   <span className="size-1 animate-pulse rounded-full bg-blue-500" />
                   Ao vivo
                 </span>
               )}
               {activeState?.hasMore && (
-                <span className="text-[10px] text-muted-foreground" title="Role para cima para carregar o histórico mais antigo">
+                <span
+                  className="text-[10px] text-muted-foreground"
+                  title="Role para cima para carregar o histórico mais antigo"
+                >
                   ↑ Histórico mais antigo
                 </span>
               )}
@@ -1841,7 +1856,8 @@ export function SessionsTab({ taskId }: { taskId: string }) {
                   <div className="min-w-0">
                     <span className="font-medium text-destructive">Esta intenção foi excluída pelo usuário</span>
                     <span className="text-muted-foreground">
-                      (execução interrompida e planejador notificado; a intenção e os resultados são mantidos, e o histórico pode ser visto abaixo)
+                      (execução interrompida e planejador notificado; a intenção e os resultados são mantidos, e o
+                      histórico pode ser visto abaixo)
                     </span>
                     {dm.deleteReason && (
                       <p className="mt-1 break-words text-foreground">
@@ -1903,7 +1919,9 @@ export function SessionsTab({ taskId }: { taskId: string }) {
                   />
                 ) : (
                   <div className="pl-9 text-xs text-muted-foreground">
-                    {isMain ? "Ainda não há conversa. Envie uma mensagem ao Agent principal abaixo para guiar a direção da exploração ou intervir no fluxo." : "Nenhum registro de atividade."}
+                    {isMain
+                      ? "Ainda não há conversa. Envie uma mensagem ao Agent principal abaixo para guiar a direção da exploração ou intervir no fluxo."
+                      : "Nenhum registro de atividade."}
                   </div>
                 )}
               </div>
@@ -1946,7 +1964,9 @@ export function SessionsTab({ taskId }: { taskId: string }) {
                     rows={1}
                     aria-label="Enviar mensagem ao Agent principal"
                     placeholder={
-                      mainBusy ? "O Agent principal está em execução; digite /btw para fazer uma pergunta…" : "Enviar mensagem ao Agent principal; @ para referenciar vulnerabilidades, ativos etc.…"
+                      mainBusy
+                        ? "O Agent principal está em execução; digite /btw para fazer uma pergunta…"
+                        : "Enviar mensagem ao Agent principal; @ para referenciar vulnerabilidades, ativos etc.…"
                     }
                     value={input}
                     disabled={sending}
@@ -2118,14 +2138,18 @@ export function SessionsTab({ taskId }: { taskId: string }) {
               <AlertDialogDescription className="break-words whitespace-normal">
                 {deleteMode === "hard" ? (
                   <>
-                    <strong>Exclusão definitiva</strong> remove fisicamente a intenção e os nós a jusante <strong>sustentados apenas por ela</strong>
-                    , em cascata até as folhas (para não deixar dados órfãos); nós compartilhados, objetivos e o fato raiz da tarefa são mantidos.{" "}
-                    <strong>Esta ação não pode ser desfeita.</strong> O planejador receberá a notificação da exclusão e replanejará com base nela.
+                    <strong>Exclusão definitiva</strong> remove fisicamente a intenção e os nós a jusante{" "}
+                    <strong>sustentados apenas por ela</strong>, em cascata até as folhas (para não deixar dados
+                    órfãos); nós compartilhados, objetivos e o fato raiz da tarefa são mantidos.{" "}
+                    <strong>Esta ação não pode ser desfeita.</strong> O planejador receberá a notificação da exclusão e
+                    replanejará com base nela.
                   </>
                 ) : (
                   <>
-                    <strong>Exclusão lógica</strong> marca a intenção como "Excluída" e registra o motivo da exclusão; o nó da intenção, os registros de execução,{" "}
-                    os fatos e vulnerabilidades já registrados <strong>serão todos mantidos</strong>. O planejador receberá "intenção excluída pelo usuário + motivo" e replanejará com base nisso.
+                    <strong>Exclusão lógica</strong> marca a intenção como "Excluída" e registra o motivo da exclusão; o
+                    nó da intenção, os registros de execução, os fatos e vulnerabilidades já registrados{" "}
+                    <strong>serão todos mantidos</strong>. O planejador receberá "intenção excluída pelo usuário +
+                    motivo" e replanejará com base nisso.
                   </>
                 )}
               </AlertDialogDescription>
@@ -2188,7 +2212,8 @@ export function SessionsTab({ taskId }: { taskId: string }) {
             <AlertDialogHeader>
               <AlertDialogTitle>Iniciar nova sessão?</AlertDialogTitle>
               <AlertDialogDescription className="break-words whitespace-normal">
-                A sessão atual será arquivada (dá para voltar a ela quando quiser) e o Agent principal continuará com um contexto limpo. O grafo, os ativos e os objetivos da tarefa não são afetados.
+                A sessão atual será arquivada (dá para voltar a ela quando quiser) e o Agent principal continuará com um
+                contexto limpo. O grafo, os ativos e os objetivos da tarefa não são afetados.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

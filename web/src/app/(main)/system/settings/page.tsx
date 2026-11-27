@@ -5,6 +5,7 @@ import * as React from "react";
 import { CpuIcon, FlaskConicalIcon, KeyboardIcon, RadioTowerIcon, SearchIcon, ShieldAlertIcon } from "lucide-react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -73,7 +74,9 @@ export default function SystemSettingsPage() {
       .setSettings({ workers: n })
       .then((s) => {
         apply(s);
-        toast.success("Número de agents de trabalho concorrentes salvo (vale para as tarefas iniciadas a partir de agora)");
+        toast.success(
+          "Número de agents de trabalho concorrentes salvo (vale para as tarefas iniciadas a partir de agora)",
+        );
       })
       .catch((e) => toast.error("Falha ao salvar: " + (e as Error).message))
       .finally(() => setSavingWorkers(false));
@@ -132,7 +135,11 @@ export default function SystemSettingsPage() {
       .setSettings({ agent_traffic_binding: v })
       .then((s) => {
         apply(s);
-        toast.success(v ? "Vinculação automática de tráfego pelo Agent ativada" : "Vinculação automática de tráfego pelo Agent desativada");
+        toast.success(
+          v
+            ? "Vinculação automática de tráfego pelo Agent ativada"
+            : "Vinculação automática de tráfego pelo Agent desativada",
+        );
       })
       .catch((e) => {
         setAgentTrafficBinding(!v);
@@ -155,7 +162,11 @@ export default function SystemSettingsPage() {
       .setSettings({ noa_compaction: v })
       .then((s) => {
         apply(s);
-        toast.success(v ? "Compressão de contexto noa ativada (vale para as execuções iniciadas a partir de agora)" : "Compressão de contexto noa desativada (volta à compressão embutida)");
+        toast.success(
+          v
+            ? "Compressão de contexto noa ativada (vale para as execuções iniciadas a partir de agora)"
+            : "Compressão de contexto noa desativada (volta à compressão embutida)",
+        );
       })
       .catch((e) => {
         setNoaCompaction(!v); // revert on failure
@@ -226,7 +237,9 @@ export default function SystemSettingsPage() {
       .setSettings({ global_proxy: globalProxyInput.trim() })
       .then((s) => {
         apply(s);
-        toast.success(globalProxyInput.trim() ? "Proxy global salvo" : "Proxy global removido (passa a conexão direta)");
+        toast.success(
+          globalProxyInput.trim() ? "Proxy global salvo" : "Proxy global removido (passa a conexão direta)",
+        );
       })
       .catch((e) => toast.error("Falha ao salvar: " + (e as Error).message))
       .finally(() => setSavingGlobalProxy(false));
@@ -256,10 +269,7 @@ export default function SystemSettingsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Configuração do sistema</h1>
-        <p className="text-muted-foreground text-sm">Chaves globais de execução</p>
-      </div>
+      <PageHeader title="Configuração do sistema" description="Chaves globais de execução" />
 
       {/* Várias colunas em vez de grid: o card de busca na web é várias vezes mais alto que os demais, e a altura varia conforme o backend escolhido (brave/tavily
               têm a entrada de key renderizada condicionalmente). O grid esticaria a linha inteira até o card mais alto, deixando um grande vazio ao lado;
@@ -275,16 +285,21 @@ export default function SystemSettingsPage() {
               Captura de tráfego
             </CardTitle>
             <CardDescription>
-              Quando ativada, todo o tráfego HTTP de todos os Agents passa pelo proxy de registro e é gravado integralmente no banco, e as ferramentas traffic_search / traffic_get
-              e a configuração de proxy são injetadas no Agent (o prompt inclui a explicação do proxy).
+              Quando ativada, todo o tráfego HTTP de todos os Agents passa pelo proxy de registro e é gravado
+              integralmente no banco, e as ferramentas traffic_search / traffic_get e a configuração de proxy são
+              injetadas no Agent (o prompt inclui a explicação do proxy).
               <br />
               Quando desativada (padrão), nenhum tráfego é registrado: o Agent
-              <b>não</b> recebe a configuração de proxy nem as ferramentas de tráfego, e o prompt também <b>não inclui</b> conteúdo relacionado a proxy. Ao alternar, o Agent é reconstruído imediatamente para aplicar.
+              <b>não</b> recebe a configuração de proxy nem as ferramentas de tráfego, e o prompt também{" "}
+              <b>não inclui</b> conteúdo relacionado a proxy. Ao alternar, o Agent é reconstruído imediatamente para
+              aplicar.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-between gap-4">
             <Label htmlFor="traffic-capture" className="text-sm font-normal text-muted-foreground">
-              {trafficCapture ? "Ativada · registrando tráfego e injetando o proxy" : "Desativada · sem registro e sem injeção de proxy"}
+              {trafficCapture
+                ? "Ativada · registrando tráfego e injetando o proxy"
+                : "Desativada · sem registro e sem injeção de proxy"}
             </Label>
             <Switch
               id="traffic-capture"
@@ -302,16 +317,21 @@ export default function SystemSettingsPage() {
               Vinculação automática de tráfego pelo Agent
             </CardTitle>
             <CardDescription id="agent-traffic-binding-description">
-              Desativada por padrão. Quando ativada, o Agent de relatório acionado na gravação da vulnerabilidade confere as requisições/respostas HTTP existentes e, depois de associar o tráfego correspondente, redige o relatório.
+              Desativada por padrão. Quando ativada, o Agent de relatório acionado na gravação da vulnerabilidade
+              confere as requisições/respostas HTTP existentes e, depois de associar o tráfego correspondente, redige o
+              relatório.
               <b>Consultar os pacotes e as chamadas de ferramenta extras aumenta o consumo de tokens.</b>
               <br />
-              Com TCP, sem captura de pacotes ou sem tráfego correspondente, o reporte continua normal. Esta chave não afeta a captura de tráfego, a vinculação manual nem a visualização de evidências já salvas. Vale a partir da próxima rodada do Agent;
-              ao desativar, novas vinculações automáticas são recusadas imediatamente.
+              Com TCP, sem captura de pacotes ou sem tráfego correspondente, o reporte continua normal. Esta chave não
+              afeta a captura de tráfego, a vinculação manual nem a visualização de evidências já salvas. Vale a partir
+              da próxima rodada do Agent; ao desativar, novas vinculações automáticas são recusadas imediatamente.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-between gap-4">
             <Label htmlFor="agent-traffic-binding" className="text-sm font-normal text-muted-foreground">
-              {agentTrafficBinding ? "Ativada · aumenta o consumo de tokens" : "Desativada · a vinculação manual continua possível"}
+              {agentTrafficBinding
+                ? "Ativada · aumenta o consumo de tokens"
+                : "Desativada · a vinculação manual continua possível"}
             </Label>
             <Switch
               id="agent-traffic-binding"
@@ -330,15 +350,19 @@ export default function SystemSettingsPage() {
               Proxy global
             </CardTitle>
             <CardDescription>
-              Todo o <b>tráfego de alvo</b> de todos os Agents sai por este proxy (oculta o IP de origem / usa jump host). Suporta <b>http / https / socks5</b>, e aceita autenticação{" "}
-              <code>user:pass</code>. Vazio = conexão direta.
+              Todo o <b>tráfego de alvo</b> de todos os Agents sai por este proxy (oculta o IP de origem / usa jump
+              host). Suporta <b>http / https / socks5</b>, e aceita autenticação <code>user:pass</code>. Vazio = conexão
+              direta.
               <br />
-              Com a <b>captura de tráfego</b> ativada, ele funciona como <b>upstream</b> do proxy de registro (o tráfego continua sendo gravado integralmente e depois sai por este proxy); com a captura desativada, é injetado diretamente
-              na saída do bash / WebFetch do Agent. É independente do proxy de busca na web e do proxy do LLM.
+              Com a <b>captura de tráfego</b> ativada, ele funciona como <b>upstream</b> do proxy de registro (o tráfego
+              continua sendo gravado integralmente e depois sai por este proxy); com a captura desativada, é injetado
+              diretamente na saída do bash / WebFetch do Agent. É independente do proxy de busca na web e do proxy do
+              LLM.
               <br />
-              <b>Dica</b>: com a <b>captura desativada</b>, o socks5 depende do suporte de cada ferramenta de linha de comando a <code>ALL_PROXY</code> (o curl
-              suporta, algumas ferramentas podem ignorar); se for usar principalmente socks5, recomenda-se ativar a captura de tráfego — nesse caminho o MITM
-              disca por conta própria, as ferramentas não percebem e funciona de forma estável.
+              <b>Dica</b>: com a <b>captura desativada</b>, o socks5 depende do suporte de cada ferramenta de linha de
+              comando a <code>ALL_PROXY</code> (o curl suporta, algumas ferramentas podem ignorar); se for usar
+              principalmente socks5, recomenda-se ativar a captura de tráfego — nesse caminho o MITM disca por conta
+              própria, as ferramentas não percebem e funciona de forma estável.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
@@ -359,7 +383,9 @@ export default function SystemSettingsPage() {
               </Button>
             </div>
             <p className="text-muted-foreground text-xs">
-              {globalProxyInput.trim() ? "Configurado · todo o tráfego de alvo sai por este proxy" : "Não configurado · o tráfego de alvo sai direto"}
+              {globalProxyInput.trim()
+                ? "Configurado · todo o tráfego de alvo sai por este proxy"
+                : "Não configurado · o tráfego de alvo sai direto"}
             </p>
           </CardContent>
         </Card>
@@ -371,11 +397,14 @@ export default function SystemSettingsPage() {
               Injeção de restrições operacionais
             </CardTitle>
             <CardDescription>
-              Quando ativada, as <b>restrições operacionais</b> de cada tarefa (itens allow/deny mantidos em &quot;Restrições operacionais&quot; na visão geral da tarefa) são anexadas ao prompt de sistema do Agent correspondente
-              para delimitar a fronteira da exploração (por exemplo, &quot;testar apenas a porta atual&quot;, &quot;proibido força bruta&quot;).
+              Quando ativada, as <b>restrições operacionais</b> de cada tarefa (itens allow/deny mantidos em
+              &quot;Restrições operacionais&quot; na visão geral da tarefa) são anexadas ao prompt de sistema do Agent
+              correspondente para delimitar a fronteira da exploração (por exemplo, &quot;testar apenas a porta
+              atual&quot;, &quot;proibido força bruta&quot;).
               <br />
-              Pode-se controlar separadamente a injeção no <b>planejador (planner)</b> e no <b>executor (worker)</b>
-              ; por padrão, ambos ativados. A alternância vale imediatamente (lida na próxima rodada), sem reconstruir o Agent. Desativada, o Agent deixa de ver as restrições.
+              Pode-se controlar separadamente a injeção no <b>planejador (planner)</b> e no <b>executor (worker)</b>;
+              por padrão, ambos ativados. A alternância vale imediatamente (lida na próxima rodada), sem reconstruir o
+              Agent. Desativada, o Agent deixa de ver as restrições.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -411,12 +440,15 @@ export default function SystemSettingsPage() {
               Recursos experimentais
             </CardTitle>
             <CardDescription>
-              Mecanismos ainda em validação, desativados por padrão. Podem alterar o comportamento do Agent ou afetar a estabilidade; ative somente depois de entender o impacto.
+              Mecanismos ainda em validação, desativados por padrão. Podem alterar o comportamento do Agent ou afetar a
+              estabilidade; ative somente depois de entender o impacto.
               <br />
-              <b>Compressão de contexto noa</b>: o modelo comprime ativamente o histórico de conversas longas (norma v0.4.0). Quando ativada, os quatro tipos de Agent integrados à plataforma (
-              <b>planejador / executor / Agent principal / conversa</b>) passam a usar o noa para gerenciar o contexto, substituindo a compressão embutida,
-              e o texto original comprimido é arquivado no diretório de trabalho da tarefa para consulta posterior. A alternância vale imediatamente (para as execuções iniciadas a partir de agora), sem reconstruir o Agent;
-              ao desativar, a compressão embutida volta imediatamente.
+              <b>Compressão de contexto noa</b>: o modelo comprime ativamente o histórico de conversas longas (norma
+              v0.4.0). Quando ativada, os quatro tipos de Agent integrados à plataforma (
+              <b>planejador / executor / Agent principal / conversa</b>) passam a usar o noa para gerenciar o contexto,
+              substituindo a compressão embutida, e o texto original comprimido é arquivado no diretório de trabalho da
+              tarefa para consulta posterior. A alternância vale imediatamente (para as execuções iniciadas a partir de
+              agora), sem reconstruir o Agent; ao desativar, a compressão embutida volta imediatamente.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-between gap-4">
@@ -439,19 +471,21 @@ export default function SystemSettingsPage() {
               Busca na web
             </CardTitle>
             <CardDescription>
-              Esta é a <b>chave geral + configuração de fontes</b> da busca na web. Só depois de ativada é possível escolher, na <b>configuração de cada Agent</b>, se ele habilita individualmente
-              a <b>web_search</b> (retorna só título/link/resumo, sem buscar o corpo; a obtenção do corpo fica com o WebFetch). A busca na web <b>não passa</b> pelo
-              proxy de registro e é independente da captura de tráfego.
-              <br />
-              A fonte pode ser <b>DuckDuckGo (ddgs)</b> (sem Key), <b>Brave (versão gratuita)</b> (exige Brave API Key), {" "}
-              <b>Tavily</b> (exige Tavily API Key) ou <b>DeepSeek</b> (reutiliza a configuração de LLM atual). Com a chave geral desativada, a chave de busca na web de cada
-              Agent fica indisponível.
+              Esta é a <b>chave geral + configuração de fontes</b> da busca na web. Só depois de ativada é possível
+              escolher, na <b>configuração de cada Agent</b>, se ele habilita individualmente a <b>web_search</b>{" "}
+              (retorna só título/link/resumo, sem buscar o corpo; a obtenção do corpo fica com o WebFetch). A busca na
+              web <b>não passa</b> pelo proxy de registro e é independente da captura de tráfego.
+              <br />A fonte pode ser <b>DuckDuckGo (ddgs)</b> (sem Key), <b>Brave (versão gratuita)</b> (exige Brave API
+              Key), <b>Tavily</b> (exige Tavily API Key) ou <b>DeepSeek</b> (reutiliza a configuração de LLM atual). Com
+              a chave geral desativada, a chave de busca na web de cada Agent fica indisponível.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4">
               <Label htmlFor="web-search" className="text-sm font-normal text-muted-foreground">
-                {webSearch ? "Chave geral ativada · pode ser habilitada individualmente na configuração de cada Agent" : "Desativada · nenhum Agent pode habilitar a busca na web"}
+                {webSearch
+                  ? "Chave geral ativada · pode ser habilitada individualmente na configuração de cada Agent"
+                  : "Desativada · nenhum Agent pode habilitar a busca na web"}
               </Label>
               <Switch
                 id="web-search"
@@ -493,16 +527,20 @@ export default function SystemSettingsPage() {
                 <p className="text-sm font-medium">Busca na web oficial do DeepSeek</p>
                 <p className="text-muted-foreground text-xs leading-relaxed">
                   Esta fonte reutiliza diretamente a <b>configuração de LLM ativa no momento</b>. Por isso ela
-                  <b>só suporta modelos oficiais do DeepSeek</b>, e essa configuração <b>deve usar o protocolo anthropic</b>
-                  — o endpoint de protocolo OpenAI do DeepSeek não suporta busca no servidor. Ao trocar a configuração de LLM, esta fonte pode deixar de funcionar.
+                  <b>só suporta modelos oficiais do DeepSeek</b>, e essa configuração{" "}
+                  <b>deve usar o protocolo anthropic</b>— o endpoint de protocolo OpenAI do DeepSeek não suporta busca
+                  no servidor. Ao trocar a configuração de LLM, esta fonte pode deixar de funcionar.
                 </p>
                 <p className="text-muted-foreground text-xs leading-relaxed">
-                  Diferente das outras fontes, a busca é <b>executada no servidor do DeepSeek</b>: cada busca consome uma chamada de modelo adicional (gera custo de
-                  tokens), a requisição de busca <b>não passa pelo proxy de saída acima</b> e <b>não entra no registro de tráfego</b>; o resultado traz <b>apenas título e link</b>
+                  Diferente das outras fontes, a busca é <b>executada no servidor do DeepSeek</b>: cada busca consome
+                  uma chamada de modelo adicional (gera custo de tokens), a requisição de busca{" "}
+                  <b>não passa pelo proxy de saída acima</b> e <b>não entra no registro de tráfego</b>; o resultado traz{" "}
+                  <b>apenas título e link</b>
                   (sem resumo), e quando o corpo é necessário, ele é obtido pelo WebFetch.
                 </p>
                 <p className="text-muted-foreground text-xs leading-relaxed">
-                  Cabe a você confirmar se as condições acima são atendidas, o sistema não bloqueia; use o botão &quot;Testar busca&quot; abaixo para executar uma busca real e verificar.
+                  Cabe a você confirmar se as condições acima são atendidas, o sistema não bloqueia; use o botão
+                  &quot;Testar busca&quot; abaixo para executar uma busca real e verificar.
                 </p>
               </div>
             )}
@@ -511,7 +549,7 @@ export default function SystemSettingsPage() {
               <div className="flex flex-col gap-2">
                 <Label htmlFor="brave-key" className="text-sm font-normal text-muted-foreground">
                   Brave Search API Key
-                  {braveKeySet && <span className="ml-2 text-xs text-emerald-500">Configurada</span>}
+                  {braveKeySet && <span className="ml-2 text-xs text-state-done">Configurada</span>}
                 </Label>
                 <div className="flex items-center gap-2">
                   <Input
@@ -532,12 +570,14 @@ export default function SystemSettingsPage() {
                   </Button>
                 </div>
                 {braveNeedsKey && (
-                  <p className="text-xs text-amber-500">
-                    Brave selecionado, mas a Key ainda não foi configurada — até salvar a Key, a ferramenta de busca não será ativada.
+                  <p className="text-xs text-sev-medium">
+                    Brave selecionado, mas a Key ainda não foi configurada — até salvar a Key, a ferramenta de busca não
+                    será ativada.
                   </p>
                 )}
                 <p className="text-muted-foreground text-xs">
-                  A versão gratuita tem cota de cerca de 2.000 buscas/mês. Acesse https://brave.com/search/api/ para obter a Key.
+                  A versão gratuita tem cota de cerca de 2.000 buscas/mês. Acesse https://brave.com/search/api/ para
+                  obter a Key.
                 </p>
               </div>
             )}
@@ -546,14 +586,16 @@ export default function SystemSettingsPage() {
               <div className="flex flex-col gap-2">
                 <Label htmlFor="tavily-key" className="text-sm font-normal text-muted-foreground">
                   Tavily Search API Key
-                  {tavilyKeySet && <span className="ml-2 text-xs text-emerald-500">Configurada</span>}
+                  {tavilyKeySet && <span className="ml-2 text-xs text-state-done">Configurada</span>}
                 </Label>
                 <div className="flex items-center gap-2">
                   <Input
                     id="tavily-key"
                     type="password"
                     autoComplete="off"
-                    placeholder={tavilyKeySet ? "Configurada (vazio = sem alteração)" : "Informe a Tavily API Key (tvly-…)"}
+                    placeholder={
+                      tavilyKeySet ? "Configurada (vazio = sem alteração)" : "Informe a Tavily API Key (tvly-…)"
+                    }
                     value={tavilyKeyInput}
                     disabled={!loaded || savingTavilyKey}
                     onChange={(e) => setTavilyKeyInput(e.target.value)}
@@ -567,11 +609,14 @@ export default function SystemSettingsPage() {
                   </Button>
                 </div>
                 {webSearch && backend === "tavily" && !tavilyKeySet && (
-                  <p className="text-xs text-amber-500">
-                    Tavily selecionado, mas a Key ainda não foi configurada — até salvar a Key, a ferramenta de busca não será ativada.
+                  <p className="text-xs text-sev-medium">
+                    Tavily selecionado, mas a Key ainda não foi configurada — até salvar a Key, a ferramenta de busca
+                    não será ativada.
                   </p>
                 )}
-                <p className="text-muted-foreground text-xs">Acesse https://tavily.com para se cadastrar e obter a API Key.</p>
+                <p className="text-muted-foreground text-xs">
+                  Acesse https://tavily.com para se cadastrar e obter a API Key.
+                </p>
               </div>
             )}
 
@@ -594,7 +639,9 @@ export default function SystemSettingsPage() {
                   </Button>
                 </div>
                 <p className="text-muted-foreground text-xs">
-                  Proxy de saída independente, usado apenas para acessar os endpoints de busca (VPN/SOCKS etc.). Não tem relação com o proxy MITM que registra tráfego; quando a rede não alcança, o acesso é feito por este proxy.
+                  Proxy de saída independente, usado apenas para acessar os endpoints de busca (VPN/SOCKS etc.). Não tem
+                  relação com o proxy MITM que registra tráfego; quando a rede não alcança, o acesso é feito por este
+                  proxy.
                 </p>
               </div>
             )}
@@ -602,7 +649,8 @@ export default function SystemSettingsPage() {
             {webSearch && (
               <div className="flex items-center justify-between gap-4 border-t pt-4">
                 <p className="text-muted-foreground text-xs">
-                  Faz uma busca real por &quot;test&quot; com a configuração atual (fonte + proxy + Key) para verificar se está funcionando.
+                  Faz uma busca real por &quot;test&quot; com a configuração atual (fonte + proxy + Key) para verificar
+                  se está funcionando.
                 </p>
                 <Button
                   type="button"
@@ -625,8 +673,9 @@ export default function SystemSettingsPage() {
               Script personalizado · Interpretador Python
             </CardTitle>
             <CardDescription>
-              As ferramentas personalizadas do tipo <b>script</b> usam-no para rodar Python. É detectado automaticamente na inicialização (python3 tem prioridade); aqui é possível informar manualmente o caminho absoluto de um venv /
-              versão específica; vazio = detecção automática em tempo de execução.
+              As ferramentas personalizadas do tipo <b>script</b> usam-no para rodar Python. É detectado automaticamente
+              na inicialização (python3 tem prioridade); aqui é possível informar manualmente o caminho absoluto de um
+              venv / versão específica; vazio = detecção automática em tempo de execução.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -655,7 +704,8 @@ export default function SystemSettingsPage() {
               Concorrência de trabalho · Número de agentes de execução
             </CardTitle>
             <CardDescription>
-              Quantidade de agents de trabalho executados em paralelo por tarefa (padrão 3). Quanto maior o valor, mais sondagens concorrentes e maior o consumo. Após a alteração,
+              Quantidade de agents de trabalho executados em paralelo por tarefa (padrão 3). Quanto maior o valor, mais
+              sondagens concorrentes e maior o consumo. Após a alteração,
               <b>vale para as tarefas iniciadas a partir de agora</b>; as tarefas em execução não são afetadas.
             </CardDescription>
           </CardHeader>
@@ -684,9 +734,11 @@ export default function SystemSettingsPage() {
               Tecla de envio da caixa de entrada da sessão
             </CardTitle>
             <CardDescription>
-              A página de conversa e a caixa de entrada da sessão do Agent principal nos detalhes da tarefa compartilham esta configuração; vale imediatamente após escolher, sem precisar salvar.
+              A página de conversa e a caixa de entrada da sessão do Agent principal nos detalhes da tarefa compartilham
+              esta configuração; vale imediatamente após escolher, sem precisar salvar.
               <br />
-              Esta preferência <b>existe só neste navegador</b>, não é sincronizada com a conta, e precisa ser reconfigurada ao trocar de navegador ou limpar os dados do site.
+              Esta preferência <b>existe só neste navegador</b>, não é sincronizada com a conta, e precisa ser
+              reconfigurada ao trocar de navegador ou limpar os dados do site.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-between gap-4">

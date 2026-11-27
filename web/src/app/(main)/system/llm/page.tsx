@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,7 +55,8 @@ const MAX_TOKENS_FIELD_HINTS: Record<string, string> = {
   openai:
     "Qual chave carrega o limite. max_tokens é o padrão, e a grande maioria dos gateways compatíveis só reconhece esta; os modelos de raciocínio oficiais da OpenAI (série o / GPT-5), ao contrário, só reconhecem max_completion_tokens, e ao receber max_tokens dão diretamente unsupported_parameter.",
   anthropic: "Selecionável apenas no formato openai. O nome do campo da Anthropic é fixo: max_tokens.",
-  "openai-responses": "Selecionável apenas no formato openai. O nome do campo da Responses API é fixo: max_output_tokens.",
+  "openai-responses":
+    "Selecionável apenas no formato openai. O nome do campo da Responses API é fixo: max_output_tokens.",
 };
 const EFFORT_LEVELS: { value: string; label: string }[] = [
   { value: NONE, label: "Não enviar (padrão)" },
@@ -92,11 +94,11 @@ function healthOf(p: LLMProfile, m?: LLMPoolMember): Health {
   if (m?.state === "degraded") {
     return {
       label: `Anormal · ${m.fails} falhas`,
-      cls: "border-amber-500/50 text-amber-600 dark:text-amber-400",
+      cls: "border-sev-medium/50 text-sev-medium",
       hint: m.last_error,
     };
   }
-  return { label: "Normal", cls: "border-emerald-500/50 text-emerald-600 dark:text-emerald-400" };
+  return { label: "Normal", cls: "border-state-done/50 text-state-done" };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,8 +167,8 @@ function PoolSheet({
             <ZapIcon className="size-4" /> Round-robin de LLM · failover
           </SheetTitle>
           <SheetDescription>
-            Quando ativado, os Agents <b>sem modelo especificado</b> trocam automaticamente para a próxima configuração quando a atual fica indisponível (saldo insuficiente / Key inválida / limite de taxa /
-            falha do serviço).
+            Quando ativado, os Agents <b>sem modelo especificado</b> trocam automaticamente para a próxima configuração
+            quando a atual fica indisponível (saldo insuficiente / Key inválida / limite de taxa / falha do serviço).
           </SheetDescription>
         </SheetHeader>
 
@@ -174,7 +176,9 @@ function PoolSheet({
           <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
             <div className="grid gap-0.5">
               <Label className="text-sm">Ativar round-robin</Label>
-              <p className="text-muted-foreground text-xs">Desativado por padrão. Desativado, só a configuração ativa é usada e falha é falha.</p>
+              <p className="text-muted-foreground text-xs">
+                Desativado por padrão. Desativado, só a configuração ativa é usada e falha é falha.
+              </p>
             </div>
             <Switch
               checked={enabled}
@@ -190,8 +194,9 @@ function PoolSheet({
                 <div className="grid gap-0.5">
                   <Label className="text-sm">Fazer fallback também quando o modelo especificado falhar</Label>
                   <p className="text-muted-foreground text-xs">
-                    Desativado por padrão: se o Agent ou a tarefa especificou uma configuração, só ela é usada e falha é falha (não troca em silêncio por outro modelo).
-                    Quando ativado, se a configuração especificada falhar, também recai na cadeia de round-robin abaixo.
+                    Desativado por padrão: se o Agent ou a tarefa especificou uma configuração, só ela é usada e falha é
+                    falha (não troca em silêncio por outro modelo). Quando ativado, se a configuração especificada
+                    falhar, também recai na cadeia de round-robin abaixo.
                   </p>
                 </div>
                 <Switch
@@ -215,7 +220,8 @@ function PoolSheet({
                 </div>
                 {inChain.length < 2 && (
                   <p className="text-muted-foreground text-xs">
-                    No momento só há {inChain.length} configurações utilizáveis, então o round-robin não terá efeito — são necessárias pelo menos 2 configurações com API Key preenchida e participando do round-robin.
+                    No momento só há {inChain.length} configurações utilizáveis, então o round-robin não terá efeito —
+                    são necessárias pelo menos 2 configurações com API Key preenchida e participando do round-robin.
                   </p>
                 )}
                 {chain.map((m) => {
@@ -236,14 +242,16 @@ function PoolSheet({
                         </span>
                         <span className="font-medium">{m.name}</span>
                         {m.active && (
-                          <Badge variant="outline" className="border-amber-400/50 text-amber-500">
+                          <Badge variant="outline" className="border-sev-medium/50 text-sev-medium">
                             Ativa
                           </Badge>
                         )}
                         {excluded && <Badge variant="outline">Fora do round-robin</Badge>}
                         <div className="ml-auto flex items-center gap-2">
                           {m.state === "tripped" && m.cooldown_secs > 0 && (
-                            <span className="text-muted-foreground text-xs">Resfriamento {cooldownText(m.cooldown_secs)}</span>
+                            <span className="text-muted-foreground text-xs">
+                              Resfriamento {cooldownText(m.cooldown_secs)}
+                            </span>
                           )}
                           {m.state === "degraded" && (
                             <span className="text-muted-foreground text-xs">Falhas consecutivas {m.fails}</span>
@@ -282,9 +290,11 @@ function PoolSheet({
               </div>
 
               <div className="rounded-lg border border-dashed p-3 text-muted-foreground text-xs leading-relaxed">
-                A configuração ativa é sempre a 1ª na ordem, as demais por prioridade da maior para a menor (definida em cada configuração). Depois que uma configuração falha, entra em resfriamento (60s → 5min →
-                30min), é pulada durante o resfriamento e volta automaticamente depois de se recuperar. Configurações cuja janela de contexto não comporta a requisição atual são puladas. Agents com modelo especificado
-                e as tarefas por padrão não participam do round-robin.
+                A configuração ativa é sempre a 1ª na ordem, as demais por prioridade da maior para a menor (definida em
+                cada configuração). Depois que uma configuração falha, entra em resfriamento (60s → 5min → 30min), é
+                pulada durante o resfriamento e volta automaticamente depois de se recuperar. Configurações cuja janela
+                de contexto não comporta a requisição atual são puladas. Agents com modelo especificado e as tarefas por
+                padrão não participam do round-robin.
               </div>
             </>
           )}
@@ -447,7 +457,8 @@ function ProfileSheet({
         retry,
       });
       if (isNew) toast.success(`Criada: ${name.trim()} (use "Definir como ativa" no card para habilitá-la)`);
-      else toast.success(profile?.is_default ? "Salvo, a configuração ativa vale imediatamente, sem reiniciar" : "Salvo");
+      else
+        toast.success(profile?.is_default ? "Salvo, a configuração ativa vale imediatamente, sem reiniciar" : "Salvo");
       onSaved(String(id));
       onOpenChange(false);
     } catch (e) {
@@ -467,14 +478,14 @@ function ProfileSheet({
           <SheetTitle className="flex items-center gap-2">
             {isNew ? "Nova configuração de modelo" : `Editar: ${profile?.name}`}
             {profile?.is_default && (
-              <Badge variant="outline" className="border-amber-400/50 text-amber-500">
+              <Badge variant="outline" className="border-sev-medium/50 text-sev-medium">
                 Ativa
               </Badge>
             )}
           </SheetTitle>
           <SheetDescription>
             {isNew
-              ? "Depois de criada, não é ativada automaticamente; use \"Definir como ativa\" no card para habilitá-la."
+              ? 'Depois de criada, não é ativada automaticamente; use "Definir como ativa" no card para habilitá-la.'
               : "Depois de alterar, clique em salvar; a configuração ativa, uma vez salva, vale imediatamente para todos os Agents."}
           </SheetDescription>
         </SheetHeader>
@@ -573,8 +584,9 @@ function ProfileSheet({
               onChange={(e) => setProxy(e.target.value)}
             />
             <p className="text-muted-foreground text-xs">
-              Só as requisições de saída do LLM passam por este proxy; suporta http/https/socks5, pode levar usuário e senha (como
-              socks5://user:pass@host:port; senhas com caracteres especiais precisam de codificação URL); vazio = não usa proxy (conexão direta).
+              Só as requisições de saída do LLM passam por este proxy; suporta http/https/socks5, pode levar usuário e
+              senha (como socks5://user:pass@host:port; senhas com caracteres especiais precisam de codificação URL);
+              vazio = não usa proxy (conexão direta).
             </p>
           </div>
 
@@ -588,9 +600,11 @@ function ProfileSheet({
               onChange={(e) => setSessionHeaderKey(e.target.value)}
             />
             <p className="text-muted-foreground text-xs">
-              Depois de preencher o nome do header, toda requisição leva esse header HTTP, com o valor preenchido automaticamente com o <b>session id da sessão atual</b> (sessão de chat como
-              conv-12, worker como exp3-worker-i87). Serve para gateways que fazem cache de prompt / roteamento
-              sticky por header de session-id; estável entre várias rodadas da mesma sessão e diferente entre sessões distintas. Vazio = não envia.
+              Depois de preencher o nome do header, toda requisição leva esse header HTTP, com o valor preenchido
+              automaticamente com o <b>session id da sessão atual</b> (sessão de chat como conv-12, worker como
+              exp3-worker-i87). Serve para gateways que fazem cache de prompt / roteamento sticky por header de
+              session-id; estável entre várias rodadas da mesma sessão e diferente entre sessões distintas. Vazio = não
+              envia.
             </p>
           </div>
 
@@ -628,8 +642,8 @@ function ProfileSheet({
             </div>
           </div>
           <p className="-mt-2 text-muted-foreground text-xs">
-            Limite 0 = sem limite, compartilhado por todos os Agents. A janela de contexto é em K (milhares de tokens), 0 = padrão 200K, máximo 1000 (ou seja,
-            1M); um valor alto demais faz a compressão não disparar.
+            Limite 0 = sem limite, compartilhado por todos os Agents. A janela de contexto é em K (milhares de tokens),
+            0 = padrão 200K, máximo 1000 (ou seja, 1M); um valor alto demais faz a compressão não disparar.
           </p>
 
           <div className="grid gap-3 rounded-lg border p-3">
@@ -639,7 +653,9 @@ function ProfileSheet({
                   Prioridade do round-robin
                 </Label>
                 <p className="text-muted-foreground text-xs">
-                  Quanto maior o número, mais cedo é escolhida; a configuração ativa é sempre a 1ª na ordem, independentemente deste valor. Configurações de mesma prioridade se revezam na frente, repartindo naturalmente a cota.
+                  Quanto maior o número, mais cedo é escolhida; a configuração ativa é sempre a 1ª na ordem,
+                  independentemente deste valor. Configurações de mesma prioridade se revezam na frente, repartindo
+                  naturalmente a cota.
                 </p>
               </div>
               <Input
@@ -654,8 +670,9 @@ function ProfileSheet({
               <div className="grid gap-0.5">
                 <Label className="text-sm">Fora do round-robin</Label>
                 <p className="text-muted-foreground text-xs">
-                  Quando ativado, não é usada como destino de failover (ainda pode ser especificada explicitamente por Agent / tarefa). Adequado para configurações caras que &quot;são dedicadas a um Agent
-                  e que não se quer que outros queimem quando falharem&quot;.
+                  Quando ativado, não é usada como destino de failover (ainda pode ser especificada explicitamente por
+                  Agent / tarefa). Adequado para configurações caras que &quot;são dedicadas a um Agent e que não se
+                  quer que outros queimem quando falharem&quot;.
                 </p>
               </div>
               <Switch checked={poolExclude} onCheckedChange={setPoolExclude} aria-label="Fora do round-robin" />
@@ -664,9 +681,10 @@ function ProfileSheet({
               <div className="grid gap-0.5">
                 <Label className="text-sm">Saída em streaming · streaming</Label>
                 <p className="text-muted-foreground text-xs">
-                  Ativado (padrão) usa SSE em streaming, com progresso em tempo real durante a execução e contagem de tokens em tempo real. Desativado usa o modo realmente sem streaming (stream:false,
-                  devolve a resposta completa de uma vez) — contorna implementações ruins de SSE de alguns gateways (frames vazios / perda de frame no campo de raciocínio),
-                  ao custo de perder o progresso em tempo real durante a execução.
+                  Ativado (padrão) usa SSE em streaming, com progresso em tempo real durante a execução e contagem de
+                  tokens em tempo real. Desativado usa o modo realmente sem streaming (stream:false, devolve a resposta
+                  completa de uma vez) — contorna implementações ruins de SSE de alguns gateways (frames vazios / perda
+                  de frame no campo de raciocínio), ao custo de perder o progresso em tempo real durante a execução.
                 </p>
               </div>
               <Switch checked={streaming} onCheckedChange={setStreaming} aria-label="Saída em streaming" />
@@ -680,9 +698,11 @@ function ProfileSheet({
                   Limite de saída · max tokens
                 </Label>
                 <p className="text-muted-foreground text-xs">
-                  Máximo de tokens gerados por resposta, enviado a cada requisição. 0 (padrão) = não envia o campo e o padrão do servidor decide.
-                  Isto é diferente da &quot;janela de contexto&quot; acima: aquela é a capacidade total do modelo, usada só localmente para calcular o limiar de compressão.
-                  Se for pequeno demais, um modelo de raciocínio é cortado já na fase de pensamento e não consegue produzir nem uma palavra da resposta.
+                  Máximo de tokens gerados por resposta, enviado a cada requisição. 0 (padrão) = não envia o campo e o
+                  padrão do servidor decide. Isto é diferente da &quot;janela de contexto&quot; acima: aquela é a
+                  capacidade total do modelo, usada só localmente para calcular o limiar de compressão. Se for pequeno
+                  demais, um modelo de raciocínio é cortado já na fase de pensamento e não consegue produzir nem uma
+                  palavra da resposta.
                 </p>
               </div>
               <Input
@@ -724,8 +744,9 @@ function ProfileSheet({
               <div className="grid gap-0.5">
                 <Label className="text-sm">Interruptor de raciocínio · thinking.type</Label>
                 <p className="text-muted-foreground text-xs">
-                  Controla se o campo thinking é enviado. Não enviar = sem o campo (compatível com modelos como MiniMax que não suportam); Desligado = envia
-                  disabled; Ligado = envia enabled. É independente da intensidade abaixo.
+                  Controla se o campo thinking é enviado. Não enviar = sem o campo (compatível com modelos como MiniMax
+                  que não suportam); Desligado = envia disabled; Ligado = envia enabled. É independente da intensidade
+                  abaixo.
                 </p>
               </div>
               <Select value={thinkingType} onValueChange={setThinkingType}>
@@ -745,8 +766,9 @@ function ProfileSheet({
               <div className="grid gap-0.5">
                 <Label className="text-sm">Intensidade de raciocínio · reasoning_effort</Label>
                 <p className="text-muted-foreground text-xs">
-                  Nível de intensidade independente (OpenAI reasoning_effort / Anthropic output_config.effort). Algumas APIs não têm o campo thinking
-                  e ativam o raciocínio só pela intensidade, por isso pode ser configurado sozinho, sem enviar o interruptor de raciocínio.
+                  Nível de intensidade independente (OpenAI reasoning_effort / Anthropic output_config.effort). Algumas
+                  APIs não têm o campo thinking e ativam o raciocínio só pela intensidade, por isso pode ser configurado
+                  sozinho, sem enviar o interruptor de raciocínio.
                 </p>
               </div>
               <Select value={effort} onValueChange={setEffort}>
@@ -854,27 +876,25 @@ export default function LLMPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-semibold text-xl tracking-tight">LLM</h1>
-          <p className="text-muted-foreground text-sm">
-            Configurações de formato / modelo / limite de taxa compartilhadas por todos os Agents. Clique no card para editar; a estrela marca a configuração ativa no momento.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setPoolOpen(true)}>
-            <ZapIcon /> Configuração do round-robin
-            {poolOn && (
-              <Badge variant="outline" className="ml-1 border-emerald-500/50 text-emerald-600 dark:text-emerald-400">
-                Ativado
-              </Badge>
-            )}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => openEditor(null)}>
-            <PlusIcon /> Novo
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="LLM"
+        description="Configurações de formato / modelo / limite de taxa compartilhadas por todos os Agents. Clique no card para editar; a estrela marca a configuração ativa no momento."
+        actions={
+          <>
+            <Button size="sm" variant="outline" onClick={() => setPoolOpen(true)}>
+              <ZapIcon /> Configuração do round-robin
+              {poolOn && (
+                <Badge variant="outline" className="ml-1 border-state-done/50 text-state-done">
+                  Ativado
+                </Badge>
+              )}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => openEditor(null)}>
+              <PlusIcon /> Novo
+            </Button>
+          </>
+        }
+      />
 
       <Tabs defaultValue="profiles" className="flex-1">
         <TabsList>
@@ -972,7 +992,8 @@ export default function LLMPage() {
             })}
             {profiles.length === 0 && (
               <div className="col-span-full rounded-lg border border-dashed p-10 text-center text-muted-foreground text-sm">
-                Ainda não há configurações de modelo; clique em &quot;Novo&quot; no canto superior direito para criar a primeira.
+                Ainda não há configurações de modelo; clique em &quot;Novo&quot; no canto superior direito para criar a
+                primeira.
               </div>
             )}
           </div>

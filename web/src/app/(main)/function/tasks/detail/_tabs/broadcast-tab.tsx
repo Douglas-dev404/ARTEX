@@ -54,29 +54,33 @@ const KIND_META: Record<string, KindMeta> = {
     dot: "bg-slate-500",
     chip: "bg-slate-500/15 text-slate-600 dark:text-slate-300",
   },
+  // Os tipos que têm equivalente semântico no resto do produto (objetivo
+  // concluído, intenção em execução, vulnerabilidade) puxam os tokens, para que
+  // o ponto e o selo aqui combinem com o selo da lista de achados. Os demais
+  // seguem a paleta própria descrita acima.
   goal: {
     label: "Objetivo",
     icon: TargetIcon,
-    dot: "bg-emerald-500",
+    dot: "bg-state-done",
     chip: "bg-state-done/15 text-state-done",
   },
   intent: {
     label: "Intenção",
     icon: CompassIcon,
-    dot: "bg-blue-500",
-    chip: "bg-state-running/15 text-state-running dark:text-state-running",
+    dot: "bg-state-running",
+    chip: "bg-state-running/15 text-state-running",
   },
   fact: {
     label: "Fato",
     icon: FlaskConicalIcon,
-    dot: "bg-amber-500",
-    chip: "bg-sev-medium-bg text-sev-medium dark:text-amber-400",
+    dot: "bg-sev-medium",
+    chip: "bg-sev-medium-bg text-sev-medium",
   },
   finding: {
     label: "Vulnerabilidade",
     icon: BugIcon,
-    dot: "bg-rose-500",
-    chip: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+    dot: "bg-sev-critical",
+    chip: "bg-sev-critical-bg text-sev-critical",
   },
   hint: {
     label: "Dica",
@@ -620,7 +624,11 @@ export function BroadcastTab({ taskId }: { taskId: string }) {
               setOrder((o) => (o === "desc" ? "asc" : "desc"));
               setPage(1);
             }}
-            aria-label={order === "desc" ? "Mais recentes primeiro; clique para ver os mais antigos primeiro" : "Mais antigos primeiro; clique para ver os mais recentes primeiro"}
+            aria-label={
+              order === "desc"
+                ? "Mais recentes primeiro; clique para ver os mais antigos primeiro"
+                : "Mais antigos primeiro; clique para ver os mais recentes primeiro"
+            }
           >
             {order === "desc" ? <ArrowDownIcon /> : <ArrowUpIcon />}
             {order === "desc" ? "Mais recentes primeiro" : "Mais antigos primeiro"}
@@ -659,7 +667,9 @@ export function BroadcastTab({ taskId }: { taskId: string }) {
           </div>
         ) : items.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
-            {query || kinds.length > 0 ? "Nenhum broadcast corresponde às condições." : "Esta tarefa ainda não gerou nós de exploração."}
+            {query || kinds.length > 0
+              ? "Nenhum broadcast corresponde às condições."
+              : "Esta tarefa ainda não gerou nós de exploração."}
           </p>
         ) : (
           groups.map((group) => (

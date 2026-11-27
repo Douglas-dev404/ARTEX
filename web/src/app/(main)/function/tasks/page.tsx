@@ -1244,11 +1244,11 @@ const TaskRow = React.memo(function TaskRow({
           const seg = (n: number, cls: string) => <span className={n > 0 ? cls : "text-muted-foreground"}>{n}</span>;
           return (
             <span className="font-medium whitespace-nowrap" title="Crítico / Alto / Médio / Baixo">
-              {seg(f.critical, "text-rose-600 dark:text-rose-400")}
+              {seg(f.critical, "text-sev-critical")}
               <span className="text-muted-foreground">/</span>
-              {seg(f.high, "text-red-600 dark:text-red-400")}
+              {seg(f.high, "text-sev-high")}
               <span className="text-muted-foreground">/</span>
-              {seg(f.medium, "text-amber-600 dark:text-amber-400")}
+              {seg(f.medium, "text-sev-medium")}
               <span className="text-muted-foreground">/</span>
               {seg(f.low, "text-slate-600 dark:text-slate-400")}
             </span>
@@ -1968,10 +1968,7 @@ function TaskArchivesPanel({ onChanged }: { onChanged: () => void }) {
                           <p className="text-destructive text-xs [overflow-wrap:anywhere]">{archive.error}</p>
                         )}
                         {[...new Set(archive.warnings ?? [])].map((warning) => (
-                          <p
-                            key={warning}
-                            className="text-amber-700 text-xs [overflow-wrap:anywhere] dark:text-amber-400"
-                          >
+                          <p key={warning} className="text-sev-medium text-xs [overflow-wrap:anywhere]">
                             {warning}
                           </p>
                         ))}

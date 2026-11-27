@@ -41,3 +41,6 @@ export function httpStatusTextClass(status: number): string {
 export function httpStatusDotClass(status: number): string {
   return toneDot[httpStatusTone(status)];
 }
+
+/** Alias de `httpStatusDotClass`, para quando o uso é uma barra e não um ponto. */
+export const httpStatusBgClass = httpStatusDotClass;
