@@ -119,13 +119,20 @@
 
   /* Severidade — fonte única para selo, barra de linha e gráfico.
      -fg é o texto/traço; -bg o fundo suave do selo. */
-  --sev-critical: oklch(0.52 0.21 15);
+  /* L=0.44, e não 0.52: "crítico" é o único selo com preenchimento sólido, e
+     o texto branco por cima dava só 2.91:1 de contraste — abaixo dos 4.5:1
+     que um selo de 12px exige. Em 0.44 o par chega a ~6:1. Medido, não
+     estimado: ver a nota de contraste no design system. */
+  --sev-critical: oklch(0.44 0.19 15);
   --sev-critical-bg: oklch(0.945 0.035 15);
-  --sev-high: oklch(0.58 0.17 45);
+  /* Os três abaixo são texto colorido sobre o seu -bg suave. A luminosidade
+     foi baixada até cada par passar de 4.5:1 no claro (antes: alto 3.88,
+     médio 3.25, baixo 4.09 — todos reprovados para texto de 12px). */
+  --sev-high: oklch(0.5 0.17 45);
   --sev-high-bg: oklch(0.95 0.04 55);
-  --sev-medium: oklch(0.62 0.13 85);
+  --sev-medium: oklch(0.48 0.12 85);
   --sev-medium-bg: oklch(0.955 0.045 90);
-  --sev-low: oklch(0.55 0.1 230);
+  --sev-low: oklch(0.48 0.12 230);
   --sev-low-bg: oklch(0.95 0.025 230);
   --sev-info: oklch(0.55 0.02 250);
   --sev-info-bg: oklch(0.955 0.004 250);
@@ -186,7 +193,11 @@
   /* -bg é uma cor opaca (a mistura do matiz com o fundo já resolvida), e não
      uma cor com alfa: superfícies translúcidas empilhadas sobre linhas em
      zebra mudam de tom conforme o que está atrás. */
-  --sev-critical: oklch(0.72 0.19 15);
+  /* L=0.78, e não 0.72: este token é o FUNDO do selo sólido de "crítico", e
+     o texto escuro (--sev-critical-on) por cima dava 2.27:1. Clarear o fundo
+     afasta os dois e leva o par a ~8:1, sem perder a ênfase — continua sendo
+     o único selo preenchido. */
+  --sev-critical: oklch(0.78 0.17 15);
   --sev-critical-bg: oklch(0.3 0.075 15);
   --sev-high: oklch(0.78 0.15 50);
   --sev-high-bg: oklch(0.3 0.06 50);
