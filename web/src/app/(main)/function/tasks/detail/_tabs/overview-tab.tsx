@@ -28,6 +28,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
+import { intentSummary } from "@/lib/intent-payload";
 import type {
   AssetInterceptKind,
   AssetInterceptRule,
@@ -40,6 +41,7 @@ import type {
   TaskNode,
   TaskScopeRow,
 } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 // Formata a contagem de tokens de forma compacta (12345 → 12.3k, 2000000 → 2M).
 function fmtTokens(n: number): string {
@@ -457,7 +459,8 @@ export function OverviewTab({ taskId }: { taskId: string }) {
           <CardTitle className="flex items-center gap-2 text-base">
             <ListChecksIcon className="size-4 text-primary" /> Gestão de objetivos
             <span className="text-muted-foreground text-xs font-normal">
-              (objetivos finais verificáveis, {goals.length} no total; adicionar/alterar notifica o planejador e reativa a tarefa)
+              (objetivos finais verificáveis, {goals.length} no total; adicionar/alterar notifica o planejador e reativa
+              a tarefa)
             </span>
           </CardTitle>
         </CardHeader>
@@ -487,7 +490,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
             <Button size="sm" variant="outline" disabled={goalBusy || !goalText.trim()} onClick={() => void addGoal()}>
               <PlusIcon className="size-3.5" /> Adicionar
             </Button>
-            {goalErr && <span className="text-xs text-red-500">{goalErr}</span>}
+            {goalErr && <span className="text-xs text-sev-high">{goalErr}</span>}
           </div>
           {/* Lista de objetivos */}
           {goals.length > 0 ? (
@@ -524,7 +527,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
                       disabled={goalBusy || !editText.trim()}
                       onClick={() => void saveEditGoal(g)}
                     >
-                      <CheckIcon className="size-3.5 text-emerald-500" />
+                      <CheckIcon className="size-3.5 text-state-done" />
                     </Button>
                     <Button
                       size="sm"
@@ -561,14 +564,17 @@ export function OverviewTab({ taskId }: { taskId: string }) {
                       disabled={goalBusy}
                       onClick={() => void removeGoal(g)}
                     >
-                      <Trash2Icon className="size-3.5 text-red-500" />
+                      <Trash2Icon className="size-3.5 text-sev-high" />
                     </Button>
                   </div>
                 ),
               )}
             </div>
           ) : (
-            <p className="text-muted-foreground text-sm">Nenhum objetivo ainda; depois de adicionar, o planejador usará isso para despachar intenções de exploração e julgar o cumprimento.</p>
+            <p className="text-muted-foreground text-sm">
+              Nenhum objetivo ainda; depois de adicionar, o planejador usará isso para despachar intenções de exploração
+              e julgar o cumprimento.
+            </p>
           )}
         </CardContent>
       </Card>
@@ -578,9 +584,10 @@ export function OverviewTab({ taskId }: { taskId: string }) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <ShieldAlertIcon className="size-4 text-amber-500" /> Restrições operacionais
+            <ShieldAlertIcon className="size-4 text-sev-medium" /> Restrições operacionais
             <span className="text-muted-foreground text-xs font-normal">
-              (delimita a fronteira de exploração do planner/worker, {constraints.length} no total; mudanças valem na próxima rodada de planejamento)
+              (delimita a fronteira de exploração do planner/worker, {constraints.length} no total; mudanças valem na
+              próxima rodada de planejamento)
             </span>
           </CardTitle>
         </CardHeader>
@@ -613,7 +620,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
             >
               <PlusIcon className="size-3.5" /> Adicionar
             </Button>
-            {conErr && <span className="text-xs text-red-500">{conErr}</span>}
+            {conErr && <span className="text-xs text-sev-high">{conErr}</span>}
           </div>
           {/* Lista de restrições */}
           {constraints.length > 0 ? (
@@ -647,7 +654,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
                       disabled={conBusy || !editConText.trim()}
                       onClick={() => void saveEditConstraint(c)}
                     >
-                      <CheckIcon className="size-3.5 text-emerald-500" />
+                      <CheckIcon className="size-3.5 text-state-done" />
                     </Button>
                     <Button
                       size="sm"
@@ -663,9 +670,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
                   <div key={c.id} className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm">
                     <span
                       className={`shrink-0 rounded px-1.5 py-0.5 text-xs ${
-                        c.kind === "allow"
-                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                          : "bg-red-500/15 text-red-600 dark:text-red-400"
+                        c.kind === "allow" ? "bg-state-done/15 text-state-done" : "bg-sev-high-bg text-sev-high"
                       }`}
                     >
                       {c.kind === "allow" ? "Permitir" : "Proibir"}
@@ -687,7 +692,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
                       disabled={conBusy}
                       onClick={() => void removeConstraint(c)}
                     >
-                      <Trash2Icon className="size-3.5 text-red-500" />
+                      <Trash2Icon className="size-3.5 text-sev-high" />
                     </Button>
                   </div>
                 ),
@@ -695,7 +700,9 @@ export function OverviewTab({ taskId }: { taskId: string }) {
             </div>
           ) : (
             <p className="text-muted-foreground text-sm">
-              Nenhuma restrição operacional. Ao criar a tarefa, elas são extraídas automaticamente da descrição/objetivos; também dá para adicionar/excluir/editar aqui, para delimitar "quais operações são permitidas/proibidas".
+              Nenhuma restrição operacional. Ao criar a tarefa, elas são extraídas automaticamente da
+              descrição/objetivos; também dá para adicionar/excluir/editar aqui, para delimitar "quais operações são
+              permitidas/proibidas".
             </p>
           )}
         </CardContent>
@@ -705,8 +712,10 @@ export function OverviewTab({ taskId }: { taskId: string }) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <TargetIcon className="size-4 text-emerald-500" /> Cobertura de teste dos ativos
-              <span className="text-muted-foreground text-xs font-normal">(estimativa grosseira, apenas referência)</span>
+              <TargetIcon className="size-4 text-state-done" /> Cobertura de teste dos ativos
+              <span className="text-muted-foreground text-xs font-normal">
+                (estimativa grosseira, apenas referência)
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -738,7 +747,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <CoinsIcon className="size-4 text-amber-500" /> Uso de tokens do LLM
+            <CoinsIcon className="size-4 text-sev-medium" /> Uso de tokens do LLM
             <span className="text-muted-foreground text-xs font-normal">
               (por modelo{tokenTotals.calls > 0 ? `, ${tokenTotals.calls} chamadas no total` : ""})
             </span>
@@ -763,7 +772,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
                 </span>
                 <span className="tabular-nums">
                   <span className="text-muted-foreground">Taxa de acerto de cache </span>
-                  <span className="font-semibold text-emerald-500">
+                  <span className="font-semibold text-state-done">
                     {cacheHitRate(tokenTotals.cacheRead, tokenTotals.input)}
                   </span>
                 </span>
@@ -791,7 +800,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
                         <td className="py-1.5 pr-3 text-right tabular-nums">{fmtTokens(m.input_tokens)}</td>
                         <td className="py-1.5 pr-3 text-right tabular-nums">{fmtTokens(m.output_tokens)}</td>
                         <td className="py-1.5 pr-3 text-right tabular-nums">{fmtTokens(m.cache_read_tokens)}</td>
-                        <td className="py-1.5 text-right tabular-nums text-emerald-500">
+                        <td className="py-1.5 text-right tabular-nums text-state-done">
                           {cacheHitRate(m.cache_read_tokens, m.input_tokens)}
                         </td>
                       </tr>
@@ -801,7 +810,9 @@ export function OverviewTab({ taskId }: { taskId: string }) {
               </div>
             </>
           ) : (
-            <p className="text-muted-foreground text-sm">Sem uso de LLM ainda (a tarefa ainda não fez chamadas, ou os registros ainda estão sendo gravados).</p>
+            <p className="text-muted-foreground text-sm">
+              Sem uso de LLM ainda (a tarefa ainda não fez chamadas, ou os registros ainda estão sendo gravados).
+            </p>
           )}
         </CardContent>
       </Card>
@@ -809,7 +820,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <ShieldCheckIcon className="size-4 text-emerald-500" /> Escopo de teste
+            <ShieldCheckIcon className="size-4 text-state-done" /> Escopo de teste
             <span className="text-muted-foreground text-xs font-normal">
               (denominador da cobertura + fronteira de autorização, {scope.length} no total)
             </span>
@@ -859,7 +870,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
             >
               <PlusIcon className="size-3.5" /> Adicionar
             </Button>
-            {scopeErr && <span className="text-xs text-red-500">{scopeErr}</span>}
+            {scopeErr && <span className="text-xs text-sev-high">{scopeErr}</span>}
           </div>
           {/* Lista de escopo */}
           {scope.length > 0 ? (
@@ -878,7 +889,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
                       className="h-6 shrink-0 px-1.5"
                       onClick={() => void removeScope(row)}
                     >
-                      <Trash2Icon className="size-3.5 text-red-500" />
+                      <Trash2Icon className="size-3.5 text-sev-high" />
                     </Button>
                   ) : (
                     <span className="text-muted-foreground shrink-0 text-xs">Herdado</span>
@@ -887,7 +898,9 @@ export function OverviewTab({ taskId }: { taskId: string }) {
               ))}
             </div>
           ) : (
-            <p className="text-muted-foreground text-sm">Nenhum escopo de teste; depois de adicionar, ele serve de denominador da cobertura de ativos.</p>
+            <p className="text-muted-foreground text-sm">
+              Nenhum escopo de teste; depois de adicionar, ele serve de denominador da cobertura de ativos.
+            </p>
           )}
         </CardContent>
       </Card>
@@ -895,7 +908,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <ActivityIcon className="size-4 text-blue-500" /> Heartbeat
+            <ActivityIcon className="size-4 text-state-running" /> Heartbeat
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -946,12 +959,19 @@ export function OverviewTab({ taskId }: { taskId: string }) {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            {running.slice(0, 6).map((i) => (
-              <div key={i.id} className="flex items-center gap-2 text-sm">
-                <StatusBadge domain="intent" value={i.state} />
-                <span className="min-w-0 flex-1 truncate">{i.payload}</span>
-              </div>
-            ))}
+            {running.slice(0, 6).map((i) => {
+              const resumo = intentSummary(i.payload);
+              return (
+                <div key={i.id} className="flex items-center gap-2 text-sm">
+                  <StatusBadge domain="intent" value={i.state} />
+                  {/* title: a linha é truncada, e o texto completo precisa
+                      continuar alcançável sem abrir o detalhe. */}
+                  <span className="min-w-0 flex-1 truncate" title={resumo}>
+                    {resumo}
+                  </span>
+                </div>
+              );
+            })}
             {running.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma intenção em andamento</p>}
           </CardContent>
         </Card>
@@ -959,24 +979,50 @@ export function OverviewTab({ taskId }: { taskId: string }) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
-              <AlertTriangleIcon className="size-4 text-amber-500" /> Requer atenção
+              <AlertTriangleIcon className="size-4 text-sev-medium" /> Requer atenção
             </CardTitle>
           </CardHeader>
+          {/* A cor entra só quando o número é maior que zero. Um "0" pintado de
+              vermelho ensina o olho a ignorar vermelho, e num painel de pentest
+              é justamente o vermelho que precisa continuar significando algo. */}
           <CardContent className="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <div className="text-2xl font-semibold tabular-nums text-red-600">{taskFindings.length}</div>
+              <div
+                className={cn(
+                  "text-2xl font-semibold tabular-nums",
+                  taskFindings.length > 0 ? "text-sev-high" : "text-muted-foreground",
+                )}
+              >
+                {taskFindings.length}
+              </div>
               <div className="text-xs text-muted-foreground">Vulnerabilidades confirmadas</div>
             </div>
             <div>
-              <div className="text-2xl font-semibold tabular-nums text-blue-600">{running.length}</div>
+              <div
+                className={cn(
+                  "text-2xl font-semibold tabular-nums",
+                  running.length > 0 ? "text-state-running" : "text-muted-foreground",
+                )}
+              >
+                {running.length}
+              </div>
               <div className="text-xs text-muted-foreground">Em execução</div>
             </div>
             <div>
-              <div className="text-2xl font-semibold tabular-nums">{open.length}</div>
+              <div className={cn("text-2xl font-semibold tabular-nums", open.length === 0 && "text-muted-foreground")}>
+                {open.length}
+              </div>
               <div className="text-xs text-muted-foreground">Frontier pendente</div>
             </div>
             <div>
-              <div className="text-2xl font-semibold tabular-nums text-red-600">{blocked.length}</div>
+              <div
+                className={cn(
+                  "text-2xl font-semibold tabular-nums",
+                  blocked.length > 0 ? "text-sev-high" : "text-muted-foreground",
+                )}
+              >
+                {blocked.length}
+              </div>
               <div className="text-xs text-muted-foreground">Intenções bloqueadas</div>
             </div>
           </CardContent>
@@ -985,7 +1031,7 @@ export function OverviewTab({ taskId }: { taskId: string }) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
-              <BugIcon className="size-4 text-red-500" /> Achados recentes
+              <BugIcon className="size-4 text-sev-high" /> Achados recentes
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
@@ -1003,11 +1049,13 @@ export function OverviewTab({ taskId }: { taskId: string }) {
       {/* Blocked intents — intenções com erro/bloqueadas (ex.: problema de rede do LLM), que podem ser reexecutadas com um clique: volta para open,
           o worker vai reassumir e rodar do zero (os dados já gravados de volta no grafo são mantidos); se a tarefa estiver em estado terminal/pausada, é reativada automaticamente. */}
       {blocked.length > 0 && (
-        <Card className="border-red-500/30">
+        <Card className="border-sev-high/30">
           <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <AlertTriangleIcon className="size-4 text-red-500" /> Intenções bloqueadas/com erro
-              <span className="text-xs font-normal text-muted-foreground">({blocked.length} no total, podem ser reexecutadas)</span>
+              <AlertTriangleIcon className="size-4 text-sev-high" /> Intenções bloqueadas/com erro
+              <span className="text-xs font-normal text-muted-foreground">
+                ({blocked.length} no total, podem ser reexecutadas)
+              </span>
             </CardTitle>
             <Button size="sm" variant="outline" disabled={rerunning.has("__all__")} onClick={() => void rerunAll()}>
               <RefreshCwIcon className={`size-3.5 ${rerunning.has("__all__") ? "animate-spin" : ""}`} />
@@ -1018,7 +1066,9 @@ export function OverviewTab({ taskId }: { taskId: string }) {
             {blocked.slice(0, 20).map((i) => (
               <div key={i.id} className="flex items-center gap-2 text-sm">
                 <StatusBadge domain="intent" value={i.state} />
-                <span className="min-w-0 flex-1 truncate">{i.payload}</span>
+                <span className="min-w-0 flex-1 truncate" title={intentSummary(i.payload)}>
+                  {intentSummary(i.payload)}
+                </span>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -1033,7 +1083,8 @@ export function OverviewTab({ taskId }: { taskId: string }) {
             ))}
             {blocked.length > 20 && (
               <p className="text-xs text-muted-foreground">
-                Mostrando apenas as 20 primeiras; clique em "Reexecutar todas" para tratar as {blocked.length - 20} restantes.
+                Mostrando apenas as 20 primeiras; clique em "Reexecutar todas" para tratar as {blocked.length - 20}{" "}
+                restantes.
               </p>
             )}
           </CardContent>
@@ -1044,7 +1095,12 @@ export function OverviewTab({ taskId }: { taskId: string }) {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <StatCard label="Intenções pendentes" value={open.length} icon={ShieldCheckIcon} sub="frontier aberto" />
         <StatCard label="Achados confirmados" value={taskFindings.length} icon={BugIcon} sub="Esta tarefa" />
-        <StatCard label="Total de intenções" value={intents.length} icon={AlertTriangleIcon} sub="Todas as intenções desta tarefa" />
+        <StatCard
+          label="Total de intenções"
+          value={intents.length}
+          icon={AlertTriangleIcon}
+          sub="Todas as intenções desta tarefa"
+        />
       </div>
     </div>
   );
@@ -1170,7 +1226,8 @@ function TaskInterceptRulesCard({ taskId }: { taskId: string }) {
         <CardTitle className="flex items-center gap-2 text-base">
           <ShieldCheckIcon className="size-4 text-sky-500" /> Bloqueio / permissão de ativos no nível da tarefa
           <span className="text-muted-foreground text-xs font-normal">
-            (vale só para esta tarefa, não entra no global; primeiro bloqueio e depois permissão, {rules.length} no total)
+            (vale só para esta tarefa, não entra no global; primeiro bloqueio e depois permissão, {rules.length} no
+            total)
           </span>
         </CardTitle>
       </CardHeader>
@@ -1208,7 +1265,7 @@ function TaskInterceptRulesCard({ taskId }: { taskId: string }) {
           <Button size="sm" variant="outline" disabled={busy || !newPattern.trim()} onClick={() => void add()}>
             <PlusIcon className="size-3.5" /> Adicionar
           </Button>
-          {err && <span className="text-xs text-red-500">{err}</span>}
+          {err && <span className="text-xs text-sev-high">{err}</span>}
         </div>
         {/* Lista de regras */}
         {rules.length > 0 ? (
@@ -1260,7 +1317,7 @@ function TaskInterceptRulesCard({ taskId }: { taskId: string }) {
                     disabled={busy || !editPattern.trim()}
                     onClick={() => void saveEdit(r)}
                   >
-                    <CheckIcon className="size-3.5 text-emerald-500" />
+                    <CheckIcon className="size-3.5 text-state-done" />
                   </Button>
                   <Button
                     size="sm"
@@ -1276,9 +1333,7 @@ function TaskInterceptRulesCard({ taskId }: { taskId: string }) {
                 <div key={r.id} className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm">
                   <span
                     className={`shrink-0 rounded px-1.5 py-0.5 text-xs ${
-                      r.action === "allow"
-                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                        : "bg-red-500/15 text-red-600 dark:text-red-400"
+                      r.action === "allow" ? "bg-state-done/15 text-state-done" : "bg-sev-high-bg text-sev-high"
                     }`}
                   >
                     {r.action === "allow" ? "Permitir" : "Bloquear"}
@@ -1305,7 +1360,7 @@ function TaskInterceptRulesCard({ taskId }: { taskId: string }) {
                     disabled={busy}
                     onClick={() => void remove(r)}
                   >
-                    <Trash2Icon className="size-3.5 text-red-500" />
+                    <Trash2Icon className="size-3.5 text-sev-high" />
                   </Button>
                 </div>
               ),
@@ -1313,7 +1368,9 @@ function TaskInterceptRulesCard({ taskId }: { taskId: string }) {
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">
-            Nenhuma regra no nível da tarefa. "Bloquear" correspondente proíbe o teste; "Permitir" é uma lista branca: depois de configurada, esta tarefa só permite ativos que correspondam a regras de permissão (sem configuração, a lista branca não é ativada).
+            Nenhuma regra no nível da tarefa. "Bloquear" correspondente proíbe o teste; "Permitir" é uma lista branca:
+            depois de configurada, esta tarefa só permite ativos que correspondam a regras de permissão (sem
+            configuração, a lista branca não é ativada).
           </p>
         )}
       </CardContent>
