@@ -3,6 +3,7 @@ import {
   statusMeta,
   toneClasses,
   toneDot,
+  toneSolid,
   type StatusDomain,
   type Tone,
 } from "@/lib/status";
@@ -37,4 +38,29 @@ export function StatusBadge({
 
 export function ToneDot({ tone }: { tone: Tone }) {
   return <span className={cn("size-2 rounded-full", toneDot[tone])} />;
+}
+
+/**
+ * Faixa vertical de severidade para a borda de uma linha de lista ou cartão.
+ * Ler a gravidade pela cor da barra é mais rápido do que pelo selo quando a
+ * lista é longa, e a barra sobrevive a telas estreitas, onde o selo é o
+ * primeiro elemento a ser escondido.
+ *
+ * Decorativa: o selo ao lado já carrega o rótulo, então fica oculta para
+ * leitores de tela em vez de repetir a mesma informação.
+ */
+export function SeverityBar({
+  value,
+  className,
+}: {
+  value: string;
+  className?: string;
+}) {
+  const meta = statusMeta("severity", value);
+  return (
+    <span
+      aria-hidden
+      className={cn("w-1 shrink-0 self-stretch rounded-full", toneSolid[meta.tone], className)}
+    />
+  );
 }

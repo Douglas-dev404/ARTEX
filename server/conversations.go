@@ -23,6 +23,12 @@ const (
 	maxConversationRequestBytes  = 64 << 10
 	maxConversationAgentKeyRunes = 120
 	maxConversationTitleRunes    = 200
+
+	// defaultConversationTitle é o título de uma conversa recém-criada; ele é
+	// trocado pela primeira linha da primeira mensagem. legacyConversationTitle é
+	// o título padrão antigo, ainda gravado em conversas criadas antes da tradução.
+	defaultConversationTitle = "Nova conversa"
+	legacyConversationTitle  = "新对话"
 )
 
 func decodeConversationRequest(w http.ResponseWriter, r *http.Request, value any) bool {
@@ -109,7 +115,7 @@ func (s *Server) pgCreateConversation(w http.ResponseWriter, r *http.Request) {
 	}
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
-		title = "新对话"
+		title = defaultConversationTitle
 	}
 	if utf8.RuneCountInString(title) > maxConversationTitleRunes {
 		writeErr(w, 400, fmt.Sprintf("o título aceita no máximo %d caracteres", maxConversationTitleRunes))
@@ -440,10 +446,10 @@ func (s *Server) pgSendConversationMessage(w http.ResponseWriter, r *http.Reques
 	if _, err := pg.AppendConvActivity(c.ID, ua); err != nil {
 		log.Printf("[conv %d] append user msg failed: %v", c.ID, err)
 	}
-	if c.Title == "" || c.Title == "新对话" {
+	if c.Title == "" || c.Title == defaultConversationTitle || c.Title == legacyConversationTitle {
 		title := firstLine(msg, 40)
 		if title == "" {
-			title = "附件消息"
+			title = "Mensagem com anexo"
 		}
 		_ = pg.RenameConversation(c.ID, title)
 	}
@@ -558,7 +564,7 @@ func (s *Server) runConversationTurn(ctx context.Context, cancel context.CancelC
 			log.Printf("[conv %d] append activity failed: %v", c.ID, err)
 		}
 	}
-	// On a manual stop ctx is cancelled; Chat already emits a clean "已手动停止"
+	// On a manual stop ctx is cancelled; Chat already emits a clean "parado manualmente"
 	// step, so skip the raw-error entry — only surface genuine failures.
 	if _, err := ca.Chat(ctx, c.AgentKey, sessionID, msg, maxTurns, maxDuration, webSearch, emit); err != nil {
 		finishReason = err.Error()

@@ -66,7 +66,10 @@ type PreferencePersistenceConfig = {
  * Default preference values on first load.
  */
 export const PREFERENCE_DEFAULTS: PreferenceValueMap = {
-  theme_mode: "light",
+  // O escuro é a face padrão do ARTEX: a ferramenta é usada em sessões longas de
+  // operação, e a paleta foi desenhada a partir do modo escuro. O claro continua
+  // disponível pelo botão de tema e pela página de preferências.
+  theme_mode: "dark",
   theme_preset: "default",
   font: "geist",
   content_layout: "full-width",

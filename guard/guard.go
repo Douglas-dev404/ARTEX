@@ -3,7 +3,7 @@
 // Every tool call passes through the PreToolUse hook before executing.
 // (The RoE authorization-scope mechanism was removed; a replacement may be added
 // later.) Destructive/exfil gating is no longer hard-coded here — it lives in the
-// DB intercept rules (seeded as ordinary [内置] rules, so users can disable or
+// DB intercept rules (seeded as ordinary [Embutida] rules, so users can disable or
 // delete them), evaluated via applyIntercept.
 package guard
 

@@ -130,7 +130,7 @@ func telegramHTML(m Message) (string, int) {
 	}
 	it := m.Items[0]
 	if it.IsStatusChange() {
-		b.WriteString(fmt.Sprintf("\n<b>状态变更</b>：%s → %s",
+		b.WriteString(fmt.Sprintf("\n<b>Mudança de status</b>: %s → %s",
 			telegramEscape(StatusLabel(it.FromStatus)), telegramEscape(StatusLabel(it.ToStatus))))
 	}
 	if it.VulnClass != "" && it.VulnClass != it.Title() {
@@ -164,7 +164,7 @@ func telegramBatchLine(it Item, idx int) string {
 func telegramBatchTitle(m Message, items []Item, total int) string {
 	title := fmt.Sprintf("Resumo de vulnerabilidades · total de %d", total)
 	if extra := total - len(items); extra > 0 {
-		title += fmt.Sprintf("（显示前 %d 条，其余 %d 条下一条继续）", len(items), extra)
+		title += fmt.Sprintf(" (mostrando os primeiros %d; os outros %d seguem na próxima)", len(items), extra)
 	}
 	if m.WindowMinutes > 0 {
 		title = fmt.Sprintf("Últimos %d minutos · %s", m.WindowMinutes, title)

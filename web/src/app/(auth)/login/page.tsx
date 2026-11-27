@@ -41,7 +41,7 @@ export default function LoginPage() {
   }, [termsOpen]);
 
   useEffect(() => {
-    // 已登录直接进主界面（静态导出下无 middleware 代劳这层跳转）。
+    // Já logado: vai direto para a interface principal (no export estático não há middleware para fazer esse redirecionamento).
     const token = auth.getToken();
     if (token) {
       // O localStorage ainda pode ter credenciais, mas o cookie já se perdeu. Sincroniza primeiro e depois faz uma requisição nova,

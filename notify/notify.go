@@ -42,44 +42,44 @@ var severityRank = map[string]int{
 // SeverityRank retorna o ordinal da severidade; severidade desconhecida retorna 0.
 func SeverityRank(severity string) int { return severityRank[severity] }
 
-// SeverityLabel retorna o nome da severidade em chinês com emoji, usado no título da mensagem e na cor do cartão.
+// SeverityLabel retorna o nome da severidade em português com emoji, usado no título da mensagem e na cor do cartão.
 // Severidade desconhecida é ecoada como está, sem inventar.
 func SeverityLabel(severity string) string {
 	switch severity {
 	case "critical":
-		return "🔴 严重"
+		return "🔴 Crítica"
 	case "high":
-		return "🟠 高危"
+		return "🟠 Alta"
 	case "medium":
-		return "🟡 中危"
+		return "🟡 Média"
 	case "low":
-		return "🔵 低危"
+		return "🔵 Baixa"
 	default:
 		return severity
 	}
 }
 
-// StatusLabel traduz o status de tratamento para chinês, para uso na mensagem de mudança de status.
+// StatusLabel traduz o status de tratamento para português, para uso na mensagem de mudança de status.
 func StatusLabel(status string) string {
 	switch status {
 	case "pending":
-		return "待处理"
+		return "Pendente"
 	case "in_progress":
-		return "处理中"
+		return "Em andamento"
 	case "confirmed":
-		return "已确认"
+		return "Confirmada"
 	case "resolved":
-		return "已处理"
+		return "Tratada"
 	case "fixed":
-		return "已修复"
+		return "Corrigida"
 	case "false_positive":
-		return "误报"
+		return "Falso positivo"
 	case "ignored":
-		return "忽略"
+		return "Ignorada"
 	case "duplicate":
-		return "重复"
+		return "Duplicada"
 	case "risk_accepted":
-		return "风险接受"
+		return "Risco aceito"
 	default:
 		return status
 	}

@@ -121,7 +121,7 @@ func TestSeverityAndStatusLabels(t *testing.T) {
 	if !AtLeast("critical", "") {
 		t.Fatal("limiar vazio deveria deixar passar")
 	}
-	if got := StatusLabel("fixed"); got != "已修复" {
+	if got := StatusLabel("fixed"); got != "Corrigida" {
 		t.Fatalf("mapeamento de status desconhecido, obtido %q", got)
 	}
 	// Status desconhecido é ecoado como está, sem inventar rótulo.

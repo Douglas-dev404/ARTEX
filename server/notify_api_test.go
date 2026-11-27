@@ -241,7 +241,7 @@ func TestNotifyEndToEndRealtimeDelivery(t *testing.T) {
 		t.Fatalf("deveria enviar 1 mensagem, foram %d", hook.count())
 	}
 	text := markdownText(t, hook.last(t))
-	for _, want := range []string{"Injeção de SQL", "高危", "摘要"} {
+	for _, want := range []string{"Injeção de SQL", "Alta", "摘要"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("o corpo da mensagem não contém %q:\n%s", want, text)
 		}
@@ -350,7 +350,7 @@ func TestNotifyChannelAPICreateValidation(t *testing.T) {
 		{"tipo inválido", map[string]any{"name": "x", "kind": "nope", "config": map[string]any{}}, "tipo de canal inválido"},
 		{"sem nome", map[string]any{"kind": notify.KindDingTalk, "config": map[string]any{"webhook": "https://e.com/h"}}, "falta o nome do canal"},
 		{"sem webhook", map[string]any{"name": "x", "kind": notify.KindDingTalk, "config": map[string]any{}}, "Webhook"},
-		{"protocolo de webhook inválido", map[string]any{"name": "x", "kind": notify.KindDingTalk, "config": map[string]any{"webhook": "file:///etc/passwd"}}, "Webhook 地址无效"},
+		{"protocolo de webhook inválido", map[string]any{"name": "x", "kind": notify.KindDingTalk, "config": map[string]any{"webhook": "file:///etc/passwd"}}, "endereço de Webhook inválido"},
 		{"modo inválido", map[string]any{"name": "x", "kind": notify.KindDingTalk, "mode": "sometimes", "config": map[string]any{"webhook": "https://e.com/h"}}, "modo de notificação inválido"},
 	}
 	for _, tc := range cases {
@@ -427,7 +427,7 @@ func TestNotifyDigestBatchesMultipleFindingsIntoOneMessage(t *testing.T) {
 		t.Fatalf("as três deveriam virar uma única mensagem, foram enviadas %d", got)
 	}
 	text := markdownText(t, hook.last(t))
-	if !strings.Contains(text, "近") || !strings.Contains(text, "3 个漏洞") {
+	if !strings.Contains(text, "últimos") || !strings.Contains(text, "3 nova(s) vulnerabilidade(s)") {
 		t.Fatalf("a mensagem de resumo não contém o texto de quantidade/janela de tempo:\n%s", text)
 	}
 	for i := 1; i <= 3; i++ {
@@ -488,12 +488,12 @@ func TestNotifyStatusChangeDelivery(t *testing.T) {
 	found := false
 	for i := 0; i < hook.count(); i++ {
 		text := markdownText(t, hook.body(t, i))
-		if strings.Contains(text, "状态变更") && strings.Contains(text, "已修复") {
+		if strings.Contains(text, "Mudança de status") && strings.Contains(text, "Corrigida") {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("não foi recebida mensagem contendo \"状态变更 → 已修复\" (%d no total)", hook.count())
+		t.Fatalf("não foi recebida mensagem contendo \"Mudança de status → Corrigida\" (%d no total)", hook.count())
 	}
 }
 
@@ -776,7 +776,7 @@ func TestNotifyDigestSegmentsAndDefersRemainder(t *testing.T) {
 		t.Fatalf("a contagem de itens não bate: sent=%d pending=%d total=%d (nem entregue nem pendente = perdido)", sent, pending, total)
 	}
 	// O corpo da mensagem deve informar fielmente quantos itens não estão incluídos nesta.
-	if text := markdownText(t, hook.last(t)); !strings.Contains(text, "其余") {
+	if text := markdownText(t, hook.last(t)); !strings.Contains(text, "seguem na próxima") {
 		t.Fatalf("a mensagem deveria indicar que há itens não incluídos nesta:\n%.400s", text)
 	}
 

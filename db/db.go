@@ -190,22 +190,22 @@ func intp(v int) *int { return &v }
 // abaixo (respeitando toggles posteriores); o interactiveShell daqui serve só para novos agents que precisam "já nascer com o padrão ligado".
 var builtinAgents = []builtinAgent{
 	{"goals", "Decomposição de objetivos", "goals", "Decompõe o objetivo do teste de intrusão em subobjetivos independentes e verificáveis.", []promptVar{
-		{"EngagementDescription", "任务描述（测试对象/背景）", "测试 example.com 站点", "exploration"},
+		{"EngagementDescription", "Descrição da tarefa (alvo do teste/contexto)", "Testar o site example.com", "exploration"},
 		// Now é uma variável global de runtime (ver server.globalPromptVars) e não é mais definida
 		// repetidamente no catálogo de cada agent, senão withGlobalVars colidiria de nome com o item global ao anexar.
 	}, false, nil},
 	{"planner", "Planejador", "planner", "Lê o cenário, avalia o objetivo e só acrescenta intenções de exploração quando há de fato uma direção nova não coberta (um ciclo de planejamento por tarefa).", []promptVar{
-		{"Goal", "任务总目标", "拿下 example.com 的管理员权限", "exploration"},
-		{"AssetSummary", "资产计数/类型分布摘要(可选)", "domain:3 ip:5 site:2", "distilled"},
+		{"Goal", "Objetivo geral da tarefa", "Obter acesso de administrador em example.com", "exploration"},
+		{"AssetSummary", "Resumo da contagem/distribuição de ativos por tipo (opcional)", "domain:3 ip:5 site:2", "distilled"},
 	}, false, nil},
 	{"mainagent", "Principal", "main", "Interface humano-máquina: acompanha o progresso e transforma a intenção da pessoa em dicas ou intenções de alta prioridade.", []promptVar{
-		{"Goal", "当前任务目标", "拿下 example.com 的管理员权限", "exploration"},
-		{"AssetSummary", "开局态势摘要(可选)", "domain:3 ip:5", "distilled"},
-		{"FindingsSummary", "已确认漏洞摘要(可选)", "high:1 medium:2", "distilled"},
+		{"Goal", "Objetivo atual da tarefa", "Obter acesso de administrador em example.com", "exploration"},
+		{"AssetSummary", "Resumo do cenário inicial (opcional)", "domain:3 ip:5", "distilled"},
+		{"FindingsSummary", "Resumo das vulnerabilidades confirmadas (opcional)", "high:1 medium:2", "distilled"},
 	}, false, nil},
 	{"worker", "Executor", "worker", "Pega uma intenção para executar e, depois de gravar os fatos e vulnerabilidades encontrados no grafo de conhecimento, encerra.", []promptVar{
-		{"ProxyAddr", "记录代理地址(驱动 if 双文案)", "127.0.0.1:8080", "runtime"},
-		{"WorkerName", "worker 自我标识(可选)", "worker-1", "runtime"},
+		{"ProxyAddr", "Endereço do proxy de gravação (alterna os dois textos do if)", "127.0.0.1:8080", "runtime"},
+		{"WorkerName", "Identificação do próprio worker (opcional)", "worker-1", "runtime"},
 	}, false, nil},
 	// Auto: agent embutido de "operação da plataforma". Não participa do loop de orquestração de pentest; é conduzido pela página de conversa e opera a plataforma com ferramentas.
 	{"auto", "Auto", "assistant", "Assistente de operação da plataforma: gerencia tarefas (criar/ver/pausar/dar dicas) e ativos com ferramentas, e pode criar/alterar skills, ferramentas personalizadas e MCP.", nil, false, nil},
@@ -278,6 +278,9 @@ ON CONFLICT (name) DO NOTHING`,
 	}
 	if err := d.seedDefaultInterceptRulesV3(); err != nil {
 		return fmt.Errorf("seed intercept rules v3: %w", err)
+	}
+	if err := d.translateBuiltinInterceptRulesPtBR(); err != nil {
+		return fmt.Errorf("translate intercept rules: %w", err)
 	}
 	if err := d.seedDefaultAssetInterceptRules(); err != nil {
 		return fmt.Errorf("seed asset intercept rules: %w", err)
@@ -361,121 +364,121 @@ func (d *DB) seedDefaultInterceptRules() error {
 	rules := []rule{
 		// ── Comandos destrutivos do sistema (priority 100) ──────────────────────────────────
 		{
-			name:     "[内置] 递归强制删除 rm -rf",
+			name:     "[Embutida] Exclusão recursiva forçada rm -rf",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `(?i)\brm\b.{0,80}(?:-[a-z]*r[a-z]*f[a-z]*|-[a-z]*f[a-z]*r[a-z]*|--recursive|--no-preserve-root)`,
 			action:   "deny",
-			message:  "禁止执行递归强制删除（rm -rf / rm --recursive），可能永久损坏系统或靶机环境",
+			message:  "Proibido executar exclusão recursiva forçada (rm -rf / rm --recursive): pode danificar de forma permanente o sistema ou o ambiente alvo",
 			priority: 100,
 		},
 		{
-			name:     "[内置] 删除系统关键目录",
+			name:     "[Embutida] Exclusão de diretórios críticos do sistema",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `\brm\b[^"'\n]{0,60}["'\s](/|/etc|/bin|/usr|/boot|/var|/lib|/sys|/proc|/dev|/sbin|/root)`,
 			action:   "deny",
-			message:  "禁止删除系统关键路径",
+			message:  "Proibido excluir caminhos críticos do sistema",
 			priority: 100,
 		},
 		{
-			name:     "[内置] 磁盘格式化 mkfs",
+			name:     "[Embutida] Formatação de disco mkfs",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `\bmkfs\b`,
 			action:   "deny",
-			message:  "禁止格式化磁盘（mkfs）",
+			message:  "Proibido formatar disco (mkfs)",
 			priority: 100,
 		},
 		{
-			name:     "[内置] 覆写磁盘设备 dd",
+			name:     "[Embutida] Sobrescrita de dispositivo de disco dd",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `\bdd\b[^|\n]{0,100}\bof=\s*/dev/[a-zA-Z]`,
 			action:   "deny",
-			message:  "禁止使用 dd 覆写磁盘设备",
+			message:  "Proibido usar dd para sobrescrever dispositivo de disco",
 			priority: 100,
 		},
 		{
-			name:     "[内置] Fork 炸弹",
+			name:     "[Embutida] Fork bomb",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `:\(\)\s*\{[^}]*:\|:`,
 			action:   "deny",
-			message:  "禁止执行 Fork 炸弹",
+			message:  "Proibido executar fork bomb",
 			priority: 100,
 		},
 		{
-			name:     "[内置] 关机 / 重启",
+			name:     "[Embutida] Desligar / reiniciar",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `\b(?:shutdown|reboot|halt|poweroff|init\s+[06])\b`,
 			action:   "deny",
-			message:  "禁止执行关机或重启命令",
+			message:  "Proibido executar comandos de desligar ou reiniciar",
 			priority: 100,
 		},
 		{
-			name:     "[内置] 杀死全部进程",
+			name:     "[Embutida] Matar todos os processos",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `\bkill\s+-9\s+-1\b|\bkillall\s+-9\b`,
 			action:   "deny",
-			message:  "禁止 kill -9 -1 或 killall -9（杀死所有进程）",
+			message:  "Proibido kill -9 -1 ou killall -9 (mata todos os processos)",
 			priority: 100,
 		},
 		{
-			name:     "[内置] 磁盘擦除 shred / wipe",
+			name:     "[Embutida] Apagamento de disco shred / wipe",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `\b(?:shred|wipe)\b[^|\n]{0,80}/dev/[a-zA-Z]`,
 			action:   "deny",
-			message:  "禁止对磁盘设备执行 shred/wipe 擦除",
+			message:  "Proibido apagar dispositivo de disco com shred/wipe",
 			priority: 100,
 		},
 		{
-			name:     "[内置] 清空防火墙规则",
+			name:     "[Embutida] Limpeza das regras de firewall",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `\biptables\s+(?:-F|--flush)\b|\bnft\s+flush\s+ruleset\b`,
 			action:   "deny",
-			message:  "禁止清空防火墙规则（iptables -F / nft flush）",
+			message:  "Proibido limpar as regras de firewall (iptables -F / nft flush)",
 			priority: 100,
 		},
 		// ── Operações destrutivas em banco de dados (priority 90) ─────────────────────────────────
 		{
-			name:     "[内置] SQL DROP DATABASE / TABLE / SCHEMA",
+			name:     "[Embutida] SQL DROP DATABASE / TABLE / SCHEMA",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `(?i)\bDROP\s+(?:DATABASE|TABLE|SCHEMA|INDEX|VIEW|TABLESPACE|USER|ROLE)\b`,
 			action:   "deny",
-			message:  "禁止执行 DROP 操作，可能不可逆地销毁数据库对象",
+			message:  "Proibido executar DROP: pode destruir objetos do banco de forma irreversível",
 			priority: 90,
 		},
 		{
-			name:     "[内置] SQL TRUNCATE",
+			name:     "[Embutida] SQL TRUNCATE",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `(?i)\bTRUNCATE\s+(?:TABLE\s+)?\w`,
 			action:   "deny",
-			message:  "禁止执行 TRUNCATE，可能清空数据表所有数据",
+			message:  "Proibido executar TRUNCATE: pode apagar todos os dados da tabela",
 			priority: 90,
 		},
 		{
-			name:     "[内置] MongoDB drop / dropDatabase",
+			name:     "[Embutida] MongoDB drop / dropDatabase",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `(?i)\.(?:dropDatabase|dropCollection|drop)\s*\(`,
 			action:   "deny",
-			message:  "禁止执行 MongoDB drop 操作",
+			message:  "Proibido executar drop no MongoDB",
 			priority: 90,
 		},
 		{
-			name:     "[内置] Redis FLUSHALL / FLUSHDB",
+			name:     "[Embutida] Redis FLUSHALL / FLUSHDB",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `(?i)\b(?:FLUSHALL|FLUSHDB)\b`,
 			action:   "deny",
-			message:  "禁止执行 Redis FLUSHALL / FLUSHDB，可能清空全部缓存数据",
+			message:  "Proibido executar FLUSHALL / FLUSHDB no Redis: pode apagar todo o cache",
 			priority: 90,
 		},
 		// ── Requisições HTTP destrutivas (priority 80) ──────────────────────────────────
@@ -484,39 +487,39 @@ func (d *DB) seedDefaultInterceptRules() error {
 		//   2. método .delete() de clientes HTTP em Python
 		//   3. method: 'DELETE' / method="DELETE" em JS/scripts genéricos
 		{
-			name:     "[内置] curl / wget 发送 DELETE 请求",
+			name:     "[Embutida] curl / wget enviando requisição DELETE",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `(?i)\bcurl\b[^|\n&;"]{0,300}(?:-X\s*DELETE|--request\s+DELETE|-XDELETE)|\bwget\b[^|\n&;"]{0,300}--method[=\s]+DELETE`,
 			action:   "deny",
-			message:  "禁止通过 curl/wget 发送 HTTP DELETE 请求，可能删除目标系统数据",
+			message:  "Proibido enviar HTTP DELETE com curl/wget: pode excluir dados do sistema alvo",
 			priority: 80,
 		},
 		{
-			name:     "[内置] Python HTTP 客户端 DELETE（requests/httpx/aiohttp）",
+			name:     "[Embutida] DELETE por cliente HTTP Python (requests/httpx/aiohttp)",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `(?i)\b(?:requests|httpx|aiohttp|urllib\.request)\.delete\s*\(|session\.delete\s*\(|client\.delete\s*\(`,
 			action:   "deny",
-			message:  "禁止使用 Python HTTP 客户端发送 DELETE 请求",
+			message:  "Proibido enviar requisição DELETE com cliente HTTP Python",
 			priority: 80,
 		},
 		{
-			name:     "[内置] 脚本中声明 HTTP DELETE 方法（JS/通用）",
+			name:     "[Embutida] Método HTTP DELETE declarado em script (JS/genérico)",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `(?i)axios\.delete\s*\(|method\s*[:=]\s*['"]DELETE['"]`,
 			action:   "deny",
-			message:  "禁止在脚本中声明并发送 HTTP DELETE 请求",
+			message:  "Proibido declarar e enviar requisição HTTP DELETE em script",
 			priority: 80,
 		},
 		{
-			name:     "[内置] 批量清空 / 清除接口路径",
+			name:     "[Embutida] Caminhos de endpoint de limpeza em massa",
 			target:   "tool_input",
 			typ:      "regex",
 			pattern:  `(?i)/(?:clear|wipe|flush|purge|truncate|drop|destroy|factory[-_]reset|reset[-_]all)(?:[/?#"'\s]|$)`,
 			action:   "deny",
-			message:  "禁止调用批量清空或销毁类接口（/clear /wipe /flush /purge 等）",
+			message:  "Proibido chamar endpoints de limpeza ou destruição em massa (/clear /wipe /flush /purge etc.)",
 			priority: 80,
 		},
 	}
@@ -536,7 +539,7 @@ ON CONFLICT DO NOTHING`,
 // seedDefaultInterceptRulesV2 migrates the two safety patterns that used to be
 // hard-coded in guard.go (destructive shell + data-exfil pipe) into ordinary
 // intercept rules. Gated by its own flag so it also lands on DBs that already ran
-// v1. Unlike the old guard.go floor, these are plain [内置] rules — the user can
+// v1. Unlike the old guard.go floor, these are plain [Embutida] rules — the user can
 // disable or delete them. The exfil rule ships DISABLED by default (its
 // curl/wget/nc pipe pattern mis-fires on legitimate CTF/pentest reverse-shell and
 // data-transfer pipes); enable it manually when exfil gating is actually wanted.
@@ -553,18 +556,18 @@ func (d *DB) seedDefaultInterceptRulesV2() error {
 		priority int
 	}{
 		{
-			name:     "[内置] 破坏性系统命令",
+			name:     "[Embutida] Comandos destrutivos do sistema",
 			pattern:  `(?i)\b(rm\s+-rf\s+/|mkfs|dd\s+if=|:\(\)\s*\{|shutdown|reboot|>\s*/dev/sd)`,
 			action:   "deny",
-			message:  "破坏性命令被拒绝（rm -rf / / mkfs / dd / fork bomb / 关机重启 / 覆写磁盘设备）",
+			message:  "Comando destrutivo recusado (rm -rf / / mkfs / dd / fork bomb / desligar ou reiniciar / sobrescrever disco)",
 			enabled:  true,
 			priority: 100,
 		},
 		{
-			name:     "[内置] 数据外泄管道",
+			name:     "[Embutida] Pipe de exfiltração de dados",
 			pattern:  `(?i)(curl|wget|nc|ncat)\b[^|]*\b(\|\s*(curl|wget|nc))`,
 			action:   "deny",
-			message:  "疑似数据外泄管道被拒绝（命令输出经 curl/wget/nc 外传）",
+			message:  "Possível pipe de exfiltração recusado (saída do comando enviada para fora por curl/wget/nc)",
 			enabled:  false,
 			priority: 80,
 		},
@@ -602,14 +605,14 @@ func (d *DB) seedDefaultInterceptRulesV3() error {
 	if v, _, _ := d.GetSetting("intercept_default_rules_v3"); v == "done" {
 		return nil
 	}
-	const name = "[内置] 删除类接口路径"
+	const name = deleteEndpointRuleName
 	if _, err := d.Exec(`
 INSERT INTO intercept_rules(name, enabled, priority, match_target, match_type, pattern, action, message, timeout_enabled, timeout_seconds, timeout_action)
 SELECT $1, true, 80, 'tool_input', 'regex', $2, 'deny', $3, false, 60, 'deny'
 WHERE NOT EXISTS (SELECT 1 FROM intercept_rules WHERE name = $1)`,
 		name,
 		deleteEndpointPathPattern,
-		"禁止调用删除类接口（/delete /remove /unlink /erase 等），不论使用哪种 HTTP 方法——多数应用的删除接口用 GET/POST 就能触发，同样会真实删除目标数据",
+		deleteEndpointRuleMessage,
 	); err != nil {
 		return fmt.Errorf("rule %q: %w", name, err)
 	}

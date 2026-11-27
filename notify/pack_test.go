@@ -28,7 +28,7 @@ func TestMarkdownBodyPacksWholeItemsWithinByteLimit(t *testing.T) {
 	}
 	// O cabeçalho deve dizer com fidelidade quantos itens esta mensagem contém e quantos são os restantes — senão o leitor tomaria
 	// o número do cabeçalho como o total.
-	if !strings.Contains(body, "其余") || !strings.Contains(body, "下一条消息继续") {
+	if !strings.Contains(body, "os outros") || !strings.Contains(body, "seguem na próxima") {
 		t.Fatalf("o cabeçalho deveria explicar quantos itens não estão contidos nesta mensagem:\n%s", body[:minInt(400, len(body))])
 	}
 	// Deve conter apenas os primeiros kept itens.
@@ -84,7 +84,7 @@ func TestTelegramPackingUsesRuneBudget(t *testing.T) {
 	if kept <= 0 || kept >= len(m.Items) {
 		t.Fatalf("deveria acomodar apenas uma parte, obtido %d", kept)
 	}
-	if !strings.Contains(text, "下一条继续") {
+	if !strings.Contains(text, "seguem na próxima") {
 		t.Fatalf("deveria explicar que há restante não contido:\n%.300s", text)
 	}
 }

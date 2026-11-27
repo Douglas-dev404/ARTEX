@@ -3,28 +3,48 @@
 
 export type Tone = "neutral" | "blue" | "green" | "amber" | "red" | "rose" | "violet" | "slate";
 
+// As cores vêm dos tokens do tema (globals.css), não de paletas soltas do
+// Tailwind: assim a mesma severidade tem exatamente a mesma cor no selo, na
+// barra lateral da linha e no gráfico, e muda junto em qualquer preset de tema.
 export const toneClasses: Record<Tone, string> = {
   neutral: "bg-muted text-muted-foreground border-transparent",
-  blue: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
-  green: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-  amber: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
-  red: "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/20",
-  // rose é usado para "crítico": preenchimento sólido de alta ênfase, visualmente bem acima do contorno vermelho suave de "alto".
-  rose: "bg-rose-600 text-white border-rose-600 dark:bg-rose-600 dark:text-white",
-  violet: "bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/20",
-  slate: "bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/20",
+  blue: "bg-sev-low-bg text-sev-low border-sev-low/25",
+  green: "bg-state-done/15 text-state-done border-state-done/25",
+  amber: "bg-sev-medium-bg text-sev-medium border-sev-medium/25",
+  red: "bg-sev-high-bg text-sev-high border-sev-high/30",
+  // rose = "crítico": preenchimento sólido de alta ênfase, um degrau visual
+  // acima do contorno suave de "alto", para saltar à vista numa lista longa.
+  rose: "bg-sev-critical text-sev-critical-on border-sev-critical font-semibold",
+  violet: "bg-chart-5/15 text-chart-5 border-chart-5/25",
+  slate: "bg-sev-info-bg text-sev-info border-sev-info/25",
 };
 
 export const toneDot: Record<Tone, string> = {
   neutral: "bg-muted-foreground",
-  blue: "bg-blue-500",
-  green: "bg-emerald-500",
-  amber: "bg-amber-500",
-  red: "bg-red-500",
-  rose: "bg-white",
-  violet: "bg-violet-500",
-  slate: "bg-slate-500",
+  blue: "bg-sev-low",
+  green: "bg-state-done",
+  amber: "bg-sev-medium",
+  red: "bg-sev-high",
+  rose: "bg-sev-critical-on",
+  violet: "bg-chart-5",
+  slate: "bg-sev-info",
 };
+
+// Cor sólida do tom, para a barra lateral de uma linha, um traço de gráfico ou
+// qualquer superfície que precise do matiz cheio em vez do selo.
+export const toneSolid: Record<Tone, string> = {
+  neutral: "bg-border",
+  blue: "bg-sev-low",
+  green: "bg-state-done",
+  amber: "bg-sev-medium",
+  red: "bg-sev-high",
+  rose: "bg-sev-critical",
+  violet: "bg-chart-5",
+  slate: "bg-sev-info",
+};
+
+/** Ordem de gravidade, da mais grave para a menos. Útil para ordenar listas. */
+export const severityOrder = ["critical", "high", "medium", "low"] as const;
 
 interface StatusMeta {
   label: string;
@@ -56,11 +76,14 @@ const task: Record<string, StatusMeta> = {
   timeout: { label: "Expirado", tone: "amber" },
 };
 
+// Escala de severidade: quatro degraus visuais distintos, do sólido (crítico)
+// ao azul calmo (baixo). "Baixo" usa blue, e não slate, para não se confundir
+// com os estados neutros de "ignorado"/"descartado" — é um achado real.
 const severity: Record<string, StatusMeta> = {
   critical: { label: "Crítico", tone: "rose" },
   high: { label: "Alto", tone: "red" },
   medium: { label: "Médio", tone: "amber" },
-  low: { label: "Baixo", tone: "slate" },
+  low: { label: "Baixo", tone: "blue" },
 };
 
 const finding: Record<string, StatusMeta> = {

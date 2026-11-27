@@ -88,7 +88,7 @@ func TestDingTalkFallsBackToMarkdownForBatch(t *testing.T) {
 			t.Fatalf("a mensagem consolidada deveria enviar markdown, obtido %v", body["msgtype"])
 		}
 		md, _ := body["markdown"].(map[string]any)
-		if !strings.Contains(md["text"].(string), "近 30 分钟") {
+		if !strings.Contains(md["text"].(string), "últimos 30 minutos") {
 			t.Errorf("o corpo consolidado não tem a janela de tempo: %v", md["text"])
 		}
 	})
@@ -251,7 +251,7 @@ func TestWebhookDefaultTemplateProducesValidJSON(t *testing.T) {
 	// Este é o motivo de existir do template padrão: quando o título contém aspas e quebra de linha, qualquer forma ingênua como
 	// `"title": "{{.Title}}"` produz JSON inválido. Já {{json .}} não.
 	srv := capturePost(t, `{"ok":true}`, func(t *testing.T, body map[string]any, _ *http.Request) {
-		if body["title"] != `[🟠 高危] 登录处 "SQL注入" 风险` {
+		if body["title"] != `[🟠 Alta] 登录处 "SQL注入" 风险` {
 			t.Errorf("título não foi restaurado corretamente: %v", body["title"])
 		}
 		items, _ := body["items"].([]any)

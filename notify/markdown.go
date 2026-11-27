@@ -130,12 +130,12 @@ func markdownBody(m Message, maxBytes int) (string, int) {
 func markdownBatchIntro(m Message, items []Item, total int) string {
 	var b strings.Builder
 	if m.WindowMinutes > 0 {
-		fmt.Fprintf(&b, "**近 %d 分钟新增 %d 个漏洞**", m.WindowMinutes, total)
+		fmt.Fprintf(&b, "**%[2]d nova(s) vulnerabilidade(s) nos últimos %[1]d minutos**", m.WindowMinutes, total)
 	} else {
-		fmt.Fprintf(&b, "**新增 %d 个漏洞**", total)
+		fmt.Fprintf(&b, "**%d nova(s) vulnerabilidade(s)**", total)
 	}
 	if extra := total - len(items); extra > 0 {
-		fmt.Fprintf(&b, "（本条显示前 %d 条，其余 %d 条将在下一条消息继续）", len(items), extra)
+		fmt.Fprintf(&b, " (esta mensagem mostra os primeiros %d; os outros %d seguem na próxima)", len(items), extra)
 	}
 	// Apresenta a distribuição por severidade, para o leitor ver de relance se há itens graves. Conta apenas os itens **realmente contidos nesta mensagem**,
 	// garantindo que "grave 3" coincida com os itens que se conseguem contar abaixo.
@@ -183,7 +183,7 @@ func writeItem(b *strings.Builder, it Item, prefix string, single bool) {
 	}
 	b.WriteString(line + "\n")
 	if it.IsStatusChange() {
-		fmt.Fprintf(b, "**状态变更**：%s → %s\n",
+		fmt.Fprintf(b, "**Mudança de status**: %s → %s\n",
 			markdownText(StatusLabel(it.FromStatus), 0), markdownText(StatusLabel(it.ToStatus), 0))
 	}
 	if it.VulnClass != "" && it.VulnClass != it.Title() {

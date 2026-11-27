@@ -41,7 +41,7 @@ func (dingTalkChannel) Validate(cfg map[string]any) error {
 		return errors.New("Endereço do Webhook ausente")
 	}
 	if err := validateHTTPURL(hook); err != nil {
-		return fmt.Errorf("Webhook 地址无效: %w", err)
+		return fmt.Errorf("endereço de Webhook inválido: %w", err)
 	}
 	return nil
 }

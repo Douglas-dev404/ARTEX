@@ -37,7 +37,7 @@ func (feishuChannel) Validate(cfg map[string]any) error {
 		return errors.New("Endereço do Webhook ausente")
 	}
 	if err := validateHTTPURL(hook); err != nil {
-		return fmt.Errorf("Webhook 地址无效: %w", err)
+		return fmt.Errorf("endereço de Webhook inválido: %w", err)
 	}
 	return nil
 }
@@ -179,7 +179,7 @@ func feishuButton(label, url string) map[string]any {
 func feishuItemLines(it Item) string {
 	out := fmt.Sprintf("**%s · %s**", SeverityLabel(it.Severity), markdownText(it.Title(), 0))
 	if it.IsStatusChange() {
-		out += fmt.Sprintf("\n**状态变更**：%s → %s",
+		out += fmt.Sprintf("\n**Mudança de status**: %s → %s",
 			markdownText(StatusLabel(it.FromStatus), 0), markdownText(StatusLabel(it.ToStatus), 0))
 	}
 	if it.VulnClass != "" && it.VulnClass != it.Title() {

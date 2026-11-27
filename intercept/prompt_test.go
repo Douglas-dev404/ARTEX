@@ -19,6 +19,33 @@ func TestParseVerdict(t *testing.T) {
 	}
 }
 
+// The contract now asks for Portuguese labels; models sometimes keep full-width
+// punctuation, so both separators are accepted with either label set.
+func TestParseVerdictPortugueseLabels(t *testing.T) {
+	for _, reason := range []string{
+		"Operação: ler o arquivo report.md; Consequência: retorna o conteúdo; Regra: A5",
+		"Operação：ler o arquivo；Consequência：retorna o conteúdo；Regra：A5",
+		"Operação: gravar relatório; com ponto e vírgula no meio; Consequência: salva o texto; Regra: ASK (propriedade incerta)",
+	} {
+		raw, _ := json.Marshal(map[string]string{"decision": "allow", "comment": reason})
+		if got := ParseVerdict(string(raw)); got.Action != "allow" || got.Reason != reason {
+			t.Errorf("rejected valid Portuguese verdict %q: %+v", reason, got)
+		}
+	}
+	valid := `{"decision":"deny","comment":"Operação: excluir pedido real; Consequência: registro perdido; Regra: D4"}`
+	for _, reply := range []string{
+		strings.Replace(valid, "Operação: excluir pedido real", "Operação: ", 1),
+		strings.Replace(valid, "Consequência: registro perdido", "Consequência: ", 1),
+		strings.Replace(valid, "Regra: D4", "Regra: ", 1),
+		strings.Replace(valid, "; Regra: D4", "", 1),
+		strings.Replace(valid, "Operação: ", "Ação: ", 1),
+	} {
+		if got := ParseVerdict(reply); got.Action != "" {
+			t.Errorf("accepted incomplete Portuguese verdict: %q => %+v", reply, got)
+		}
+	}
+}
+
 func TestParseVerdictRejectsIncompleteOrAmbiguousReplies(t *testing.T) {
 	valid := `{"decision":"allow","comment":"实际操作：读取文件；成功后的后果：返回内容；命中规则：A5"}`
 	for _, reply := range []string{

@@ -58,7 +58,7 @@ func (s SideQuestionService) Answer(ctx context.Context, req llm.CompletionReque
 	}
 	if err == nil && strings.TrimSpace(out.Text) == "" {
 		if out.ToolUse {
-			out.Text = "当前旁路提问不能执行工具操作，请在主会话中发出操作请求。"
+			out.Text = "A pergunta paralela não pode executar ferramentas. Faça o pedido de ação na conversa principal."
 		} else {
 			err = errors.New("o modelo não retornou resposta")
 		}
