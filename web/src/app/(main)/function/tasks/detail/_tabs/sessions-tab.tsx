@@ -168,17 +168,17 @@ function mergeBySeq(current: Activity[], incoming: Activity[]): Activity[] {
 function statusIcon(status: SessionStatus) {
   switch (status) {
     case "running": // em execução
-      return <Loader2Icon className="size-3.5 animate-spin text-blue-500" />;
+      return <Loader2Icon className="size-3.5 animate-spin text-state-running" />;
     case "paused":
-      return <PauseIcon className="size-3.5 text-amber-500" />;
+      return <PauseIcon className="size-3.5 text-sev-medium" />;
     case "pending": // aguardando captura (open intent)
       return <ClockIcon className="size-3.5 text-muted-foreground" />;
     case "done": // concluído
-      return <CircleCheckIcon className="size-3.5 text-emerald-500" />;
+      return <CircleCheckIcon className="size-3.5 text-state-done" />;
     case "stopped": // cancelado/parado (encerrado pelo planner)
-      return <CircleSlashIcon className="size-3.5 text-amber-500" />;
+      return <CircleSlashIcon className="size-3.5 text-sev-medium" />;
     case "blocked": // erro
-      return <CircleXIcon className="size-3.5 text-red-500" />;
+      return <CircleXIcon className="size-3.5 text-sev-high" />;
     case "exhausted": // passos esgotados (atingiu max_turns)
       return <ZapOffIcon className="size-3.5 text-violet-500" />;
     case "deleted": // exclusão lógica pelo usuário
@@ -362,7 +362,7 @@ function SessionItem({
   ) : s.role === "worker" ? (
     statusIcon(s.status)
   ) : s.live ? (
-    <Loader2Icon className="size-3.5 animate-spin text-blue-500" />
+    <Loader2Icon className="size-3.5 animate-spin text-state-running" />
   ) : null;
 
   const cancellable =
@@ -404,14 +404,14 @@ function SessionItem({
             Excluída
           </Badge>
         )}
-        {hasPending && <ShieldAlertIcon className="size-3.5 shrink-0 text-amber-500" />}
+        {hasPending && <ShieldAlertIcon className="size-3.5 shrink-0 text-sev-medium" />}
         {!active && unread ? (
-          <span className="inline-flex min-w-4 items-center justify-center rounded-full bg-blue-500/15 px-1 text-[10px] font-medium tabular-nums text-blue-600 dark:text-blue-400">
+          <span className="inline-flex min-w-4 items-center justify-center rounded-full bg-state-running/15 px-1 text-[10px] font-medium tabular-nums text-state-running dark:text-state-running">
             {unread > 99 ? "99+" : unread}
           </span>
         ) : null}
         {s.live && (
-          <span className="inline-flex items-center gap-1 rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
+          <span className="inline-flex items-center gap-1 rounded bg-state-running/15 px-1.5 py-0.5 text-[10px] font-medium text-state-running dark:text-state-running">
             <span className="size-1 animate-pulse rounded-full bg-blue-500" />
             Ao vivo
           </span>
@@ -1594,7 +1594,7 @@ export function SessionsTab({ taskId }: { taskId: string }) {
                       · {activeDisplayTitle}
                     </span>
                     {hiddenUnread > 0 && (
-                      <span className="inline-flex min-w-4 shrink-0 items-center justify-center rounded-full bg-blue-500/15 px-1 text-[10px] font-medium tabular-nums text-blue-600 lg:hidden dark:text-blue-400">
+                      <span className="inline-flex min-w-4 shrink-0 items-center justify-center rounded-full bg-state-running/15 px-1 text-[10px] font-medium tabular-nums text-state-running lg:hidden dark:text-state-running">
                         {hiddenUnread > 99 ? "99+" : hiddenUnread}
                       </span>
                     )}
@@ -1605,7 +1605,7 @@ export function SessionsTab({ taskId }: { taskId: string }) {
                 <span
                   className={cn(
                     "inline-flex items-center gap-1 text-[10px]",
-                    sseLive ? "text-emerald-500" : "text-amber-500",
+                    sseLive ? "text-state-done" : "text-sev-medium",
                   )}
                   title={sseLive ? "Conexão em tempo real normal" : "Conexão em tempo real interrompida, reconectando automaticamente (o histórico continua visível)"}
                 >
@@ -1783,7 +1783,7 @@ export function SessionsTab({ taskId }: { taskId: string }) {
                 <Badge variant="outline">Tarefa de origem #{active.source_task_id} · histórico somente leitura</Badge>
               )}
               {active.live && (
-                <span className="inline-flex items-center gap-1 rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
+                <span className="inline-flex items-center gap-1 rounded bg-state-running/15 px-1.5 py-0.5 text-[10px] font-medium text-state-running dark:text-state-running">
                   <span className="size-1 animate-pulse rounded-full bg-blue-500" />
                   Ao vivo
                 </span>
@@ -1881,7 +1881,7 @@ export function SessionsTab({ taskId }: { taskId: string }) {
                     Carregando fluxo de atividades…
                   </div>
                 ) : activeState?.error ? (
-                  <div className="flex items-center gap-2 pl-9 text-xs text-red-500">
+                  <div className="flex items-center gap-2 pl-9 text-xs text-sev-high">
                     <CircleXIcon className="size-3.5" />
                     Falha ao carregar: {activeState.error}
                     <Button

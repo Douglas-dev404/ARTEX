@@ -103,10 +103,10 @@ function MethodBadge({ method }: { method: string }) {
 }
 
 function statusTone(code: number) {
-  if (code >= 500) return "text-red-500";
-  if (code >= 400) return "text-amber-500";
-  if (code >= 300) return "text-blue-500";
-  if (code >= 200) return "text-emerald-500";
+  if (code >= 500) return "text-sev-high";
+  if (code >= 400) return "text-sev-medium";
+  if (code >= 300) return "text-state-running";
+  if (code >= 200) return "text-state-done";
   return "text-muted-foreground";
 }
 

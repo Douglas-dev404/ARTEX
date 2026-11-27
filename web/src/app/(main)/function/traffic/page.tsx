@@ -19,6 +19,7 @@ import { toast } from "sonner";
 
 import { HttpCodeBlock } from "@/components/http-code-block";
 import { LinkTrafficDialog } from "@/components/link-traffic-dialog";
+import { PageHeader } from "@/components/page-header";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +43,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
+import { httpStatusTextClass } from "@/lib/http-status";
 import { useStoredSortPreference } from "@/lib/sort-preference";
 import type { TrafficDetail, TrafficExchange, TrafficHost, TrafficResp } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -66,13 +68,9 @@ function fmtBytes(n: number) {
   return `${i === 0 ? v : v.toFixed(1)} ${units[i]}`;
 }
 
-function statusTone(status: number) {
-  if (status >= 500) return "text-red-500";
-  if (status >= 400) return "text-amber-500";
-  if (status >= 300) return "text-blue-500";
-  if (status >= 200) return "text-emerald-500";
-  return "text-muted-foreground";
-}
+// A cor por faixa de status vem de @/lib/http-status, para ser a mesma aqui,
+// no detalhe da tarefa e em qualquer tela que mostre resposta HTTP.
+const statusTone = httpStatusTextClass;
 
 function MethodBadge({ method }: { method: string }) {
   return <Badge className="shrink-0 font-mono">{method}</Badge>;
@@ -339,29 +337,31 @@ export default function TrafficPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Tráfego</h1>
-          <p className="text-muted-foreground text-sm">Proxy de gravação global · todo o tráfego HTTP</p>
-        </div>
-        <div className="flex items-center gap-4 text-sm">
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium",
-              traffic?.enabled
-                ? "border-emerald-500/20 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                : "border-transparent bg-muted text-muted-foreground",
-            )}
-          >
-            <RadioTowerIcon className="size-3.5" />
-            {traffic?.enabled ? "Gravando" : "Desativada"}
-          </span>
-          {traffic?.proxy && <span className="font-mono text-xs text-muted-foreground">{traffic.proxy}</span>}
-          <span className="text-xs text-muted-foreground">
-            Total: <span className="tabular-nums">{traffic?.count ?? 0}</span> registros
-          </span>
-        </div>
-      </div>
+      <PageHeader
+        title="Tráfego"
+        description="Proxy de gravação global · todo o tráfego HTTP"
+        actions={
+          <>
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium",
+                traffic?.enabled
+                  ? "border-state-done/25 bg-state-done/15 text-state-done"
+                  : "border-transparent bg-muted text-muted-foreground",
+              )}
+            >
+              {/* O ponto pulsa só enquanto grava: dá para saber se a captura
+                  está de pé sem ler o texto. */}
+              <RadioTowerIcon className={cn("size-3.5", traffic?.enabled && "animate-pulse")} />
+              {traffic?.enabled ? "Gravando" : "Desativada"}
+            </span>
+            {traffic?.proxy && <span className="font-mono text-xs text-muted-foreground">{traffic.proxy}</span>}
+            <span className="text-xs text-muted-foreground">
+              Total: <span className="tabular-nums">{traffic?.count ?? 0}</span> registros
+            </span>
+          </>
+        }
+      />
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">

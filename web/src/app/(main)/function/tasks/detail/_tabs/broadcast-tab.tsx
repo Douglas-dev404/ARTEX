@@ -58,19 +58,19 @@ const KIND_META: Record<string, KindMeta> = {
     label: "Objetivo",
     icon: TargetIcon,
     dot: "bg-emerald-500",
-    chip: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    chip: "bg-state-done/15 text-state-done",
   },
   intent: {
     label: "Intenção",
     icon: CompassIcon,
     dot: "bg-blue-500",
-    chip: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+    chip: "bg-state-running/15 text-state-running dark:text-state-running",
   },
   fact: {
     label: "Fato",
     icon: FlaskConicalIcon,
     dot: "bg-amber-500",
-    chip: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+    chip: "bg-sev-medium-bg text-sev-medium dark:text-amber-400",
   },
   finding: {
     label: "Vulnerabilidade",

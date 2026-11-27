@@ -6,6 +6,7 @@ import { Bot, PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 
 import { AgentEditor } from "@/components/agent-editor";
+import { PageHeader } from "@/components/page-header";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -140,12 +141,12 @@ function CreateAgentDialog({ onCreated }: { onCreated: (key: string) => void }) 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm">
-          <PlusIcon /> Novo Agent
+          <PlusIcon /> Novo agente
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Novo Agent personalizado</DialogTitle>
+          <DialogTitle>Novo agente personalizado</DialogTitle>
           <DialogDescription>
             Cria um assistente de sessão. A key serve como identificador interno e não pode ser alterada após a criação;
             o nome e a descrição servem para identificação.
@@ -215,24 +216,22 @@ export default function AgentsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Agent</h1>
-          <p className="text-muted-foreground text-sm">
-            Prompt/configuração dos Agents nativos, e criação e gestão de Agents de sessão personalizados
-          </p>
-        </div>
-        <CreateAgentDialog
-          onCreated={(key) => {
-            reload();
-            setEditKey(key);
-          }}
-        />
-      </div>
+      <PageHeader
+        title="Agentes"
+        description="Prompt e configuração dos agentes nativos, e criação e gestão de agentes de sessão personalizados"
+        actions={
+          <CreateAgentDialog
+            onCreated={(key) => {
+              reload();
+              setEditKey(key);
+            }}
+          />
+        }
+      />
 
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Agents</CardTitle>
+          <CardTitle>Lista de agentes</CardTitle>
           <CardDescription>{agents.length} no total</CardDescription>
         </CardHeader>
         <CardContent>

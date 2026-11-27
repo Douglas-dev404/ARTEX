@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 
 import { AssetDslSearch } from "@/components/asset-dsl-search";
+import { PageHeader } from "@/components/page-header";
 import { ScopeTextEditor } from "@/components/scope-text-editor";
 import {
   AlertDialog,
@@ -88,10 +89,10 @@ function MethodBadge({ method }: { method: string }) {
 }
 
 function statusTone(code: number) {
-  if (code >= 500) return "text-red-500";
-  if (code >= 400) return "text-amber-500";
-  if (code >= 300) return "text-blue-500";
-  if (code >= 200) return "text-emerald-500";
+  if (code >= 500) return "text-sev-high";
+  if (code >= 400) return "text-sev-medium";
+  if (code >= 300) return "text-state-running";
+  if (code >= 200) return "text-state-done";
   return "text-muted-foreground";
 }
 
@@ -314,25 +315,26 @@ export default function AssetsPage() {
 
   return (
     <div className="flex h-[calc(100vh-6rem)] min-h-0 flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Ativos</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">
-            Total de <span className="tabular-nums">{totalAssets}</span> ativos
-          </span>
-          {selected.size > 0 && (
-            <Button variant="destructive" size="sm" onClick={() => openDelete(Array.from(selected) as number[])}>
-              <Trash2Icon className="size-3.5" /> Excluir selecionados ({selected.size})
+      <PageHeader
+        title="Ativos"
+        description="Superfície descoberta · domínios, hosts, endpoints e credenciais"
+        actions={
+          <>
+            <span className="text-sm text-muted-foreground">
+              Total de <span className="tabular-nums">{totalAssets}</span> ativos
+            </span>
+            {selected.size > 0 && (
+              <Button variant="destructive" size="sm" onClick={() => openDelete(Array.from(selected) as number[])}>
+                <Trash2Icon className="size-3.5" /> Excluir selecionados ({selected.size})
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+              <RefreshCwIcon className={cn("size-4", loading && "animate-spin")} /> Atualizar
             </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
-            <RefreshCwIcon className={cn("size-4", loading && "animate-spin")} /> Atualizar
-          </Button>
-          <CompanyDialog onSaved={refresh} />
-        </div>
-      </div>
+            <CompanyDialog onSaved={refresh} />
+          </>
+        }
+      />
 
       <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-4">
         <div className="overflow-x-auto overflow-y-hidden">
@@ -623,7 +625,7 @@ export default function AssetsPage() {
                     href={a.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-blue-600 hover:underline dark:text-blue-400"
+                    className="text-state-running hover:underline dark:text-state-running"
                   >
                     {a.domain || a.url}
                   </a>

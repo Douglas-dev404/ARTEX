@@ -350,7 +350,7 @@ function AssetSheet({
                   <DetailRow label="Status do teste">
                     {node.in_scope ? (
                       node.tested ? (
-                        <span className="text-emerald-600 dark:text-emerald-400">Testado</span>
+                        <span className="text-state-done dark:text-state-done">Testado</span>
                       ) : (
                         <span className="text-neutral-500">Não testado</span>
                       )
@@ -649,7 +649,7 @@ function GraphInner({ taskId, coverageEnabled = true }: { taskId: string; covera
                 <>
                   {" "}
                   · Testados{" "}
-                  <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{tested}</span>
+                  <span className="font-semibold tabular-nums text-state-done dark:text-state-done">{tested}</span>
                 </>
               )}
             </span>

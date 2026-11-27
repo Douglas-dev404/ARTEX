@@ -6,15 +6,13 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { httpStatusTextClass } from "@/lib/http-status";
 import { cn, copyText } from "@/lib/utils";
 
-function statusTone(status: number) {
-  if (status >= 500) return "text-red-500";
-  if (status >= 400) return "text-amber-500";
-  if (status >= 300) return "text-blue-500";
-  if (status >= 200) return "text-emerald-500";
-  return "text-muted-foreground";
-}
+// Fonte única da cor por faixa de status (ver @/lib/http-status): este bloco,
+// a lista de tráfego e o detalhe da tarefa mostravam o mesmo 500 em matizes
+// diferentes porque cada um tinha a sua cópia desta função.
+const statusTone = httpStatusTextClass;
 
 function StartLine({ line }: { line: string }) {
   const response = /^(HTTP\/\S+)(\s+)(\d{3})(.*)$/.exec(line);
