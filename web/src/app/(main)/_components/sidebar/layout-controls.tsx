@@ -139,7 +139,7 @@ export function LayoutControls() {
               <Label className="font-medium text-xs">Fonts</Label>
               <Select value={font} onValueChange={onFontChange}>
                 <SelectTrigger size="sm" className="w-full text-xs">
-                  <SelectValue placeholder="Select font" />
+                  <SelectValue placeholder="Escolher fonte" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>

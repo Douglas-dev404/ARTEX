@@ -3212,7 +3212,7 @@ export const agents: Agent[] = [
   {
     id: "4",
     key: "worker",
-    name: "Work Agent",
+    name: "Agente de execução",
     role: "worker",
     builtin: true,
     enabled: true,

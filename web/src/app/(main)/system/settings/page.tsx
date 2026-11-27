@@ -652,7 +652,7 @@ export default function SystemSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <CpuIcon className="size-4" />
-              Concorrência de trabalho · Número de Work Agents
+              Concorrência de trabalho · Número de agentes de execução
             </CardTitle>
             <CardDescription>
               Quantidade de agents de trabalho executados em paralelo por tarefa (padrão 3). Quanto maior o valor, mais sondagens concorrentes e maior o consumo. Após a alteração,

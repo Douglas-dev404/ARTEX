@@ -60,4 +60,6 @@ Thumbs.db
 /Dockerfile.bench.v2
 # Capturas e saídas do Playwright geradas em QA visual (locais, não commitar)
 /ui-*.png
+/qa-*.png
 /.playwright-mcp/
+/web/.playwright-mcp/

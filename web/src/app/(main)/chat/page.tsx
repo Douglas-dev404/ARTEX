@@ -135,7 +135,7 @@ function groupByAgent(conversations: Conversation[], agentByKey: Map<string, Age
 // console — shown while a turn is streaming.
 function LiveBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
+    <span className="inline-flex items-center gap-1 rounded bg-state-running/15 px-1.5 py-0.5 text-[10px] font-medium text-state-running dark:text-state-running">
       <span className="size-1 animate-pulse rounded-full bg-blue-500" />
       Ao vivo
     </span>
@@ -427,7 +427,7 @@ function DraftChat({
   const agentPicker = (
     <Select value={agentKey} onValueChange={setAgentKey}>
       <SelectTrigger className="w-full sm:w-40">
-        <SelectValue placeholder="Escolher Agent…" />
+        <SelectValue placeholder="Escolher agente…" />
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
@@ -456,7 +456,7 @@ function DraftChat({
         <div className="bg-primary/10 flex size-12 items-center justify-center rounded-full">
           <Bot className="text-primary size-6" />
         </div>
-        <div className="text-sm font-medium">Iniciar conversa com &quot;{agent?.name ?? "Agent"}&quot;</div>
+        <div className="text-sm font-medium">Iniciar conversa com &quot;{agent?.name ?? "agente"}&quot;</div>
         {agent?.description && <p className="text-muted-foreground max-w-md text-xs">{agent.description}</p>}
       </div>
 
@@ -1399,11 +1399,11 @@ export default function ChatPage() {
             >
               <SelectTrigger size="sm" className="w-full min-w-0" aria-label="Filtrar conversas por Agent">
                 <Bot />
-                <SelectValue placeholder="Todos os Agents" />
+                <SelectValue placeholder="Todos os agentes" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="all">Todos os Agents</SelectItem>
+                  <SelectItem value="all">Todos os agentes</SelectItem>
                   {agentFilterOptions.map((agent) => (
                     <SelectItem key={agent.key} value={`agent:${agent.key}`}>
                       {agent.name} ({agent.count})
