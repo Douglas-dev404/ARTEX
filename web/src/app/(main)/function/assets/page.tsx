@@ -406,7 +406,8 @@ export default function AssetsPage() {
                   {companies.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
-                        Ainda não há empresas. Clique em "Nova empresa" no canto superior direito e informe o escopo de ativos; o sistema reivindicará automaticamente os ativos correspondentes.
+                        Ainda não há empresas. Clique em "Nova empresa" no canto superior direito e informe o escopo de
+                        ativos; o sistema reivindicará automaticamente os ativos correspondentes.
                       </TableCell>
                     </TableRow>
                   )}
@@ -590,7 +591,18 @@ export default function AssetsPage() {
         <TabsContent value="service" className="mt-0 flex min-h-0 flex-1 flex-col gap-2">
           {searchBox}
           <AssetCard
-            cols={["", "Serviço", "Domínio", "IP", "Porta", "Código de status", "Título", "Fingerprint", "Autenticação", ""]}
+            cols={[
+              "",
+              "Serviço",
+              "Domínio",
+              "IP",
+              "Porta",
+              "Código de status",
+              "Título",
+              "Fingerprint",
+              "Autenticação",
+              "",
+            ]}
             loaded={loaded}
             total={total}
             page={page}
@@ -746,6 +758,7 @@ export default function AssetsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={(e) => {
                 e.preventDefault();
                 void confirmDelete();
@@ -773,7 +786,10 @@ export default function AssetsPage() {
             <AlertDialogTitle>Excluir empresa · {companyDeleteTarget?.name}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
-                <p>Esta ação excluirá permanentemente a empresa e a configuração do seu escopo de ativos e não pode ser desfeita.</p>
+                <p>
+                  Esta ação excluirá permanentemente a empresa e a configuração do seu escopo de ativos e não pode ser
+                  desfeita.
+                </p>
                 <label
                   htmlFor="delete-assets-opt"
                   className="flex cursor-pointer items-center gap-2.5 rounded-md border p-3 hover:bg-muted/50"
@@ -785,7 +801,9 @@ export default function AssetsPage() {
                   />
                   <span className="text-sm leading-snug">
                     Excluir também todos os ativos desta empresa
-                    <span className="block text-xs text-muted-foreground">Se desmarcado, os ativos são mantidos e apenas o vínculo é removido</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Se desmarcado, os ativos são mantidos e apenas o vínculo é removido
+                    </span>
                   </span>
                 </label>
               </div>
@@ -794,6 +812,7 @@ export default function AssetsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={companyDeleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={(e) => {
                 e.preventDefault();
                 void confirmDeleteCompany();
@@ -999,7 +1018,8 @@ function CompanyDialog({ onSaved }: { onSaved: () => void }) {
       const res = await api.createCompany(name.trim(), parsedScope.rules);
       const added = res.scope_added ?? 0;
       const invalid = res.scope_invalid ?? 0;
-      if (invalid > 0) toast.warning(`Empresa criada, ${added} escopo(s) adicionado(s); ${invalid} linha(s) inválida(s)`);
+      if (invalid > 0)
+        toast.warning(`Empresa criada, ${added} escopo(s) adicionado(s); ${invalid} linha(s) inválida(s)`);
       else toast.success(`Empresa criada, ${added} escopo(s) adicionado(s)`);
       setOpen(false);
       onSaved();
@@ -1022,7 +1042,10 @@ function CompanyDialog({ onSaved }: { onSaved: () => void }) {
       <SheetContent className="w-full! max-w-none! gap-0 p-0 sm:w-[520px]! sm:max-w-[520px]!">
         <SheetHeader className="border-b p-6">
           <SheetTitle>Nova empresa</SheetTitle>
-          <SheetDescription>Configure a empresa e seu escopo de ativos. As palavras-chave servem apenas como dica para o Agent e não vinculam ativos automaticamente.</SheetDescription>
+          <SheetDescription>
+            Configure a empresa e seu escopo de ativos. As palavras-chave servem apenas como dica para o Agent e não
+            vinculam ativos automaticamente.
+          </SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto p-6">
           <FieldGroup>
@@ -1101,7 +1124,8 @@ function EditScopeDialog({ company, onSaved }: { company: Company; onSaved: () =
         <DialogHeader>
           <DialogTitle>Editar escopo de ativos · {company.name}</DialogTitle>
           <DialogDescription>
-            Ao salvar, todo o escopo atual será substituído. O ICP corresponde exatamente aos ativos; as palavras-chave da empresa servem apenas como dica para o Agent.
+            Ao salvar, todo o escopo atual será substituído. O ICP corresponde exatamente aos ativos; as palavras-chave
+            da empresa servem apenas como dica para o Agent.
           </DialogDescription>
         </DialogHeader>
         <FieldGroup className="py-2">
@@ -1183,7 +1207,10 @@ function AppendScopeDialog({ company, onSaved }: { company: Company; onSaved: ()
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Acrescentar escopo de ativos · {company.name}</DialogTitle>
-          <DialogDescription>O novo escopo é acrescentado ao existente. O ICP corresponde exatamente aos ativos; as palavras-chave da empresa servem apenas como dica para o Agent.</DialogDescription>
+          <DialogDescription>
+            O novo escopo é acrescentado ao existente. O ICP corresponde exatamente aos ativos; as palavras-chave da
+            empresa servem apenas como dica para o Agent.
+          </DialogDescription>
         </DialogHeader>
         <FieldGroup className="py-2">
           <ScopeTextEditor

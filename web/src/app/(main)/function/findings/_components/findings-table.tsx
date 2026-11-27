@@ -9,6 +9,7 @@ import {
   ChevronRightIcon,
   FileTextIcon,
   FlaskConicalIcon,
+  MoreHorizontalIcon,
   RotateCcwIcon,
   ShieldAlertIcon,
   Trash2Icon,
@@ -16,7 +17,7 @@ import {
 
 import { CopyButton } from "@/components/copy-button";
 import { Markdown } from "@/components/markdown";
-import { StatusBadge } from "@/components/status-badge";
+import { SeverityBar, StatusBadge } from "@/components/status-badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,11 +27,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -78,7 +84,7 @@ export function isSameFinding(left: Finding, right: Finding): boolean {
 }
 
 export function fmtTime(ts: string) {
-  return new Date(ts).toLocaleString("zh-CN", {
+  return new Date(ts).toLocaleString("pt-BR", {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -131,6 +137,10 @@ export function FindingsTable({
   onDelete,
   selectAllLabel = "Selecionar todos da página atual",
 }: FindingsTableProps) {
+  // findingRowKey da linha cujo diálogo de exclusão está aberto. O alerta é
+  // controlado porque agora é disparado de dentro do menu, e não por um
+  // AlertDialogTrigger próprio.
+  const [confirmDelete, setConfirmDelete] = React.useState<string | null>(null);
   const selectableIds = items.map((finding) => finding.finding_id).filter((id): id is string => Boolean(id));
   const selectedCount = selectableIds.filter((id) => selectedIds.has(id)).length;
   let headerChecked: boolean | "indeterminate" = false;
@@ -196,7 +206,13 @@ export function FindingsTable({
                   />
                 </TableCell>
                 <TableCell>
-                  <StatusBadge domain="severity" value={f.severity} dot />
+                  {/* A barra repete a severidade como cor contínua na borda da
+                      linha: numa lista longa a gravidade se lê varrendo a
+                      coluna, sem precisar ler cada selo. */}
+                  <div className="flex items-center gap-2">
+                    <SeverityBar value={f.severity} className="h-7" />
+                    <StatusBadge domain="severity" value={f.severity} />
+                  </div>
                 </TableCell>
                 <TableCell className="max-w-md">
                   <div className="flex min-w-0 flex-col gap-0.5">
@@ -213,7 +229,14 @@ export function FindingsTable({
                       <span className="truncate font-medium">{f.name || f.vulnclass || "Sem classificação"}</span>
                     )}
                     <span className="truncate text-xs text-muted-foreground">{f.summary}</span>
-                    <Badge variant="outline">Evidências de tráfego: {f.traffic_count ?? 0}</Badge>
+                    {/* "Evidências: 0" ocupava uma linha em todo achado sem
+                        prova; só vale mostrar quando existe o que abrir. */}
+                    {(f.traffic_count ?? 0) > 0 && (
+                      <span className="inline-flex w-fit items-center gap-1 text-xs text-muted-foreground">
+                        <FileTextIcon className="size-3" />
+                        {f.traffic_count} {f.traffic_count === 1 ? "evidência" : "evidências"} de tráfego
+                      </span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -271,7 +294,11 @@ export function FindingsTable({
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground tabular-nums">{fmtTime(f.ts)}</TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center gap-1">
+                  {/* As ações eram três botões com texto repetidos em toda
+                      linha, somando mais ruído que a própria vulnerabilidade.
+                      Agora só o reteste em andamento fica visível, porque é
+                      estado, não ação; o resto vai para o menu. */}
+                  <div className="flex items-center justify-end gap-1">
                     {retest ? (
                       <Button asChild size="sm" variant="ghost">
                         <Link href={`/chat?c=${retest.conversation_id}`} title="Ver a sessão de reteste em andamento">
@@ -280,30 +307,58 @@ export function FindingsTable({
                         </Link>
                       </Button>
                     ) : null}
-                    {!retest && f.finding_id && !f.inherited ? (
-                      <Button size="sm" variant="ghost" onClick={() => onRetest(f)} title="Retestar esta vulnerabilidade em uma sessão independente">
-                        <RotateCcwIcon data-icon="inline-start" />
-                        Retestar
-                      </Button>
-                    ) : null}
-                    {f.finding_id && f.task_id && (
-                      <Button size="sm" variant="ghost" onClick={() => onDeepen(f)}>
-                        <FlaskConicalIcon data-icon="inline-start" />
-                        Aprofundar
-                      </Button>
-                    )}
                     {f.finding_id && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="size-7 text-muted-foreground hover:text-destructive"
-                            aria-label="Excluir vulnerabilidade"
+                            className="size-7 text-muted-foreground"
+                            aria-label="Ações da vulnerabilidade"
                           >
-                            <Trash2Icon className="size-4" />
+                            <MoreHorizontalIcon className="size-4" />
                           </Button>
-                        </AlertDialogTrigger>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/function/findings/detail?id=${f.finding_id}`}>
+                              <FileTextIcon />
+                              Ver detalhes
+                            </Link>
+                          </DropdownMenuItem>
+                          {!retest && !f.inherited ? (
+                            <DropdownMenuItem onSelect={() => onRetest(f)}>
+                              <RotateCcwIcon />
+                              Retestar
+                            </DropdownMenuItem>
+                          ) : null}
+                          {f.task_id ? (
+                            <DropdownMenuItem onSelect={() => onDeepen(f)}>
+                              <FlaskConicalIcon />
+                              Aprofundar
+                            </DropdownMenuItem>
+                          ) : null}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            // Impede que o menu feche antes do diálogo montar,
+                            // senão o Radix devolve o foco e o alerta não abre.
+                            onSelect={(event) => {
+                              event.preventDefault();
+                              setConfirmDelete(rowKey);
+                            }}
+                          >
+                            <Trash2Icon />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                    {f.finding_id && (
+                      <AlertDialog
+                        open={confirmDelete === rowKey}
+                        onOpenChange={(open) => setConfirmDelete(open ? rowKey : null)}
+                      >
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Confirmar exclusão desta vulnerabilidade?</AlertDialogTitle>
@@ -312,12 +367,15 @@ export function FindingsTable({
                               <span className="break-all">
                                 {f.name || f.vulnclass || f.summary || `#${f.finding_id}`}
                               </span>
-                              " será excluída permanentemente e também removida da lista de achados, da aba de achados da tarefa e do grafo de exploração. Esta ação não pode ser desfeita.
+                              " será excluída permanentemente e também removida da lista de achados, da aba de achados
+                              da tarefa e do grafo de exploração. Esta ação não pode ser desfeita.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => onDelete(f)}>Excluir</AlertDialogAction>
+                            <AlertDialogAction variant="destructive" onClick={() => onDelete(f)}>
+                              Excluir
+                            </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>

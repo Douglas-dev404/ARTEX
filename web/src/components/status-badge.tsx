@@ -1,12 +1,5 @@
+import { type StatusDomain, statusMeta, type Tone, toneClasses, toneDot, toneSolid } from "@/lib/status";
 import { cn } from "@/lib/utils";
-import {
-  statusMeta,
-  toneClasses,
-  toneDot,
-  toneSolid,
-  type StatusDomain,
-  type Tone,
-} from "@/lib/status";
 
 export function StatusBadge({
   domain,
@@ -28,9 +21,7 @@ export function StatusBadge({
         className,
       )}
     >
-      {dot && (
-        <span className={cn("size-1.5 rounded-full", toneDot[meta.tone])} />
-      )}
+      {dot && <span className={cn("size-1.5 rounded-full", toneDot[meta.tone])} />}
       {meta.label}
     </span>
   );
@@ -49,18 +40,7 @@ export function ToneDot({ tone }: { tone: Tone }) {
  * Decorativa: o selo ao lado já carrega o rótulo, então fica oculta para
  * leitores de tela em vez de repetir a mesma informação.
  */
-export function SeverityBar({
-  value,
-  className,
-}: {
-  value: string;
-  className?: string;
-}) {
+export function SeverityBar({ value, className }: { value: string; className?: string }) {
   const meta = statusMeta("severity", value);
-  return (
-    <span
-      aria-hidden
-      className={cn("w-1 shrink-0 self-stretch rounded-full", toneSolid[meta.tone], className)}
-    />
-  );
+  return <span aria-hidden className={cn("w-1 shrink-0 self-stretch rounded-full", toneSolid[meta.tone], className)} />;
 }

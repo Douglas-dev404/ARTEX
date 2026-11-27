@@ -65,7 +65,13 @@ function SidePanel({
   useEffect(() => {
     if (pinned.current && viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight;
   }, [tail?.answer, tail?.id]);
-  const status = { running: "Respondendo", completed: "Concluído", failed: "Falhou", cancelled: "Parado", interrupted: "Interrompido" };
+  const status = {
+    running: "Respondendo",
+    completed: "Concluído",
+    failed: "Falhou",
+    cancelled: "Parado",
+    interrupted: "Interrompido",
+  };
   return (
     <section className="flex h-full min-h-0 flex-col bg-background" aria-label="Painel de pergunta lateral">
       <div className="flex items-center gap-2 border-b p-3">
@@ -116,7 +122,9 @@ function SidePanel({
           <Empty>
             <EmptyHeader>
               <EmptyTitle>Faça uma pergunta a qualquer momento</EmptyTitle>
-              <EmptyDescription>Responde com base no contexto do Agent atual, enquanto a tarefa principal continua em execução.</EmptyDescription>
+              <EmptyDescription>
+                Responde com base no contexto do Agent atual, enquanto a tarefa principal continua em execução.
+              </EmptyDescription>
             </EmptyHeader>
           </Empty>
         )}
@@ -177,7 +185,11 @@ function SidePanel({
             }}
           />
           <InputGroupAddon align={inlineComposer ? "inline-end" : "block-end"}>
-            {!inlineComposer && <span className="text-muted-foreground text-xs">Perguntas independentes · sem execução de ferramentas</span>}
+            {!inlineComposer && (
+              <span className="text-muted-foreground text-xs">
+                Perguntas independentes · sem execução de ferramentas
+              </span>
+            )}
             {side.running ? (
               <InputGroupButton
                 className="ml-auto"
@@ -204,19 +216,24 @@ function SidePanel({
         </InputGroup>
       </div>
       {inlineComposer && (
-        <div className="shrink-0 truncate px-3 pt-0.5 pb-1 text-muted-foreground text-xs">Perguntas independentes · sem execução de ferramentas</div>
+        <div className="shrink-0 truncate px-3 pt-0.5 pb-1 text-muted-foreground text-xs">
+          Perguntas independentes · sem execução de ferramentas
+        </div>
       )}
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Limpar o histórico lateral?</AlertDialogTitle>
             <AlertDialogDescription>
-              Exclui as perguntas laterais do Agent atual e interrompe a resposta lateral em geração. A sessão principal e o snapshot de contexto são mantidos.
+              Exclui as perguntas laterais do Agent atual e interrompe a resposta lateral em geração. A sessão principal
+              e o snapshot de contexto são mantidos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void side.clear()}>Limpar histórico</AlertDialogAction>
+            <AlertDialogAction variant="destructive" onClick={() => void side.clear()}>
+              Limpar histórico
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

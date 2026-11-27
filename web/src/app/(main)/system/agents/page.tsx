@@ -1,30 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
-import { Bot, PlusIcon, Trash2Icon } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Bot, PlusIcon, Trash2Icon } from "lucide-react";
+import { toast } from "sonner";
+
+import { AgentEditor } from "@/components/agent-editor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,22 +17,28 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { AgentEditor } from "@/components/agent-editor";
+import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import type { Agent } from "@/lib/types";
 
 // AgentGridCard is one clickable tile opening the agent's editor drawer. Custom
 // (non-builtin) agents get a delete button.
-function AgentGridCard({
-  agent,
-  onOpen,
-  onDeleted,
-}: {
-  agent: Agent;
-  onOpen: () => void;
-  onDeleted: () => void;
-}) {
+function AgentGridCard({ agent, onOpen, onDeleted }: { agent: Agent; onOpen: () => void; onDeleted: () => void }) {
   async function del() {
     try {
       await api.deleteAgent(agent.key);
@@ -83,9 +70,7 @@ function AgentGridCard({
             </Badge>
           )}
         </div>
-        <p className="text-muted-foreground line-clamp-2 min-h-8 text-xs">
-          {agent.description || "(sem descrição)"}
-        </p>
+        <p className="text-muted-foreground line-clamp-2 min-h-8 text-xs">{agent.description || "(sem descrição)"}</p>
         <div className="text-muted-foreground flex flex-wrap gap-1.5 text-[10px]">
           <span className="rounded border px-1.5 py-0.5">MCP {agent.mcp_count ?? 0}</span>
           <span className="rounded border px-1.5 py-0.5">Skill {agent.skill_count ?? 0}</span>
@@ -107,12 +92,15 @@ function AgentGridCard({
             <AlertDialogHeader>
               <AlertDialogTitle>Excluir o Agent {agent.name}?</AlertDialogTitle>
               <AlertDialogDescription>
-                Serão excluídos também o prompt, as variáveis, a visibilidade e os vínculos de ferramentas dele. Esta ação não pode ser desfeita.
+                Serão excluídos também o prompt, as variáveis, a visibilidade e os vínculos de ferramentas dele. Esta
+                ação não pode ser desfeita.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={del}>Excluir</AlertDialogAction>
+              <AlertDialogAction variant="destructive" onClick={del}>
+                Excluir
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -159,7 +147,8 @@ function CreateAgentDialog({ onCreated }: { onCreated: (key: string) => void }) 
         <DialogHeader>
           <DialogTitle>Novo Agent personalizado</DialogTitle>
           <DialogDescription>
-            Cria um assistente de sessão. A key serve como identificador interno e não pode ser alterada após a criação; o nome e a descrição servem para identificação.
+            Cria um assistente de sessão. A key serve como identificador interno e não pode ser alterada após a criação;
+            o nome e a descrição servem para identificação.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">
@@ -173,7 +162,9 @@ function CreateAgentDialog({ onCreated }: { onCreated: (key: string) => void }) 
               className="font-mono"
             />
             {key.length > 0 && !keyOk && (
-              <span className="text-destructive text-xs">Deve começar com letra minúscula e conter apenas letras minúsculas/números/sublinhado</span>
+              <span className="text-destructive text-xs">
+                Deve começar com letra minúscula e conter apenas letras minúsculas/números/sublinhado
+              </span>
             )}
           </div>
           <div className="grid gap-1.5">
@@ -211,7 +202,10 @@ export default function AgentsPage() {
   const [editKey, setEditKey] = React.useState<string | null>(null);
 
   const reload = React.useCallback(() => {
-    api.agents().then(setAgents).catch(() => setAgents([]));
+    api
+      .agents()
+      .then(setAgents)
+      .catch(() => setAgents([]));
   }, []);
   React.useEffect(() => {
     reload();
@@ -271,7 +265,9 @@ export default function AgentsPage() {
                     </Badge>
                   )}
                 </SheetTitle>
-                <SheetDescription>{editing.description || "Prompt, configuração, recursos visíveis e vínculos de ferramentas"}</SheetDescription>
+                <SheetDescription>
+                  {editing.description || "Prompt, configuração, recursos visíveis e vínculos de ferramentas"}
+                </SheetDescription>
               </SheetHeader>
               <AgentEditor agentKey={editing.key} onSaved={reload} />
             </>

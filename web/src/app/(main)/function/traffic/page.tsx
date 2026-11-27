@@ -47,7 +47,7 @@ import type { TrafficDetail, TrafficExchange, TrafficHost, TrafficResp } from "@
 import { cn } from "@/lib/utils";
 
 function fmtTime(ts: string) {
-  return new Date(ts).toLocaleString("zh-CN", {
+  return new Date(ts).toLocaleString("pt-BR", {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -396,7 +396,9 @@ export default function TrafficPage() {
                         {hostCountSortDirection === "desc" ? <ArrowDownWideNarrowIcon /> : <ArrowUpNarrowWideIcon />}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Por contagem de pacotes, {hostCountSortDirection === "desc" ? "decrescente" : "crescente"}</TooltipContent>
+                    <TooltipContent>
+                      Por contagem de pacotes, {hostCountSortDirection === "desc" ? "decrescente" : "crescente"}
+                    </TooltipContent>
                   </Tooltip>
                 )}
                 {hosts.length > 0 && (
@@ -473,7 +475,11 @@ export default function TrafficPage() {
           size="sm"
           className="h-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
           disabled={!traffic?.count || deleting}
-          title={traffic?.count ? "Excluir todo o tráfego e compactar o armazenamento" : "Não há registros de tráfego no momento"}
+          title={
+            traffic?.count
+              ? "Excluir todo o tráfego e compactar o armazenamento"
+              : "Não há registros de tráfego no momento"
+          }
           onClick={() => setDeleteMode("all")}
         >
           <EraserIcon className="size-3.5" />
@@ -603,7 +609,9 @@ export default function TrafficPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-muted-foreground">{selectedFlows.size} registro(s) de tráfego selecionado(s)</span>
+        <span className="text-sm text-muted-foreground">
+          {selectedFlows.size} registro(s) de tráfego selecionado(s)
+        </span>
         <Button variant="outline" size="sm" disabled={selectedFlows.size === 0} onClick={() => setLinking(true)}>
           Associar a vulnerabilidade
         </Button>
@@ -784,17 +792,22 @@ export default function TrafficPage() {
             <AlertDialogDescription>
               {deleteMode === "all" && (
                 <>
-                  Serão excluídos permanentemente todos os <span className="font-semibold tabular-nums">{traffic?.count ?? 0}</span>{" "}
-                  registros de tráfego (incluindo o texto bruto de requisição/resposta), ignorando os filtros atuais. Esta ação não pode ser desfeita. As evidências de tráfego já vinculadas a vulnerabilidades ficam em um repositório de evidências independente e não são afetadas.
+                  Serão excluídos permanentemente todos os{" "}
+                  <span className="font-semibold tabular-nums">{traffic?.count ?? 0}</span> registros de tráfego
+                  (incluindo o texto bruto de requisição/resposta), ignorando os filtros atuais. Esta ação não pode ser
+                  desfeita. As evidências de tráfego já vinculadas a vulnerabilidades ficam em um repositório de
+                  evidências independente e não são afetadas.
                   <br />
                   <span className="text-muted-foreground">
-                    Após a limpeza, o armazenamento também é compactado, devolvendo ao sistema o espaço em disco ocupado pelo índice; durante esse período a gravação de tráfego fica brevemente pausada.
+                    Após a limpeza, o armazenamento também é compactado, devolvendo ao sistema o espaço em disco ocupado
+                    pelo índice; durante esse período a gravação de tráfego fica brevemente pausada.
                   </span>
                 </>
               )}
               {deleteMode === "selected" && (
                 <>
-                  Serão excluídos permanentemente todos os registros de tráfego de <span className="font-semibold tabular-nums">{selectedHosts.length}</span> alvo(s) (
+                  Serão excluídos permanentemente todos os registros de tráfego de{" "}
+                  <span className="font-semibold tabular-nums">{selectedHosts.length}</span> alvo(s) (
                   <span className="font-mono">
                     {selectedHosts.slice(0, 3).join(", ")}
                     {selectedHosts.length > 3 ? "…" : ""}
@@ -804,8 +817,9 @@ export default function TrafficPage() {
               )}
               {deleteMode === "filter" && (
                 <>
-                  Serão excluídos permanentemente todos os registros de tráfego cujo host contém <span className="font-mono font-semibold">{hostQ}</span>{" "}
-                  (incluindo o texto bruto de requisição/resposta). Esta ação não pode ser desfeita.
+                  Serão excluídos permanentemente todos os registros de tráfego cujo host contém{" "}
+                  <span className="font-mono font-semibold">{hostQ}</span> (incluindo o texto bruto de
+                  requisição/resposta). Esta ação não pode ser desfeita.
                 </>
               )}
             </AlertDialogDescription>
@@ -813,6 +827,7 @@ export default function TrafficPage() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={(e) => {
                 e.preventDefault();
                 confirmDelete();

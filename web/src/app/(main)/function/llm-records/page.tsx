@@ -1,16 +1,17 @@
 "use client";
 
 import * as React from "react";
+
 import {
-  RadioIcon,
-  SearchIcon,
+  CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  Loader2Icon,
-  XIcon,
-  Trash2Icon,
   CopyIcon,
-  CheckIcon,
+  Loader2Icon,
+  RadioIcon,
+  SearchIcon,
+  Trash2Icon,
+  XIcon,
 } from "lucide-react";
 
 import {
@@ -23,33 +24,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/lib/api";
-import type { LLMRecordItem, LLMRecordDetail, LLMTask } from "@/lib/types";
+import type { LLMRecordDetail, LLMRecordItem, LLMTask } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 function fmtTime(ts: string) {
-  return new Date(ts).toLocaleString("zh-CN", {
+  return new Date(ts).toLocaleString("pt-BR", {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -80,7 +67,12 @@ function tryFormatJSON(s: string): string {
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = React.useState(false);
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  React.useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  React.useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
 
   const disabled = !text;
   const copy = async () => {
@@ -95,7 +87,11 @@ function CopyButton({ text }: { text: string }) {
       ta.style.opacity = "0";
       document.body.appendChild(ta);
       ta.select();
-      try { document.execCommand("copy"); } catch { /* ignora: se não houver suporte, falha em silêncio */ }
+      try {
+        document.execCommand("copy");
+      } catch {
+        /* ignora: se não houver suporte, falha em silêncio */
+      }
       document.body.removeChild(ta);
     }
     setCopied(true);
@@ -151,9 +147,7 @@ export default function LLMRecordsPage() {
   const reqText = showRaw
     ? detail?.raw_request && tryFormatJSON(detail.raw_request)
     : detail?.request_body && tryFormatJSON(detail.request_body);
-  const respText = showRaw
-    ? detail?.raw_response
-    : detail?.response_body && tryFormatJSON(detail.response_body);
+  const respText = showRaw ? detail?.raw_response : detail?.response_body && tryFormatJSON(detail.response_body);
 
   // Per-task delete (task picker + confirm dialog)
   const [tasks, setTasks] = React.useState<LLMTask[]>([]);
@@ -167,9 +161,13 @@ export default function LLMRecordsPage() {
     let alive = true;
     api
       .settings()
-      .then((s) => { if (alive) setRecEnabled(!!s.llm_record); })
+      .then((s) => {
+        if (alive) setRecEnabled(!!s.llm_record);
+      })
       .catch(() => {});
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const toggleRecording = async (on: boolean) => {
@@ -201,7 +199,13 @@ export default function LLMRecordsPage() {
     let alive = true;
     setLoading(true);
     api
-      .llmRecords({ model: model || undefined, session: sessionQ || undefined, task: pickedTask || undefined, page, size })
+      .llmRecords({
+        model: model || undefined,
+        session: sessionQ || undefined,
+        task: pickedTask || undefined,
+        page,
+        size,
+      })
       .then((r) => {
         if (!alive) return;
         setRecords(r.records ?? []);
@@ -211,9 +215,13 @@ export default function LLMRecordsPage() {
       .finally(() => alive && setLoading(false));
     api
       .llmTasks()
-      .then((r) => { if (alive) setTasks(r.tasks ?? []); })
+      .then((r) => {
+        if (alive) setTasks(r.tasks ?? []);
+      })
       .catch(() => {});
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [page, size, sessionQ, model, pickedTask, reloadTick]);
 
   // Delete every LLM record for the picked task, then refetch.
@@ -244,10 +252,16 @@ export default function LLMRecordsPage() {
     setDetail(null);
     api
       .llmRecordDetail(selected.id)
-      .then((d) => { if (alive) setDetail(d); })
+      .then((d) => {
+        if (alive) setDetail(d);
+      })
       .catch(() => {})
-      .finally(() => { if (alive) setDetailLoading(false); });
-    return () => { alive = false; };
+      .finally(() => {
+        if (alive) setDetailLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
   }, [selected]);
 
   const totalPages = Math.max(1, Math.ceil(total / size));
@@ -276,12 +290,7 @@ export default function LLMRecordsPage() {
             className="h-8 pl-8"
           />
         </div>
-        <Input
-          placeholder="Model"
-          className="h-8 w-48"
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-        />
+        <Input placeholder="Model" className="h-8 w-48" value={model} onChange={(e) => setModel(e.target.value)} />
         <Select value={pickedTask} onValueChange={setPickedTask}>
           <SelectTrigger size="sm" className="w-56">
             <SelectValue placeholder="Selecione a tarefa…" />
@@ -407,15 +416,10 @@ export default function LLMRecordsPage() {
                   records.map((rec) => (
                     <TableRow
                       key={rec.id}
-                      className={cn(
-                        "cursor-pointer",
-                        selected?.id === rec.id && "bg-accent hover:bg-accent",
-                      )}
+                      className={cn("cursor-pointer", selected?.id === rec.id && "bg-accent hover:bg-accent")}
                       onClick={() => setSelected(rec)}
                     >
-                      <TableCell className="text-xs text-muted-foreground tabular-nums">
-                        {fmtTime(rec.ts)}
-                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground tabular-nums">{fmtTime(rec.ts)}</TableCell>
                       <TableCell className="text-xs font-mono text-muted-foreground">
                         {rec.task_id ? `#${rec.task_id}` : "-"}
                       </TableCell>
@@ -442,9 +446,13 @@ export default function LLMRecordsPage() {
                       </TableCell>
                       <TableCell>
                         {rec.status === "ok" ? (
-                          <Badge variant="secondary" className="text-xs text-emerald-600">OK</Badge>
+                          <Badge variant="secondary" className="text-xs text-emerald-600">
+                            OK
+                          </Badge>
                         ) : (
-                          <Badge variant="destructive" className="text-xs">Error</Badge>
+                          <Badge variant="destructive" className="text-xs">
+                            Error
+                          </Badge>
                         )}
                       </TableCell>
                     </TableRow>
@@ -474,16 +482,18 @@ export default function LLMRecordsPage() {
                   Tarefa #{selected.task_id}
                 </Badge>
               )}
-              <span className="text-xs text-muted-foreground">
-                {fmtTime(selected.ts)}
-              </span>
+              <span className="text-xs text-muted-foreground">{fmtTime(selected.ts)}</span>
               <span className={cn("text-xs", selected.latency_ms > 30000 && "text-amber-500")}>
                 {fmtLatency(selected.latency_ms)}
               </span>
               {selected.status === "ok" ? (
-                <Badge variant="secondary" className="text-xs text-emerald-600">OK</Badge>
+                <Badge variant="secondary" className="text-xs text-emerald-600">
+                  OK
+                </Badge>
               ) : (
-                <Badge variant="destructive" className="text-xs">Error</Badge>
+                <Badge variant="destructive" className="text-xs">
+                  Error
+                </Badge>
               )}
               {/* Alternador da visão bruta. Registros antigos não têm texto bruto; aqui fica desabilitado em vez de recuar em silêncio, para não parecer
                   "o texto bruto e o interpretado coincidem". */}
@@ -492,17 +502,16 @@ export default function LLMRecordsPage() {
                 size="sm"
                 className="ml-auto h-7 shrink-0 text-xs"
                 disabled={!hasRaw}
-                title={hasRaw ? "Ver o texto HTTP bruto realmente trocado com o provider" : "Este registro foi gravado antes desta função existir; sem texto bruto"}
+                title={
+                  hasRaw
+                    ? "Ver o texto HTTP bruto realmente trocado com o provider"
+                    : "Este registro foi gravado antes desta função existir; sem texto bruto"
+                }
                 onClick={() => setRawView((v) => !v)}
               >
                 Bruto
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7 shrink-0"
-                onClick={() => setSelected(null)}
-              >
+              <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => setSelected(null)}>
                 <XIcon />
               </Button>
             </div>
@@ -520,9 +529,7 @@ export default function LLMRecordsPage() {
                       Carregando…
                     </div>
                   ) : (
-                    <pre className="p-3 font-mono text-xs break-all whitespace-pre-wrap">
-                      {reqText || "(vazio)"}
-                    </pre>
+                    <pre className="p-3 font-mono text-xs break-all whitespace-pre-wrap">{reqText || "(vazio)"}</pre>
                   )}
                 </div>
               </div>
@@ -538,10 +545,12 @@ export default function LLMRecordsPage() {
                       Carregando…
                     </div>
                   ) : (
-                    <pre className={cn(
-                      "p-3 font-mono text-xs break-all whitespace-pre-wrap",
-                      selected.status !== "ok" && "text-red-600 dark:text-red-400",
-                    )}>
+                    <pre
+                      className={cn(
+                        "p-3 font-mono text-xs break-all whitespace-pre-wrap",
+                        selected.status !== "ok" && "text-red-600 dark:text-red-400",
+                      )}
+                    >
                       {respText || "(vazio)"}
                     </pre>
                   )}
@@ -557,12 +566,14 @@ export default function LLMRecordsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir todas as conversas de LLM da tarefa "{pickedTask}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              Todos os registros de chamadas de LLM desta tarefa (incluindo o texto bruto de requisição/resposta) serão excluídos permanentemente. Esta ação não pode ser desfeita.
+              Todos os registros de chamadas de LLM desta tarefa (incluindo o texto bruto de requisição/resposta) serão
+              excluídos permanentemente. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={(e) => {
                 e.preventDefault();
                 confirmDelete();
