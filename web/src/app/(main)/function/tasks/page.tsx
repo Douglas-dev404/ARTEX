@@ -210,7 +210,8 @@ function deleteDetails(result: DeleteCounts): string[] {
   if (result.traffic_deleted > 0) details.push(`${result.traffic_deleted} registros de tráfego excluídos`);
   if (result.files_deleted) details.push("arquivos da tarefa excluídos");
   if (result.findings_deleted > 0) details.push(`${result.findings_deleted} achados excluídos`);
-  if (result.llm_records_deleted > 0) details.push(`${result.llm_records_deleted} registros de requisição/resposta de LLM excluídos`);
+  if (result.llm_records_deleted > 0)
+    details.push(`${result.llm_records_deleted} registros de requisição/resposta de LLM excluídos`);
   return details;
 }
 
@@ -530,7 +531,9 @@ export default function TasksPage() {
       try {
         const result = await api.deleteTask(id, options);
         if (result.cleanup_warning) {
-          toast.warning(`${deleteSummary(result)}; parte da limpeza de dados externos não foi concluída: ${result.cleanup_warning}`);
+          toast.warning(
+            `${deleteSummary(result)}; parte da limpeza de dados externos não foi concluída: ${result.cleanup_warning}`,
+          );
         } else {
           toast.success(deleteSummary(result));
         }
@@ -551,7 +554,9 @@ export default function TasksPage() {
       try {
         const result = await api.controlTask(id, action);
         toast.success(
-          action === "pause" ? `Tarefa #${id} pausada` : `Tarefa #${id} retomada${result.queued ? ", entrou na fila" : ""}`,
+          action === "pause"
+            ? `Tarefa #${id} pausada`
+            : `Tarefa #${id} retomada${result.queued ? ", entrou na fila" : ""}`,
         );
       } catch (e) {
         toast.error(`Falha ao ${action === "pause" ? "pausar" : "retomar"}: ${(e as Error).message}`);
@@ -733,7 +738,9 @@ export default function TasksPage() {
         lastRef.current = "";
         load();
       } catch (error) {
-        toast.error(`Falha ao ${action === "pause" ? "pausar em lote" : "retomar em lote"}: ${(error as Error).message}`);
+        toast.error(
+          `Falha ao ${action === "pause" ? "pausar em lote" : "retomar em lote"}: ${(error as Error).message}`,
+        );
       } finally {
         setBatchControlling(null);
       }
@@ -765,7 +772,9 @@ export default function TasksPage() {
             .slice(0, 3)
             .map((item) => `#${item.id} (${item.error || "a tarefa não existe mais"})`)
             .join("; ");
-          toast.error(`${failed.length} tarefas não puderam ser movidas: ${details}${failed.length > 3 ? " e outras" : ""}`);
+          toast.error(
+            `${failed.length} tarefas não puderam ser movidas: ${details}${failed.length > 3 ? " e outras" : ""}`,
+          );
         }
         refreshCategoriesAndTasks();
       } catch (error) {
@@ -1046,7 +1055,8 @@ function SortableTaskHead({
   if (active) ariaSort = direction === "asc" ? "ascending" : "descending";
 
   let actionLabel = `Ordenar por ${label} (decrescente)`;
-  if (active) actionLabel = `${label} está ${direction === "asc" ? "crescente" : "decrescente"}; clique para alternar a direção`;
+  if (active)
+    actionLabel = `${label} está ${direction === "asc" ? "crescente" : "decrescente"}; clique para alternar a direção`;
 
   return (
     <TableHead className={className} aria-sort={ariaSort}>
@@ -1093,7 +1103,11 @@ function ConcurrencySettingsDialog() {
     setSaving(true);
     try {
       await api.setSettings({ task_concurrency_enabled: enabled, task_concurrency_limit: nextLimit });
-      toast.success(enabled ? `Limite de concorrência ativado: até ${nextLimit} tarefas simultâneas` : "Limite de concorrência de tarefas desativado");
+      toast.success(
+        enabled
+          ? `Limite de concorrência ativado: até ${nextLimit} tarefas simultâneas`
+          : "Limite de concorrência de tarefas desativado",
+      );
       setOpen(false);
     } catch (error) {
       toast.error(`Falha ao salvar: ${(error as Error).message}`);
@@ -1113,7 +1127,8 @@ function ConcurrencySettingsDialog() {
         <DialogHeader>
           <DialogTitle>Limite de concorrência de tarefas</DialogTitle>
           <DialogDescription>
-            Limita o número de tarefas em execução simultânea. Ao atingir o limite, novas tarefas entram na fila por ordem de criação e iniciam automaticamente quando houver vaga.
+            Limita o número de tarefas em execução simultânea. Ao atingir o limite, novas tarefas entram na fila por
+            ordem de criação e iniciam automaticamente quando houver vaga.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-5 py-2">
@@ -1196,7 +1211,10 @@ const TaskRow = React.memo(function TaskRow({
           {taskIsPinned(task) && <PinIcon className="text-primary size-4 shrink-0" aria-label="Fixada" />}
         </div>
       </TableCell>
-      <TableCell className="text-muted-foreground max-w-40">
+      {/* A descrição é o que identifica a tarefa na lista, então leva mais
+          espaço que o objetivo; com os 160px antigos, os dois campos saíam
+          cortados em toda linha em português. */}
+      <TableCell className="text-muted-foreground min-w-56 max-w-80">
         <Link
           href={`/function/tasks/detail?id=${encodeURIComponent(task.id)}`}
           className="block truncate rounded-sm hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -1205,7 +1223,7 @@ const TaskRow = React.memo(function TaskRow({
           {task.description}
         </Link>
       </TableCell>
-      <TableCell className="text-muted-foreground max-w-40 truncate" title={task.goal}>
+      <TableCell className="text-muted-foreground max-w-64 truncate" title={task.goal}>
         {task.goal}
       </TableCell>
       <TableCell>
@@ -1223,9 +1241,7 @@ const TaskRow = React.memo(function TaskRow({
           const f = task.findings;
           const total = f ? f.critical + f.high + f.medium + f.low : 0;
           if (!f || total === 0) return <span className="text-muted-foreground">0</span>;
-          const seg = (n: number, cls: string) => (
-            <span className={n > 0 ? cls : "text-muted-foreground"}>{n}</span>
-          );
+          const seg = (n: number, cls: string) => <span className={n > 0 ? cls : "text-muted-foreground"}>{n}</span>;
           return (
             <span className="font-medium whitespace-nowrap" title="Crítico / Alto / Médio / Baixo">
               {seg(f.critical, "text-rose-600 dark:text-rose-400")}
@@ -1282,7 +1298,13 @@ const TaskRow = React.memo(function TaskRow({
       </TableCell>
       <TableCell className="sticky right-0 z-10 bg-card text-right shadow-[-1px_0_0_0_hsl(var(--border))] group-hover:bg-muted/50">
         <div className="flex items-center justify-end gap-0.5">
-          <Button size="icon" variant="ghost" asChild aria-label="Ver detalhes da tarefa" title="Ver detalhes da tarefa">
+          <Button
+            size="icon"
+            variant="ghost"
+            asChild
+            aria-label="Ver detalhes da tarefa"
+            title="Ver detalhes da tarefa"
+          >
             <Link href={`/function/tasks/detail?id=${encodeURIComponent(task.id)}`}>
               <EyeIcon />
             </Link>
@@ -1466,7 +1488,8 @@ function TaskControlButton({
 
 function archiveBlockReason(task: Task): string {
   if (task.queued) return "Tarefas na fila devem ser pausadas primeiro";
-  if (!ARCHIVABLE_STATUSES.has(task.status)) return "Tarefas em execução ou não finalizadas devem ser pausadas primeiro";
+  if (!ARCHIVABLE_STATUSES.has(task.status))
+    return "Tarefas em execução ou não finalizadas devem ser pausadas primeiro";
   if (task.archive_blocked_by_task_id) {
     return `Esta tarefa é herdada diretamente pela tarefa não arquivada #${task.archive_blocked_by_task_id}; arquive a tarefa dependente primeiro`;
   }
@@ -1491,7 +1514,8 @@ function ArchiveConfirmDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>{count === 1 ? "Arquivar tarefa" : `Arquivar ${count} tarefas`}</AlertDialogTitle>
           <AlertDialogDescription className="[overflow-wrap:anywhere]">
-            Arquivar interrompe o agendamento da tarefa e compacta o grafo, o histórico de LLM, os arquivos e os ativos/tráfego exclusivos em armazenamento frio local. É possível restaurar depois em "Arquivadas".
+            Arquivar interrompe o agendamento da tarefa e compacta o grafo, o histórico de LLM, os arquivos e os
+            ativos/tráfego exclusivos em armazenamento frio local. É possível restaurar depois em "Arquivadas".
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -1618,7 +1642,8 @@ function ArchiveDeleteDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Excluir permanentemente {archives.length} arquivamentos de tarefa?</AlertDialogTitle>
           <AlertDialogDescription className="[overflow-wrap:anywhere]">
-            Isso excluirá permanentemente cerca de {formatArchiveBytes(bytes)} de pacotes arquivados e {rows.toLocaleString()} snapshots de dados associados. Esta ação não pode ser desfeita.
+            Isso excluirá permanentemente cerca de {formatArchiveBytes(bytes)} de pacotes arquivados e{" "}
+            {rows.toLocaleString()} snapshots de dados associados. Esta ação não pode ser desfeita.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -1861,7 +1886,9 @@ function TaskArchivesPanel({ onChanged }: { onChanged: () => void }) {
           <Empty className="mx-4 border border-dashed lg:mx-6">
             <EmptyHeader>
               <EmptyTitle>Nenhum arquivamento de tarefa</EmptyTitle>
-              <EmptyDescription>Tarefas pausadas ou em estado final podem ser arquivadas a partir da lista de tarefas atuais.</EmptyDescription>
+              <EmptyDescription>
+                Tarefas pausadas ou em estado final podem ser arquivadas a partir da lista de tarefas atuais.
+              </EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
@@ -1982,7 +2009,12 @@ function TaskArchivesPanel({ onChanged }: { onChanged: () => void }) {
                             archives={[archive]}
                             onConfirm={() => deleteMany([archive])}
                             trigger={
-                              <Button size="icon" variant="ghost" aria-label="Excluir arquivamento permanentemente" title="Excluir permanentemente">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                aria-label="Excluir arquivamento permanentemente"
+                                title="Excluir permanentemente"
+                              >
                                 <Trash2Icon />
                               </Button>
                             }
@@ -2075,7 +2107,10 @@ function DeleteOptionFields({
           />
           <FieldContent>
             <FieldLabel htmlFor={`delete-all-${idPrefix}`}>Excluir tudo</FieldLabel>
-            <FieldDescription>Marca todos os dados associados abaixo, incluindo ativos, tráfego, arquivos, achados e registros de requisição/resposta de LLM.</FieldDescription>
+            <FieldDescription>
+              Marca todos os dados associados abaixo, incluindo ativos, tráfego, arquivos, achados e registros de
+              requisição/resposta de LLM.
+            </FieldDescription>
           </FieldContent>
         </Field>
         <Field orientation="horizontal">
@@ -2086,7 +2121,10 @@ function DeleteOptionFields({
           />
           <FieldContent>
             <FieldLabel htmlFor={`delete-assets-${idPrefix}`}>Ativos associados</FieldLabel>
-            <FieldDescription>Exclui ativos pertencentes apenas a esta tarefa; ativos compartilhados apenas são desvinculados desta tarefa.</FieldDescription>
+            <FieldDescription>
+              Exclui ativos pertencentes apenas a esta tarefa; ativos compartilhados apenas são desvinculados desta
+              tarefa.
+            </FieldDescription>
           </FieldContent>
         </Field>
         <Field orientation="horizontal">
@@ -2097,7 +2135,10 @@ function DeleteOptionFields({
           />
           <FieldContent>
             <FieldLabel htmlFor={`delete-traffic-${idPrefix}`}>Tráfego associado</FieldLabel>
-            <FieldDescription>Exclui pelo hostname exato dos ativos associados; o tráfego de hosts compartilhados ainda referenciados por outras tarefas é mantido.</FieldDescription>
+            <FieldDescription>
+              Exclui pelo hostname exato dos ativos associados; o tráfego de hosts compartilhados ainda referenciados
+              por outras tarefas é mantido.
+            </FieldDescription>
           </FieldContent>
         </Field>
         <Field orientation="horizontal">
@@ -2108,7 +2149,9 @@ function DeleteOptionFields({
           />
           <FieldContent>
             <FieldLabel htmlFor={`delete-files-${idPrefix}`}>Arquivos da tarefa</FieldLabel>
-            <FieldDescription>Exclui os arquivos enviados, saídas de comandos e outros artefatos no diretório de trabalho desta tarefa.</FieldDescription>
+            <FieldDescription>
+              Exclui os arquivos enviados, saídas de comandos e outros artefatos no diretório de trabalho desta tarefa.
+            </FieldDescription>
           </FieldContent>
         </Field>
         <Field orientation="horizontal">
@@ -2119,7 +2162,9 @@ function DeleteOptionFields({
           />
           <FieldContent>
             <FieldLabel htmlFor={`delete-findings-${idPrefix}`}>Achados associados</FieldLabel>
-            <FieldDescription>Exclui permanentemente os registros e relatórios de achados independentes gerados por esta tarefa.</FieldDescription>
+            <FieldDescription>
+              Exclui permanentemente os registros e relatórios de achados independentes gerados por esta tarefa.
+            </FieldDescription>
           </FieldContent>
         </Field>
         <Field orientation="horizontal">
@@ -2130,7 +2175,10 @@ function DeleteOptionFields({
           />
           <FieldContent>
             <FieldLabel htmlFor={`delete-llm-records-${idPrefix}`}>Registros de requisição/resposta de LLM</FieldLabel>
-            <FieldDescription>Exclui permanentemente as requisições, respostas, tokens e detalhes de erro de LLM registrados nesta tarefa.</FieldDescription>
+            <FieldDescription>
+              Exclui permanentemente as requisições, respostas, tokens e detalhes de erro de LLM registrados nesta
+              tarefa.
+            </FieldDescription>
           </FieldContent>
         </Field>
       </FieldGroup>
@@ -2187,8 +2235,8 @@ function DeleteTaskDialog({
               </>
             ) : (
               "esta tarefa"
-            )}
-            {" "}serão excluídos permanentemente.
+            )}{" "}
+            serão excluídos permanentemente.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <DeleteOptionFields idPrefix={task.id} options={options} onOptionsChange={setOptions} disabled={deleting} />
@@ -2247,7 +2295,10 @@ function MoveTasksCategoryDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Alterar a categoria das {count} tarefas selecionadas</DialogTitle>
-          <DialogDescription>A categoria de destino se aplica a todas as tarefas selecionadas; escolher "Sem categoria" remove a categoria atual delas.</DialogDescription>
+          <DialogDescription>
+            A categoria de destino se aplica a todas as tarefas selecionadas; escolher "Sem categoria" remove a
+            categoria atual delas.
+          </DialogDescription>
         </DialogHeader>
         <Field>
           <FieldLabel htmlFor="bulk-category">Categoria de destino</FieldLabel>
@@ -2266,7 +2317,9 @@ function MoveTasksCategoryDialog({
               </SelectGroup>
             </SelectContent>
           </Select>
-          {categories.length === 0 && <FieldDescription>Ainda não há categorias; crie uma primeiro em "Gerenciar categorias".</FieldDescription>}
+          {categories.length === 0 && (
+            <FieldDescription>Ainda não há categorias; crie uma primeiro em "Gerenciar categorias".</FieldDescription>
+          )}
         </Field>
         <DialogFooter>
           <DialogClose asChild>
@@ -2332,7 +2385,8 @@ function BulkDeleteTasksDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmar exclusão das {ids.length} tarefas selecionadas?</AlertDialogTitle>
           <AlertDialogDescription>
-            O histórico de execução e o grafo de exploração dessas tarefas serão excluídos permanentemente; as opções de limpeza abaixo se aplicam a todas as tarefas selecionadas.
+            O histórico de execução e o grafo de exploração dessas tarefas serão excluídos permanentemente; as opções de
+            limpeza abaixo se aplicam a todas as tarefas selecionadas.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="text-muted-foreground flex flex-wrap gap-1 text-xs">
@@ -2405,7 +2459,11 @@ function SourceTaskPicker({
         </ComboboxValue>
         <ComboboxChipsInput
           id="source-tasks"
-          placeholder={atLimit ? `Máximo de ${MAX_SOURCE_TASKS} tarefas associadas` : "Buscar por ID, descrição ou objetivo da tarefa"}
+          placeholder={
+            atLimit
+              ? `Máximo de ${MAX_SOURCE_TASKS} tarefas associadas`
+              : "Buscar por ID, descrição ou objetivo da tarefa"
+          }
           disabled={atLimit}
         />
       </ComboboxChips>
@@ -2521,7 +2579,9 @@ function CategoryPicker({
         </ComboboxValue>
         <ComboboxChipsInput
           id="task-category"
-          placeholder={selectedIDs.length ? "" : "Buscar categoria ou digitar um novo nome e pressionar Enter para criar"}
+          placeholder={
+            selectedIDs.length ? "" : "Buscar categoria ou digitar um novo nome e pressionar Enter para criar"
+          }
           onKeyDown={(e) => {
             // Sem nenhuma correspondência, Enter = criar; havendo correspondências, mantém o "Enter seleciona o item destacado" do base-ui.
             if (e.key === "Enter" && matchCount === 0 && trimmed) {
@@ -2551,7 +2611,9 @@ function CategoryPicker({
               Criar categoria "{trimmed}"
             </button>
           ) : (
-            <div className="px-2 py-2 text-sm text-muted-foreground">Digite um nome para buscar ou criar uma categoria</div>
+            <div className="px-2 py-2 text-sm text-muted-foreground">
+              Digite um nome para buscar ou criar uma categoria
+            </div>
           ))}
       </ComboboxContent>
     </Combobox>
@@ -2622,7 +2684,9 @@ function CompanyPicker({
               <ComboboxItem key={companyID} value={companyID}>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate font-medium">{company?.name ?? `Empresa #${companyID}`}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium">
+                      {company?.name ?? `Empresa #${companyID}`}
+                    </span>
                     <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                       {company?.asset_count ?? 0} ativos
                     </span>
@@ -2673,7 +2737,9 @@ function CategoryDropTarget({
       onClick={onSelect}
     >
       <span className="block truncate font-medium text-sm">{name}</span>
-      <span className="block truncate text-muted-foreground text-xs">{isOver ? "Solte para mover" : `${count} tarefas`}</span>
+      <span className="block truncate text-muted-foreground text-xs">
+        {isOver ? "Solte para mover" : `${count} tarefas`}
+      </span>
     </button>
   );
 }
@@ -2906,7 +2972,10 @@ function CategoryManagementSheet({
         <SheetContent className="grid h-full w-full! max-w-none! grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:w-[48rem]! sm:max-w-[48rem]!">
           <SheetHeader className="border-b px-6 py-5">
             <SheetTitle>Gerenciar categorias de tarefas</SheetTitle>
-            <SheetDescription>As categorias servem para filtrar e arquivar tarefas; alterações não afetam a execução, e excluir move as tarefas para Sem categoria.</SheetDescription>
+            <SheetDescription>
+              As categorias servem para filtrar e arquivar tarefas; alterações não afetam a execução, e excluir move as
+              tarefas para Sem categoria.
+            </SheetDescription>
           </SheetHeader>
           <DndContext
             sensors={sensors}
@@ -2981,8 +3050,12 @@ function CategoryManagementSheet({
                       {visibleTasks.length === 0 ? (
                         <Empty className="min-h-36 border">
                           <EmptyHeader>
-                            <EmptyTitle>{selectedCategory ? "Nenhuma tarefa nesta categoria" : "Nenhuma tarefa sem categoria"}</EmptyTitle>
-                            <EmptyDescription>O conteúdo aparecerá aqui quando tarefas forem atribuídas.</EmptyDescription>
+                            <EmptyTitle>
+                              {selectedCategory ? "Nenhuma tarefa nesta categoria" : "Nenhuma tarefa sem categoria"}
+                            </EmptyTitle>
+                            <EmptyDescription>
+                              O conteúdo aparecerá aqui quando tarefas forem atribuídas.
+                            </EmptyDescription>
                           </EmptyHeader>
                         </Empty>
                       ) : (
@@ -3038,7 +3111,8 @@ function CategoryManagementSheet({
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir categoria "{selectedCategory?.name || "Categoria sem nome"}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              Após a exclusão, as {selectedCategory?.task_count ?? 0} tarefas nela serão movidas automaticamente para "Sem categoria"; os dados das tarefas não serão excluídos.
+              Após a exclusão, as {selectedCategory?.task_count ?? 0} tarefas nela serão movidas automaticamente para
+              "Sem categoria"; os dados das tarefas não serão excluídos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -3200,7 +3274,9 @@ function CreateTaskSheet({
       >
         <SheetHeader className="border-b p-6">
           <SheetTitle>Nova tarefa</SheetTitle>
-          <SheetDescription>Preencha o alvo e o objetivo do teste; os parâmetros avançados podem ser expandidos conforme necessário.</SheetDescription>
+          <SheetDescription>
+            Preencha o alvo e o objetivo do teste; os parâmetros avançados podem ser expandidos conforme necessário.
+          </SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto p-6">
@@ -3239,7 +3315,10 @@ function CreateTaskSheet({
                 onCategoryCreated={onCategoriesChanged}
                 portalContainer={sheetContentRef}
               />
-              <FieldDescription>Opcional, categoria única; usada para filtrar e arquivar na lista de tarefas, não afeta a execução do Agent.</FieldDescription>
+              <FieldDescription>
+                Opcional, categoria única; usada para filtrar e arquivar na lista de tarefas, não afeta a execução do
+                Agent.
+              </FieldDescription>
             </Field>
             <div className="grid gap-2">
               <Label htmlFor="description">Descrição</Label>
@@ -3295,8 +3374,9 @@ function CreateTaskSheet({
                 portalContainer={sheetContentRef}
               />
               <FieldDescription>
-                Máximo de {MAX_SOURCE_TASKS}{" "}
-                tarefas. Herda em tempo real e somente leitura o quadro persistente, o escopo de ativos e o tráfego relacionado das tarefas selecionadas; a nova tarefa escreve em seu próprio quadro.
+                Máximo de {MAX_SOURCE_TASKS} tarefas. Herda em tempo real e somente leitura o quadro persistente, o
+                escopo de ativos e o tráfego relacionado das tarefas selecionadas; a nova tarefa escreve em seu próprio
+                quadro.
               </FieldDescription>
             </Field>
             <Field>
@@ -3308,15 +3388,21 @@ function CreateTaskSheet({
                 portalContainer={sheetContentRef}
               />
               <FieldDescription>
-                Ao criar a tarefa, os ativos atuais da empresa selecionada são adicionados aos "ativos de teste", e domínios, IPs, CIDRs, ICPs e palavras-chave da empresa são fornecidos ao Agent
-                como contexto de escopo; isso não gera intenções automaticamente nem força mudanças no objetivo de execução.
+                Ao criar a tarefa, os ativos atuais da empresa selecionada são adicionados aos "ativos de teste", e
+                domínios, IPs, CIDRs, ICPs e palavras-chave da empresa são fornecidos ao Agent como contexto de escopo;
+                isso não gera intenções automaticamente nem força mudanças no objetivo de execução.
               </FieldDescription>
             </Field>
             <Field>
-              <FieldLabel htmlFor="task-intercept-rules">Regras de bloqueio/permissão de ativos no nível da tarefa (opcional)</FieldLabel>
+              <FieldLabel htmlFor="task-intercept-rules">
+                Regras de bloqueio/permissão de ativos no nível da tarefa (opcional)
+              </FieldLabel>
               <AssetInterceptRulesEditor value={interceptRules} onChange={setInterceptRules} />
               <FieldDescription>
-                Vale apenas para esta tarefa, não é escrito nas regras globais. Ordem de avaliação: primeiro as regras de "bloqueio" (incluindo globais); se corresponder, o teste é proibido; se não corresponder e esta tarefa tiver regras de "permissão" configuradas, é preciso corresponder a uma delas para liberar, senão o teste também é proibido; sem regras de permissão configuradas, a lista branca não é ativada.
+                Vale apenas para esta tarefa, não é escrito nas regras globais. Ordem de avaliação: primeiro as regras
+                de "bloqueio" (incluindo globais); se corresponder, o teste é proibido; se não corresponder e esta
+                tarefa tiver regras de "permissão" configuradas, é preciso corresponder a uma delas para liberar, senão
+                o teste também é proibido; sem regras de permissão configuradas, a lista branca não é ativada.
               </FieldDescription>
             </Field>
             <Field>
@@ -3328,7 +3414,10 @@ function CreateTaskSheet({
                 inputId="llm-profiles"
                 portalContainer={sheetContentRef}
               />
-              <FieldDescription>Failover na ordem da lista; o primeiro item é a configuração atual, só passa para o próximo quando a cota se esgota de forma explícita.</FieldDescription>
+              <FieldDescription>
+                Failover na ordem da lista; o primeiro item é a configuração atual, só passa para o próximo quando a
+                cota se esgota de forma explícita.
+              </FieldDescription>
             </Field>
 
             {/* Parâmetros avançados ficam recolhidos por padrão: timeout/heartbeat/primeira intenção, só ocupam espaço ao expandir, mantendo o fluxo comum limpo. */}
@@ -3336,7 +3425,9 @@ function CreateTaskSheet({
               <CollapsibleTrigger className="group flex w-full items-center gap-2 border-t pt-4 text-sm font-medium">
                 <ChevronRightIcon className="text-muted-foreground size-4 transition-transform group-data-[state=open]:rotate-90" />
                 Configurações avançadas
-                <span className="text-muted-foreground ml-auto text-xs font-normal">Timeout · Heartbeat · Primeira intenção</span>
+                <span className="text-muted-foreground ml-auto text-xs font-normal">
+                  Timeout · Heartbeat · Primeira intenção
+                </span>
               </CollapsibleTrigger>
               <CollapsibleContent className="grid gap-5 pt-5">
                 <div className="grid gap-2">
@@ -3351,7 +3442,8 @@ function CreateTaskSheet({
                     onChange={(e) => setTimeoutMin(e.target.value)}
                   />
                   <p className="text-muted-foreground text-xs">
-                    Ao atingir o limite, dispara um encerramento gracioso (cada agent grava seu estado + o planner faz o julgamento final) e a tarefa entra no estado final de timeout.
+                    Ao atingir o limite, dispara um encerramento gracioso (cada agent grava seu estado + o planner faz o
+                    julgamento final) e a tarefa entra no estado final de timeout.
                   </p>
                 </div>
                 <div className="grid gap-2">
@@ -3366,8 +3458,9 @@ function CreateTaskSheet({
                     onChange={(e) => setHeartbeatMin(e.target.value)}
                   />
                   <p className="text-muted-foreground text-xs">
-                    Quando esse tempo se esgota desde o fim do último planejamento (ou início da tarefa) sem nenhum gatilho, dispara automaticamente uma rodada de planejamento (proteção contra travamento + acorda para supervisionar os
-                    workers em execução). Mínimo de 10 minutos.
+                    Quando esse tempo se esgota desde o fim do último planejamento (ou início da tarefa) sem nenhum
+                    gatilho, dispara automaticamente uma rodada de planejamento (proteção contra travamento + acorda
+                    para supervisionar os workers em execução). Mínimo de 10 minutos.
                   </p>
                 </div>
                 <div className="grid gap-2">
@@ -3380,7 +3473,10 @@ function CreateTaskSheet({
                     Enviar a primeira intenção diretamente (descrição + objetivo)
                   </label>
                   <p className="text-muted-foreground text-xs">
-                    Quando ativado, "descrição + objetivo" é enviado como uma intenção já na criação, o worker começa sem esperar o primeiro planejamento, e o planner assume o julgamento/complemento depois. Recomendado para cenários como CTF, onde um único work geralmente resolve; desativado segue o fluxo padrão de planejar antes de executar.
+                    Quando ativado, "descrição + objetivo" é enviado como uma intenção já na criação, o worker começa
+                    sem esperar o primeiro planejamento, e o planner assume o julgamento/complemento depois. Recomendado
+                    para cenários como CTF, onde um único work geralmente resolve; desativado segue o fluxo padrão de
+                    planejar antes de executar.
                   </p>
                 </div>
                 <div className="grid gap-2">
@@ -3393,8 +3489,10 @@ function CreateTaskSheet({
                     Recurso de cobertura de ativos
                   </label>
                   <p className="text-muted-foreground text-xs">
-                    Ativado por padrão: calcula e exibe a cobertura de testes, o grafo mostra o progresso dos testes, e o escopo testado é acumulado automaticamente. Quando desativado, a cobertura não é mais calculada/exibida,
-                    o grafo mostra apenas os ativos sem progresso, e o agent perde acesso às ferramentas de escopo. Desativar não afeta o "Escopo de ativos da empresa associada".
+                    Ativado por padrão: calcula e exibe a cobertura de testes, o grafo mostra o progresso dos testes, e
+                    o escopo testado é acumulado automaticamente. Quando desativado, a cobertura não é mais
+                    calculada/exibida, o grafo mostra apenas os ativos sem progresso, e o agent perde acesso às
+                    ferramentas de escopo. Desativar não afeta o "Escopo de ativos da empresa associada".
                   </p>
                 </div>
               </CollapsibleContent>
