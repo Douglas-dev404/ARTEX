@@ -376,7 +376,7 @@ CREATE TABLE IF NOT EXISTS llm_profiles (
     reasoning_effort TEXT NOT NULL DEFAULT '',
     thinking_type    TEXT NOT NULL DEFAULT '',
     is_default       BOOLEAN NOT NULL DEFAULT false,
-    -- Parâmetros de rodízio (failover), ver docs/LLM轮询设计.md:
+    -- Parâmetros de rodízio (failover), ver docs/LLM-rodizio.md:
     --   priority     ordem de prioridade, quanto maior mais cedo é escolhido; a configuração ativa (is_default) fica sempre no início da cadeia, independente deste valor.
     --   pool_exclude true = não serve como alvo de failover (ainda pode ser vinculada explicitamente por agent/tarefa).
     priority         INTEGER NOT NULL DEFAULT 0,
@@ -435,7 +435,7 @@ ALTER TABLE llm_profiles ADD  CONSTRAINT llm_profiles_max_tokens_check
 -- Nome do cabeçalho de sessão customizado; complementa bancos antigos. Padrão '' = não envia, o comportamento das configurações antigas não muda.
 ALTER TABLE llm_profiles ADD COLUMN IF NOT EXISTS session_header_key TEXT NOT NULL DEFAULT '';
 
--- Sobrescrita de retentativa por configuração (ver docs/LLM重试设计.md). Cada um dos três grupos tem um par "quantidade + intervalo fixo",
+-- Sobrescrita de retentativa por configuração (ver docs/LLM-retentativa.md). Cada um dos três grupos tem um par "quantidade + intervalo fixo",
 -- com semântica uniforme: quantidade 0 = segue o padrão global, -1 = desliga a retentativa dessa camada, >0 = usa esse valor; intervalo 0 = segue o
 -- backoff exponencial padrão da camada, >0 = passa a usar esse número fixo de milissegundos. Tudo tem padrão 0, então o comportamento de bancos/configurações antigos não muda.
 --   connect = retentativa de conexão (SDK doStream: connection reset/timeout/429/5xx, antes de o stream começar)
@@ -667,7 +667,7 @@ CREATE TRIGGER trg_task_asset_links_upd BEFORE UPDATE ON task_asset_links
 CREATE OR REPLACE FUNCTION sync_task_asset_links() RETURNS trigger AS $$
 BEGIN
     INSERT INTO task_asset_links(task_id, asset_id, source, source_summary)
-    SELECT task.id, NEW.id, 'system', '任务执行期间自动关联'
+    SELECT task.id, NEW.id, 'system', 'Vinculado automaticamente durante a execução da tarefa'
     FROM unnest(NEW.task_ids) AS requested(task_id)
     JOIN tasks task ON task.id=requested.task_id AND task.deleted_at IS NULL
     ON CONFLICT (task_id, asset_id) DO NOTHING;
@@ -685,11 +685,20 @@ CREATE TRIGGER trg_assets_task_links AFTER INSERT OR UPDATE OF task_ids ON asset
 -- Existing installations receive an auditable legacy source without rewriting
 -- task_ids. Ignore stale array ids that no longer resolve to a live task.
 INSERT INTO task_asset_links(task_id, asset_id, source, source_summary)
-SELECT task.id, asset.id, 'legacy', '由历史任务资产关联迁移'
+SELECT task.id, asset.id, 'legacy', 'Migrado da vinculação histórica de ativos da tarefa'
 FROM assets asset
 CROSS JOIN LATERAL unnest(asset.task_ids) AS requested(task_id)
 JOIN tasks task ON task.id=requested.task_id AND task.deleted_at IS NULL
 ON CONFLICT (task_id, asset_id) DO NOTHING;
+
+-- Os dois textos acima eram gravados em chinês antes da tradução para pt-BR, e
+-- a interface mostra esse campo como a origem do ativo. Atualiza só as linhas
+-- que ainda têm exatamente o texto antigo gerado pelo sistema; qualquer resumo
+-- escrito pelo usuário (source='manual' e afins) fica intacto.
+UPDATE task_asset_links SET source_summary='Vinculado automaticamente durante a execução da tarefa'
+WHERE source='system' AND source_summary='任务执行期间自动关联';
+UPDATE task_asset_links SET source_summary='Migrado da vinculação histórica de ativos da tarefa'
+WHERE source='legacy' AND source_summary='由历史任务资产关联迁移';
 
 -- Ordered task-level LLM failover chain. A quota-exhausted entry is skipped
 -- until the user saves/resets the chain, which clears all failure state.
@@ -1060,7 +1069,7 @@ CREATE TABLE IF NOT EXISTS intercept_pending (
     tool_input      JSONB NOT NULL DEFAULT '{}',
     status          TEXT NOT NULL DEFAULT 'pending'
                         CHECK (status IN ('pending', 'allowed', 'denied', 'timeout')),
-    -- Motivo da decisão: quando uma regra é atingida, é a message da regra; quando é a decisão de fallback do LLM, é o motivo curto dado pelo modelo (prefixo [模型]).
+    -- Motivo da decisão: quando uma regra é atingida, é a message da regra; quando é a decisão de fallback do LLM, é o motivo curto dado pelo modelo (prefixo [Modelo]; registros antigos usam [模型]).
     reason          TEXT NOT NULL DEFAULT '',
     decided_at      TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -1073,7 +1082,7 @@ ALTER TABLE intercept_pending ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFA
 ALTER TABLE intercept_pending ADD COLUMN IF NOT EXISTS audit JSONB;
 ALTER TABLE intercept_pending ADD COLUMN IF NOT EXISTS decision_source TEXT NOT NULL DEFAULT '';
 UPDATE intercept_pending SET decision_source=CASE WHEN rule_id IS NOT NULL THEN 'rule'
- WHEN reason LIKE '[模型]%' THEN 'model' ELSE 'unknown' END WHERE decision_source='';
+ WHEN reason LIKE '[Modelo]%' OR reason LIKE '[模型]%' THEN 'model' ELSE 'unknown' END WHERE decision_source='';
 
 -- =====================================================================
 -- L. Persistência dos achados de vulnerabilidade
@@ -1131,7 +1140,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_finding_retests_active ON finding_retests(
 -- Excluir a sessão mantém o registro de reteste e libera a ocupação do reteste ainda não terminado.
 CREATE OR REPLACE FUNCTION stop_deleted_conversation_retest() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    UPDATE finding_retests SET status='stopped', error='复测会话已删除', finished_at=now()
+    UPDATE finding_retests SET status='stopped', error='A sessão de reteste foi excluída', finished_at=now()
     WHERE conversation_id=OLD.id AND status IN ('pending','running');
     RETURN OLD;
 END;

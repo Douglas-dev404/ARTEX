@@ -1,86 +1,86 @@
 ---
 
 ## name: scopesentry-mcp
-description: 通过 ScopeSentry MCP 管理安全扫描平台（项目、任务、模板、资产、节点）。在用户提到 ScopeSentry、MCP、API Key、扫描任务、资产查询时使用。
+description: Gerencia a plataforma de varredura de segurança pelo MCP do ScopeSentry (projetos, tarefas, modelos, ativos, nós). Use quando o usuário mencionar ScopeSentry, MCP, API Key, tarefa de varredura ou consulta de ativos.
 
-# ScopeSentry MCP 使用指南
+# Guia de uso do MCP do ScopeSentry
 
-面向**已部署 ScopeSentry 实例**的用户。通过 Cursor（或其他 MCP 客户端）连接平台，无需本地源码。
+Para quem **já tem uma instância do ScopeSentry no ar**. A conexão com a plataforma é feita pelo Cursor (ou outro cliente MCP), sem precisar do código-fonte local.
 
-## 1. 准备工作
+## 1. Preparação
 
-### 1.1 确认服务可访问
+### 1.1 Confirmar que o serviço está acessível
 
-- 默认 Web 界面：`http://<主机>`
-- MCP 端点：`http://<主机>/mcp`（若前面有反向代理或前端代理，以实际 `/mcp` 地址为准）
+- Interface web padrão: `http://<host>`
+- Endpoint MCP: `http://<host>/mcp` (se houver proxy reverso ou proxy de frontend na frente, vale o endereço `/mcp` real)
 
-### 1.2 创建 API Key
+### 1.2 Criar uma API Key
 
-1. 浏览器登录 ScopeSentry Web 界面
-2. 进入 **API Key** 管理页创建密钥（或通过管理员提供的接口创建）
-3. 保存返回的 `ssk_...` 字符串（**仅显示一次**）
+1. Entre na interface web do ScopeSentry pelo navegador
+2. Vá à página de gerenciamento de **API Key** e crie uma chave (ou peça ao administrador que crie pela API)
+3. Guarde a string `ssk_...` devolvida (**ela só aparece uma vez**)
 
-### 1.3 配置 Cursor MCP
+### 1.3 Configurar o MCP no Cursor
 
-Cursor → Settings → MCP → 添加服务器：
+Cursor → Settings → MCP → adicionar servidor:
 
 ```json
 {
   "mcpServers": {
     "scopesentry": {
-      "url": "http://<你的主机>:8082/mcp",
+      "url": "http://<seu-host>:8082/mcp",
       "headers": {
-        "X-API-Key": "ssk_你的密钥"
+        "X-API-Key": "ssk_sua_chave"
       }
     }
   }
 }
 ```
 
-也可使用：`Authorization: Bearer ssk_你的密钥`
+Também funciona: `Authorization: Bearer ssk_sua_chave`
 
-配置完成后重启 MCP 或重载 Cursor，确认工具列表中出现 `list_projects`、`list_assets` 等。
+Depois de configurar, reinicie o MCP ou recarregue o Cursor e confirme que `list_projects`, `list_assets` e companhia aparecem na lista de ferramentas.
 
 ---
 
-## 2. 工具一览
+## 2. Visão geral das ferramentas
 
 
-| 工具                     | 用途                |
+| Ferramenta             | Para que serve    |
 | ---------------------- | ----------------- |
-| `list_projects`        | 按标签分组的项目树（含项目 ID） |
-| `list_projects_data`   | 分页项目列表，可按名称搜索     |
-| `get_project`          | 项目详情              |
-| `create_project`       | 新建项目              |
-| `list_tasks`           | 扫描任务列表            |
-| `get_task`             | 任务详情              |
-| `list_scan_templates`  | 扫描模板列表            |
-| `get_scan_template`    | 模板详情              |
-| `list_plugin_modules`  | 扫描流水线模块名          |
-| `list_plugins`         | 可用插件（含 hash、默认参数） |
-| `create_scan_template` | 创建扫描模板            |
-| `create_scan_task`     | 创建扫描任务            |
-| `list_assets`          | 查询各类资产（分页列表）       |
-| `count_assets`         | 统计资产数量（`/api/assets/common/total`） |
-| `get_asset_detail`     | 资产或漏洞详情           |
-| `add_asset_tag`        | 为资产添加标签           |
-| `list_nodes`           | 扫描节点列表            |
+| `list_projects`        | Árvore de projetos agrupada por etiqueta (com o ID do projeto) |
+| `list_projects_data`   | Lista paginada de projetos, com busca por nome |
+| `get_project`          | Detalhes do projeto |
+| `create_project`       | Cria um projeto     |
+| `list_tasks`           | Lista de tarefas de varredura |
+| `get_task`             | Detalhes da tarefa  |
+| `list_scan_templates`  | Lista de modelos de varredura |
+| `get_scan_template`    | Detalhes do modelo  |
+| `list_plugin_modules`  | Nomes dos módulos do fluxo de varredura |
+| `list_plugins`         | Plugins disponíveis (com hash e parâmetros padrão) |
+| `create_scan_template` | Cria um modelo de varredura |
+| `create_scan_task`     | Cria uma tarefa de varredura |
+| `list_assets`          | Consulta ativos de todos os tipos (lista paginada) |
+| `count_assets`         | Conta os ativos (`/api/assets/common/total`) |
+| `get_asset_detail`     | Detalhes de um ativo ou de uma vulnerabilidade |
+| `add_asset_tag`        | Adiciona uma etiqueta a um ativo |
+| `list_nodes`           | Lista de nós de varredura |
 
 
-各工具参数以 MCP 工具描述（schema）为准；`list_assets` / `count_assets` 的 search、filter 语法一致，查询资产前可先阅读 `list_assets` description。
+Os parâmetros de cada ferramenta são os do schema MCP. `list_assets` e `count_assets` usam a mesma sintaxe de search e filter; antes de consultar ativos, vale ler a descrição de `list_assets`.
 
-需要知道「共多少条」时用 `count_assets`（对应 Web 分页总数接口），不必为了数总数反复翻页 `list_assets`。
+Para saber "quantos registros existem", use `count_assets` (equivale ao total de páginas da interface web), em vez de paginar `list_assets` repetidamente só para contar.
 
 ---
 
-## 3. 常用工作流
+## 3. Fluxos comuns
 
-### 3.1 按项目查资产
+### 3.1 Consultar ativos por projeto
 
-当用户或上下文**已有项目条件**时，优先带上 `filter.project` 缩小范围，避免跨项目数据过多导致响应变慢。若无明确项目，可不强制加项目筛选。
+Quando o usuário ou o contexto **já trazem o projeto**, passe `filter.project` para reduzir o alcance: sem isso, o volume entre projetos deixa a resposta lenta. Sem projeto definido, não é obrigatório filtrar.
 
-1. `list_projects` 或 `list_projects_data` 获取目标项目的 **ObjectID**（`id` / `children[].value`）
-2. `list_assets` 传入 `filter.project`（**必须是 ID，不能写项目中文名**）
+1. `list_projects` ou `list_projects_data` para obter o **ObjectID** do projeto (`id` / `children[].value`)
+2. `list_assets` com `filter.project` (**tem de ser o ID, nunca o nome do projeto**)
 
 ```json
 {
@@ -89,278 +89,277 @@ Cursor → Settings → MCP → 添加服务器：
   "pageSize": 20,
   "search": "domain=^example.com",
   "filter": {
-    "project": ["<项目ObjectID>"]
+    "project": ["<ObjectID do projeto>"]
   }
 }
 ```
 
-### 3.2 创建扫描任务
+### 3.2 Criar uma tarefa de varredura
 
-1. `list_nodes` 获取在线节点名称
-2. `list_scan_templates` 或 `create_scan_template` 获取模板 **ObjectID**
-3. `create_scan_task`：`name`、`node` 必填，`template` 填模板 ID（不能填模板名）
+1. `list_nodes` para obter os nomes dos nós online
+2. `list_scan_templates` ou `create_scan_template` para obter o **ObjectID** do modelo
+3. `create_scan_task`: `name` e `node` são obrigatórios e `template` recebe o ID do modelo (não o nome)
 
-**目标来源 `targetSource`（与 Web 端一致）：**
+**Origem dos alvos, `targetSource` (igual à interface web):**
 
-| targetSource | 说明 | 必填参数 |
+| targetSource | Descrição | Parâmetros obrigatórios |
 | --- | --- | --- |
-| `general` | 直接输入目标 | `target` |
-| `project` | 从项目读取目标 | `project`（项目 ObjectID 数组） |
-| `asset` | 从 Web 资产库搜索 | `search`；可选 `project`、`filter`、`targetNumber` |
-| `RootDomain` | 从根域名库搜索 | `search`；可选 `project`、`filter`、`targetNumber` |
-| `subdomain` | 从子域名库搜索 | `search`；可选 `project`、`filter`、`targetNumber` |
-| `UrlScan` | 从 URL 扫描结果搜索 | `search`；可选 `project`、`filter`、`targetNumber` |
-| `*Source`（如 `subdomainSource`） | 从资产页「选中/搜索」创建 | `targetTp=search` 时用 `search`；`targetTp=select` 时用 `targetIds` |
+| `general` | Alvos digitados direto | `target` |
+| `project` | Lê os alvos de um projeto | `project` (lista de ObjectIDs) |
+| `asset` | Busca na base de ativos web | `search`; opcionais: `project`, `filter`, `targetNumber` |
+| `RootDomain` | Busca na base de domínios raiz | `search`; opcionais: `project`, `filter`, `targetNumber` |
+| `subdomain` | Busca na base de subdomínios | `search`; opcionais: `project`, `filter`, `targetNumber` |
+| `UrlScan` | Busca nos resultados de varredura de URL | `search`; opcionais: `project`, `filter`, `targetNumber` |
+| `*Source` (ex.: `subdomainSource`) | Criada a partir da seleção ou busca na página de ativos | com `targetTp=search`, use `search`; com `targetTp=select`, use `targetIds` |
 
-**示例 — 直接扫根域名：**
+**Exemplo — varrer domínios raiz direto:**
 
 ```json
 {
-  "name": "example-子域名收集",
+  "name": "example-coleta-de-subdominios",
   "node": ["node-1"],
-  "template": "<模板ObjectID>",
+  "template": "<ObjectID do modelo>",
   "targetSource": "general",
   "target": "example.com\nfoo.com",
-  "project": ["<项目ObjectID>"]
+  "project": ["<ObjectID do projeto>"]
 }
 ```
 
-**示例 — 从子域名库续扫（按上一任务名筛选）：**
+**Exemplo — continuar da base de subdomínios (filtrando pelo nome da tarefa anterior):**
 
 ```json
 {
-  "name": "example-端口与漏洞",
+  "name": "example-portas-e-vulnerabilidades",
   "node": ["node-1"],
-  "template": "<后续模块模板ObjectID>",
+  "template": "<ObjectID do modelo dos módulos seguintes>",
   "targetSource": "subdomain",
-  "search": "task==\"example-子域名收集\"",
-  "project": ["<项目ObjectID>"]
+  "search": "task==\"example-coleta-de-subdominios\"",
+  "project": ["<ObjectID do projeto>"]
 }
 ```
 
-### 3.3 根域名完整信息收集（推荐两阶段）
+### 3.3 Coleta completa a partir de domínios raiz (duas etapas, recomendado)
 
-当输入为**根域名**且要进行**完整信息收集**时，建议分两次扫描，不要一次跑全流水线。
+Quando a entrada é um **domínio raiz** e o objetivo é uma **coleta completa**, vale dividir em duas varreduras em vez de rodar o fluxo inteiro de uma vez.
 
-**原因：** 分布式任务以**单个目标**为单位分发。根域名作为目标时，某节点分到该根域名后，在该节点上扫出的子域名也会继续在该节点执行后续模块，容易造成负载不均、速度慢、易出错。
+**Motivo:** as tarefas distribuídas são repartidas **por alvo**. Com o domínio raiz como alvo, o nó que o receber também executa nele os módulos seguintes sobre todos os subdomínios descobertos, o que desequilibra a carga, deixa tudo mais lento e favorece erros.
 
-**最佳实践：**
+**Melhor prática:**
 
-1. **第一阶段 — 仅子域名收集**
+1. **Etapa 1 — apenas coleta de subdomínios**
    - `targetSource`: `general`
-   - `target`: 所有根域名（多行）
-   - 模板：仅启用 `SubdomainScan`、`SubdomainSecurity`（子域名扫描 + 子域名接管）
-   - 用 `get_task` 等待任务完成
+   - `target`: todos os domínios raiz (um por linha)
+   - Modelo: habilitar só `SubdomainScan` e `SubdomainSecurity` (varredura e tomada de subdomínio)
+   - Acompanhe a conclusão com `get_task`
 
-2. **第二阶段 — 后续模块**
+2. **Etapa 2 — módulos seguintes**
    - `targetSource`: `subdomain`
-   - `search`: `task=="<第一阶段任务名称>"`（精确匹配任务名）
-   - 可选 `project` 缩小范围
-   - 模板：端口扫描、资产测绘、漏洞扫描等（可不含 SubdomainScan）
-   - 子域名作为独立目标分发到各节点，并行效率更高
+   - `search`: `task=="<nome da tarefa da etapa 1>"` (correspondência exata do nome)
+   - `project` é opcional, para reduzir o alcance
+   - Modelo: varredura de portas, mapeamento de ativos, varredura de vulnerabilidades etc. (sem precisar do SubdomainScan)
+   - Cada subdomínio vira um alvo independente distribuído entre os nós, com paralelismo bem melhor
 
-也可在 Web 界面「子域名」资产页按任务名筛选后，使用「从子域名创建任务」，效果相同。
+O mesmo efeito se obtém filtrando por nome de tarefa na página de ativos "Subdomínios" da interface web e usando "criar tarefa a partir dos subdomínios".
 
 ```mermaid
 flowchart LR
-  A[根域名列表] --> B[阶段1: general + SubdomainScan]
-  B --> C[子域名入库]
-  C --> D[阶段2: subdomain + task==阶段1任务名]
-  D --> E[端口/资产/漏洞等模块]
+  A[Lista de domínios raiz] --> B[Etapa 1: general + SubdomainScan]
+  B --> C[Subdomínios na base]
+  C --> D[Etapa 2: subdomain + task==nome da etapa 1]
+  D --> E[Portas / ativos / vulnerabilidades]
 ```
 
-### 3.4 创建扫描模板
+### 3.4 Criar um modelo de varredura
 
-1. `list_plugin_modules` → 模块名列表
-2. `list_plugins`（可按 `module` 过滤）→ 各插件 `hash` 与默认 `parameter`
-3. `create_scan_template`：用 `modules` 指定「模块 → 插件 hash 数组」
+1. `list_plugin_modules` → lista de nomes de módulos
+2. `list_plugins` (dá para filtrar por `module`) → o `hash` e o `parameter` padrão de cada plugin
+3. `create_scan_template`: em `modules`, mapeie "módulo → lista de hashes de plugin"
 
 ---
 
-## 4. 资产查询（`list_assets` / `count_assets`）
+## 4. Consulta de ativos (`list_assets` / `count_assets`)
 
-`count_assets` 与 `list_assets` 使用相同的 `asset_type`、`search`、`filter`，返回 `{ "total": N }`，对应 Web 端 `/api/assets/common/total`。
+`count_assets` usa os mesmos `asset_type`, `search` e `filter` de `list_assets` e devolve `{ "total": N }`, equivalente ao `/api/assets/common/total` da interface web.
 
 ```json
 {
   "asset_type": "subdomain",
-  "search": "task==\"某任务名\"",
-  "filter": {"project": ["<项目ObjectID>"]}
+  "search": "task==\"nome de alguma tarefa\"",
+  "filter": {"project": ["<ObjectID do projeto>"]}
 }
 ```
 
-**性能建议（`list_assets` / `count_assets` 通用）：** 有项目条件时优先用 `filter.project` 缩小范围；`search` 中对已建索引字段尽量用 `==` 全等或 `^` 前缀匹配（见 [4.3](#43-search-搜索表达式)），避免大面积 `=` 模糊查询拖慢响应。无项目上下文时不强制加项目筛选。
+**Desempenho (vale para `list_assets` e `count_assets`):** havendo projeto definido, use `filter.project` para reduzir o alcance; no `search`, prefira `==` (igualdade) ou `^` (prefixo) nos campos indexados (ver [4.3](#43-expressões-de-busca-search)), evitando buscas difusas com `=` em grande volume. Sem contexto de projeto, não é obrigatório filtrar.
 
-支持 `filter.project` 的类型见 [4.4](#44-filter-精确过滤) 表格。
+Os tipos que aceitam `filter.project` estão na tabela de [4.4](#44-filtro-exato-filter).
 
-### 4.1 资产类型 `asset_type`
+### 4.1 Tipos de ativo (`asset_type`)
 
-`asset`、`RootDomain`、`subdomain`、`app`、`mp`、`UrlScan`、`SensitiveResult`、`DirScanResult`、`crawler`、`vulnerability`、`PageMonitoring`、`IPAsset`、`SubdomainTakerResult`
+`asset`, `RootDomain`, `subdomain`, `app`, `mp`, `UrlScan`, `SensitiveResult`, `DirScanResult`, `crawler`, `vulnerability`, `PageMonitoring`, `IPAsset`, `SubdomainTakerResult`
 
-别名示例：`web`→asset、`vuln`→vulnerability、`ip`→IPAsset、`url`→UrlScan
+Exemplos de apelido: `web` → asset, `vuln` → vulnerability, `ip` → IPAsset, `url` → UrlScan
 
-### 4.2 参数说明
-
-
-| 参数                       | 说明                                      |
-| ------------------------ | --------------------------------------- |
-| `pageIndex` / `pageSize` | 分页，默认 1 / 20                            |
-| `search`                 | 搜索表达式（见下节）                              |
-| `filter`                 | 精确过滤 JSON（见下节）                          |
-| `sort`                   | 仅 UrlScan、DirScanResult 支持按 `length` 排序 |
-| `sid`                    | 仅 SensitiveResult：敏感规则名称                |
+### 4.2 Parâmetros
 
 
-`search` 与 `filter` **可同时使用**。
+| Parâmetro                | Descrição                                 |
+| ------------------------ | ----------------------------------------- |
+| `pageIndex` / `pageSize` | Paginação; padrão 1 / 20                  |
+| `search`                 | Expressão de busca (ver a seção seguinte) |
+| `filter`                 | Filtro exato em JSON (ver a seção seguinte) |
+| `sort`                   | Só UrlScan e DirScanResult aceitam ordenação por `length` |
+| `sid`                    | Só SensitiveResult: nome da regra de dado sensível |
 
-### 4.3 search 搜索表达式
 
-自定义 DSL（**不是 SQL**）：
+`search` e `filter` **podem ser usados juntos**.
+
+### 4.3 Expressões de busca (`search`)
+
+É uma DSL própria (**não é SQL**):
 
 
-| 运算符  | 含义   | 索引 | 示例                          |
+| Operador | Significado | Índice | Exemplo |
 | ---- | ---- | ---- | --------------------------- |
-| `=`  | 模糊匹配（regex） | 不走索引 | `domain=example`            |
-| `==` | 精确匹配（全等） | **走索引** | `port==443`                 |
-| `!=` | 排除   | — | `port!="80"`                |
-| `&&` | 与    | — | `domain==example.com && port==443` |
-| `||` | 或    | — | `title=admin || body=login` |
+| `=`  | Correspondência difusa (regex) | não usa índice | `domain=example` |
+| `==` | Correspondência exata | **usa índice** | `port==443` |
+| `!=` | Exclusão | — | `port!="80"` |
+| `&&` | E | — | `domain==example.com && port==443` |
+| `\|\|` | Ou | — | `title=admin \|\| body=login` |
 
 
-**索引与运算符：** `domain`、`ip`、`port`、`title` 等字段已建索引，但仅 **`==` 全等** 或 **值以 `^` 开头的前缀匹配**（如 `domain=^example.com`）能走索引；**`=` 会转为 regex 模糊匹配，无法使用索引**，数据量大时易变慢。
+**Índices e operadores:** campos como `domain`, `ip`, `port` e `title` são indexados, mas só a **igualdade `==`** ou o **prefixo com `^`** (por exemplo `domain=^example.com`) aproveitam o índice; **`=` vira regex difuso e não usa índice**, o que fica lento em volume grande.
 
-**所有类型通用 search 字段：** `tag`、`task`（任务名称）、`rootDomain`
+**Campos de search comuns a todos os tipos:** `tag`, `task` (nome da tarefa), `rootDomain`
 
-**project 不能写在 search 里**（无效或与 `&&` 组合时报错）。筛项目请用 `filter.project`。
+**`project` não vai no search** (é ignorado ou dá erro quando combinado com `&&`). Para filtrar por projeto, use `filter.project`.
 
-**各类型常用 search 字段：**
+**Campos de search mais usados por tipo:**
 
 
-| asset_type           | 字段                                                                                  |
+| asset_type           | Campos |
 | -------------------- | ----------------------------------------------------------------------------------- |
 | asset                | domain, ip, port, service, app, title, statuscode, icon, banner, type, body, header |
-| RootDomain           | domain, icp, company                                                                |
-| subdomain            | domain, ip, type, value                                                             |
-| app                  | name, icp, company, category, description, url, apk                                 |
-| mp                   | name, icp, company, category, description, url                                      |
-| UrlScan              | url, input, source, resultId, type                                                  |
-| SensitiveResult      | url, sname, body, info, md5                                                         |
-| DirScanResult        | url, statuscode, redirect, length                                                   |
-| vulnerability        | url, vulname, matched, request, response, level                                     |
-| crawler              | url, method, body, resultId                                                         |
-| PageMonitoring       | url, hash, diff, response                                                           |
-| IPAsset              | ip, domain, port, service, webServer, app                                           |
-| SubdomainTakerResult | domain, value, type, response                                                       |
+| RootDomain           | domain, icp, company |
+| subdomain            | domain, ip, type, value |
+| app                  | name, icp, company, category, description, url, apk |
+| mp                   | name, icp, company, category, description, url |
+| UrlScan              | url, input, source, resultId, type |
+| SensitiveResult      | url, sname, body, info, md5 |
+| DirScanResult        | url, statuscode, redirect, length |
+| vulnerability        | url, vulname, matched, request, response, level |
+| crawler              | url, method, body, resultId |
+| PageMonitoring       | url, hash, diff, response |
+| IPAsset              | ip, domain, port, service, webServer, app |
+| SubdomainTakerResult | domain, value, type, response |
 
 
-**search 示例：**
+**Exemplos de search:**
 
-- `domain==www.example.com && port==443`（全等，走索引）
-- `domain=^example.com`（前缀匹配，走索引）
+- `domain==www.example.com && port==443` (igualdade, usa índice)
+- `domain=^example.com` (prefixo, usa índice)
 - `ip==192.168.1.1`
-- `task=="某任务名"`
-- `level==high`（vulnerability）
-- `statuscode==200`（DirScanResult）
+- `task=="nome de alguma tarefa"`
+- `level==high` (vulnerability)
+- `statuscode==200` (DirScanResult)
 
-需模糊包含时再用 `=`，如 `title=admin`（不走索引，宜配合项目等条件缩小范围）。
+Para "contém", use `=`, como em `title=admin` (não usa índice, então vale combinar com projeto ou outro filtro para reduzir o alcance).
 
-### 4.4 filter 精确过滤
+### 4.4 Filtro exato (`filter`)
 
-JSON 对象：同 key 多个值为 **OR**，不同 key 为 **AND**。
+Objeto JSON: vários valores na mesma chave são **OU**, chaves diferentes são **E**.
 
-**有项目条件时优先用 `project`：** 若用户或上下文已明确项目，且 asset_type 支持 `project`，应带上以缩小范围；无项目信息时不强制。
+**Com projeto definido, use `project`:** se o usuário ou o contexto já deixaram o projeto claro e o `asset_type` aceita `project`, inclua para reduzir o alcance; sem essa informação, não é obrigatório.
 
 
-| filter key   | 含义       | 取值说明                                                     |
+| Chave de filter | Significado | Valores |
 | ------------ | -------- | -------------------------------------------------------- |
-| `project`    | 所属项目     | **ObjectID**，用 `list_projects` / `list_projects_data` 获取 |
-| `task`       | 来源任务     | **任务名称**，用 `list_tasks` 的 `name`                         |
-| `port`       | 端口       | 如 `"443"`                                                |
-| `service`    | 服务/协议    | 如 `"https"`                                              |
-| `app`        | 应用指纹     | 如 `"Nginx"`                                              |
-| `icon`       | 图标 hash  |                                                          |
-| `statuscode` | HTTP 状态码 | 主要用于 asset                                               |
-| `status`     | 状态       | UrlScan/DirScan HTTP 码；漏洞/敏感信息处理状态                       |
-| `level`      | 漏洞等级     | critical / high / medium / low / info                    |
-| `type`       | 类型       | 如子域名记录类型 A、CNAME                                         |
-| `color`      | 敏感规则颜色   | SensitiveResult                                          |
-| `sname`      | 敏感规则名    | SensitiveResult                                          |
-| `tags`       | 标签       |                                                          |
+| `project`    | Projeto ao qual pertence | **ObjectID**, obtido por `list_projects` / `list_projects_data` |
+| `task`       | Tarefa de origem | **Nome da tarefa**, o campo `name` de `list_tasks` |
+| `port`       | Porta | por exemplo `"443"` |
+| `service`    | Serviço/protocolo | por exemplo `"https"` |
+| `app`        | Impressão digital da aplicação | por exemplo `"Nginx"` |
+| `icon`       | Hash do ícone | |
+| `statuscode` | Código HTTP | usado sobretudo em asset |
+| `status`     | Estado | código HTTP em UrlScan/DirScan; estado de tratamento em vulnerabilidade e dado sensível |
+| `level`      | Severidade da vulnerabilidade | critical / high / medium / low / info |
+| `type`       | Tipo | por exemplo o tipo de registro do subdomínio: A, CNAME |
+| `color`      | Cor da regra de dado sensível | SensitiveResult |
+| `sname`      | Nome da regra de dado sensível | SensitiveResult |
+| `tags`       | Etiquetas | |
 
 
-**各类型可用 filter key：**
+**Chaves de filter aceitas por tipo:**
 
 
-| asset_type                            | filter key                                                      |
+| asset_type                            | Chaves de filter |
 | ------------------------------------- | --------------------------------------------------------------- |
 | asset                                 | project, port, service, app, icon, statuscode, type, task, tags |
-| RootDomain                            | project, tags                                                   |
-| subdomain                             | project, type, task, tags                                       |
-| app / mp                              | project, tags                                                   |
-| UrlScan                               | status, tags                                                    |
-| DirScanResult                         | status, tags                                                    |
-| SensitiveResult                       | status, color, sname, tags                                      |
-| crawler                               | project, task, tags                                             |
-| vulnerability                         | project, level, status, task, tags                              |
-| PageMonitoring / SubdomainTakerResult | tags                                                            |
-| IPAsset                               | project, port, service, app                                     |
+| RootDomain                            | project, tags |
+| subdomain                             | project, type, task, tags |
+| app / mp                              | project, tags |
+| UrlScan                               | status, tags |
+| DirScanResult                         | status, tags |
+| SensitiveResult                       | status, color, sname, tags |
+| crawler                               | project, task, tags |
+| vulnerability                         | project, level, status, task, tags |
+| PageMonitoring / SubdomainTakerResult | tags |
+| IPAsset                               | project, port, service, app |
 
 
-**filter 示例：**
+**Exemplo de filter:**
 
 ```json
-{"project": ["<项目ObjectID>"], "port": ["443"]}
+{"project": ["<ObjectID do projeto>"], "port": ["443"]}
 ```
 
-**组合查询示例：**
+**Exemplo de consulta combinada:**
 
 ```json
 {
   "asset_type": "asset",
-  "search": "domain=^baidu && port==443",
-  "filter": {"project": ["<项目ObjectID>"]},
+  "search": "domain=^example && port==443",
+  "filter": {"project": ["<ObjectID do projeto>"]},
   "pageIndex": 1,
   "pageSize": 10
 }
 ```
 
-**注意：**
+**Atenção:**
 
-- 有项目条件时优先带 `filter.project`（支持时）；无项目上下文可不强制
-- `filter.project` 勿填项目显示名称
-- 已知值用 `==`，前缀用 `^`；避免对大表滥用 `=` 模糊匹配
-- UrlScan 的 HTTP 状态用 `filter.status`；DirScanResult 可在 search 中用 `statuscode==200`
-- SensitiveResult 按规则名：`search` 用 `sname=规则名`，或 `filter.sname`
+- Com projeto definido, inclua `filter.project` (quando o tipo aceitar); sem contexto de projeto, não é obrigatório
+- Não coloque o nome de exibição do projeto em `filter.project`
+- Com o valor exato em mãos, use `==`; para prefixo, `^`; evite abusar do `=` difuso em tabelas grandes
+- O código HTTP do UrlScan vai em `filter.status`; no DirScanResult dá para usar `statuscode==200` no search
+- Para filtrar SensitiveResult pelo nome da regra: `sname=nome da regra` no search, ou `filter.sname`
 
-### 4.5 排序 sort
+### 4.5 Ordenação (`sort`)
 
-仅 **UrlScan**、**DirScanResult** 支持：
+Só **UrlScan** e **DirScanResult** aceitam:
 
 ```json
 {"length": "ascending"}
 ```
 
-其他类型忽略 `sort`，按时间默认排序。
+Os demais tipos ignoram `sort` e seguem a ordenação padrão por data.
 
 ---
 
-## 5. 扫描模板模块名
+## 5. Nomes dos módulos de modelo de varredura
 
-`TargetHandler`、`SubdomainScan`、`SubdomainSecurity`、`PortScanPreparation`、`PortScan`、`PortFingerprint`、`AssetMapping`、`AssetHandle`、`URLScan`、`WebCrawler`、`URLSecurity`、`DirScan`、`VulnerabilityScan`、`PassiveScan`
+`TargetHandler`, `SubdomainScan`, `SubdomainSecurity`, `PortScanPreparation`, `PortScan`, `PortFingerprint`, `AssetMapping`, `AssetHandle`, `URLScan`, `WebCrawler`, `URLSecurity`, `DirScan`, `VulnerabilityScan`, `PassiveScan`
 
 ---
 
-## 6. 故障排查
+## 6. Resolução de problemas
 
 
-| 现象        | 处理                                                 |
+| Sintoma | O que fazer |
 | --------- | -------------------------------------------------- |
-| MCP 无工具   | 检查 URL、API Key、ScopeSentry 是否运行                    |
-| 401 / 403 | 重新创建或更换 API Key                                    |
-| 资产查不到     | 确认 `filter.project` 为 ObjectID；勿在 search 写 project |
-| 模板/任务创建失败 | `template` 必须是模板 ObjectID；`node` 填在线节点名            |
-| 查询很慢/卡住   | 有项目时加 `filter.project`；search 对已索引字段改用 `==` 或 `^` 前缀，少用 `=`；缩小 `pageSize` |
+| O MCP não lista ferramentas | Verifique a URL, a API Key e se o ScopeSentry está no ar |
+| 401 / 403 | Recrie ou troque a API Key |
+| Os ativos não aparecem | Confirme que `filter.project` é o ObjectID e que `project` não está no search |
+| Falha ao criar modelo ou tarefa | `template` precisa ser o ObjectID do modelo e `node`, o nome de um nó online |
+| Consulta lenta ou travando | Havendo projeto, adicione `filter.project`; no search, troque `=` por `==` ou pelo prefixo `^` nos campos indexados; reduza o `pageSize` |
 
 
 ---
-

@@ -696,6 +696,12 @@ const reporterToolCallMessage = "Acabou de ser registrada uma vulnerabilidade vi
 	"evidence_version deve ser passada, senão o relatório será marcado permanentemente como a atualizar. Não misture os dois tipos de numeração."
 
 // Mensagem de trigger da versão antiga (0.3.8 e anteriores). Só os registros ainda literalmente idênticos a ela são sobrescritos pela migração; os alterados pelo usuário ficam como estão.
+//
+// NÃO TRADUZIR: este texto não é enviado a modelo nenhum. Ele existe só para
+// reconhecer, no banco, a mensagem padrão antiga e substituí-la pela atual
+// (reporterToolCallMessage, essa sim em português). Traduzir aqui faria a
+// comparação de upgradeReporterTriggerMessage parar de casar, e bancos antigos
+// ficariam presos ao prompt obsoleto para sempre.
 const reporterToolCallMessageV1 = "上面刚有一个漏洞被 report_finding 登记。请从触发上下文里取出 finding_id" +
 	"（工具返回 \"finding recorded: <id>\" 里的数字）与任务 id，按你的职责撰写该漏洞的详细报告，" +
 	"最后调用 update_finding_report(finding_id, report) 保存。"
