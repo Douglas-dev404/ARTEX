@@ -45,7 +45,21 @@ import type {
   TrafficResp,
 } from "@/lib/types";
 
-const T = (iso: string) => iso; // readability helper for timestamps
+// A demo foi escrita com datas fixas, e o cenário inteiro envelhecia junto com o
+// calendário: passados alguns meses, os gráficos com recorte de 7/30 dias ficavam
+// vazios e as tarefas apareciam como "116d atrás". T() desloca todo o cenário em
+// bloco, de modo que MOCK_ANCHOR caia hoje, preservando os intervalos entre os
+// eventos — o que importa na narrativa é a distância entre eles, não a data.
+const MOCK_ANCHOR = Date.UTC(2026, 6, 26, 4, 0, 0); // 2026-07-26T04:00:00Z, fim do cenário
+
+// Deslocamento em dias inteiros, para a hora do dia de cada evento não mudar.
+const MOCK_SHIFT_MS = Math.floor((Date.now() - MOCK_ANCHOR) / 86_400_000) * 86_400_000;
+
+/** Desloca um instante do cenário para a janela de tempo atual. */
+const T = (iso: string) => new Date(Date.parse(iso) + MOCK_SHIFT_MS).toISOString();
+
+/** Versão em segundos de T(), para os campos *_unix. */
+export const TU = (iso: string) => Math.floor(Date.parse(T(iso)) / 1000);
 
 // ── Tasks ──────────────────────────────────────────────────────────────────
 export const ACTIVE_TASK = "t-acme-web";
@@ -59,9 +73,9 @@ export const tasks: Task[] = [
     goal: "Obter acesso de administrador ao painel de acme.com e confirmar a leitura de dados sensíveis de usuários.",
     status: "running",
     created_at: T("2026-07-24T09:12:00Z"),
-    created_unix: 1785489120,
+    created_unix: TU("2026-07-24T09:12:00Z"),
     last_activity: T("2026-07-26T03:58:22Z"),
-    last_activity_unix: 1785643102,
+    last_activity_unix: TU("2026-07-26T03:58:22Z"),
     paused: false,
     active: true,
     in_flight: 3,
@@ -85,9 +99,9 @@ export const tasks: Task[] = [
     goal: "Avaliar o risco de IDOR e injeção nos endpoints de pedidos e usuários de api.acme.com.",
     status: "running",
     created_at: T("2026-07-25T14:05:00Z"),
-    created_unix: 1785592500,
+    created_unix: TU("2026-07-25T14:05:00Z"),
     last_activity: T("2026-07-26T03:40:10Z"),
-    last_activity_unix: 1785642010,
+    last_activity_unix: TU("2026-07-26T03:40:10Z"),
     paused: false,
     active: false,
     in_flight: 2,
@@ -111,9 +125,9 @@ export const tasks: Task[] = [
     goal: "Avaliar escalada de privilégio, adulteração de valores e condição de corrida nos endpoints de pagamento e pedidos.",
     status: "paused",
     created_at: T("2026-07-22T08:30:00Z"),
-    created_unix: 1785313800,
+    created_unix: TU("2026-07-22T08:30:00Z"),
     last_activity: T("2026-07-23T18:40:10Z"),
-    last_activity_unix: 1785436810,
+    last_activity_unix: TU("2026-07-23T18:40:10Z"),
     paused: true,
     active: false,
     in_flight: 0,
@@ -136,11 +150,11 @@ export const tasks: Task[] = [
     goal: "Identificar serviços de borda exploráveis expostos por acme.com.",
     status: "done",
     created_at: T("2026-07-18T08:00:00Z"),
-    created_unix: 1784966400,
+    created_unix: TU("2026-07-18T08:00:00Z"),
     completed_at: T("2026-07-20T22:11:00Z"),
-    completed_unix: 1785190260,
+    completed_unix: TU("2026-07-20T22:11:00Z"),
     last_activity: T("2026-07-20T22:11:00Z"),
-    last_activity_unix: 1785190260,
+    last_activity_unix: TU("2026-07-20T22:11:00Z"),
     paused: false,
     active: false,
     in_flight: 0,
@@ -2908,7 +2922,7 @@ export const tokenSessions: SessionTokenUsage[] = (() => {
 export const tokenTotal: TokenTotal = grandTotal;
 
 export const dailyTokens: DailyTokenBucket[] = Array.from({ length: 30 }, (_, i) => {
-  const d = new Date("2026-07-26T00:00:00Z");
+  const d = new Date(T("2026-07-26T00:00:00Z"));
   d.setUTCDate(d.getUTCDate() - (29 - i));
   const wave = 40000 + Math.round(30000 * Math.abs(Math.sin(i / 3)));
   return {
@@ -3330,7 +3344,7 @@ export const skills: SkillItem[] = [
     calls: 24,
     tasks: 6,
     usage_agents: ["worker", "planner"],
-    last_used: "2026-08-20T09:12:00Z",
+    last_used: T("2026-08-20T09:12:00Z"),
   },
   {
     name: "playwright-cli",
@@ -3341,7 +3355,7 @@ export const skills: SkillItem[] = [
     calls: 7,
     tasks: 3,
     usage_agents: ["worker"],
-    last_used: "2026-08-19T21:40:00Z",
+    last_used: T("2026-08-19T21:40:00Z"),
   },
   {
     name: "scopesentry",
@@ -3354,13 +3368,13 @@ export const skills: SkillItem[] = [
 ];
 
 export const skillCalls: SkillCall[] = [
-  { ts: "2026-08-20T09:12:00Z", agent_key: "worker", task_id: 42, session_id: "", args_len: 128 },
-  { ts: "2026-08-20T08:03:00Z", agent_key: "planner", task_id: 42, session_id: "", args_len: 0 },
-  { ts: "2026-08-19T17:55:00Z", agent_key: "worker", task_id: 37, session_id: "", args_len: 64 },
+  { ts: T("2026-08-20T09:12:00Z"), agent_key: "worker", task_id: 42, session_id: "", args_len: 128 },
+  { ts: T("2026-08-20T08:03:00Z"), agent_key: "planner", task_id: 42, session_id: "", args_len: 0 },
+  { ts: T("2026-08-19T17:55:00Z"), agent_key: "worker", task_id: 37, session_id: "", args_len: 64 },
 ];
 
 export const missingSkills: MissingSkill[] = [
-  { skill: "jwt-forge", calls: 3, agents: ["worker"], last_used: "2026-08-20T07:20:00Z" },
+  { skill: "jwt-forge", calls: 3, agents: ["worker"], last_used: T("2026-08-20T07:20:00Z") },
 ];
 
 // ── Tools ────────────────────────────────────────────────────────────────────
@@ -4164,7 +4178,7 @@ const wsClean = (p: string) => p.replace(/^\/+|\/+$/g, "");
 export function workspaceList(path: string) {
   const key = wsClean(path);
   const items = WS_TREE[key] ?? [];
-  const now = Date.parse("2026-08-09T03:00:00Z");
+  const now = Date.parse(T("2026-08-09T03:00:00Z"));
   return {
     path: key,
     entries: items.map((it, i) => ({

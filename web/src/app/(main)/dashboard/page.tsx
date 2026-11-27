@@ -43,10 +43,13 @@ import { cn } from "@/lib/utils";
 
 // ── chart constants ───────────────────────────────────────────────────────────
 
+// As cores vêm dos tokens de gráfico do tema, e não de HSL fixo: assim o gráfico
+// acompanha o modo claro/escuro e qualquer preset, em vez de manter o mesmo azul
+// sobre fundo escuro.
 const dailyTrendConfig = {
-  input: { label: "Entrada", color: "hsl(217 91% 60%)" },
-  output: { label: "Saída", color: "hsl(263 70% 60%)" },
-  cacheRead: { label: "Leitura de cache", color: "hsl(160 60% 45%)" },
+  input: { label: "Entrada", color: "var(--chart-1)" },
+  output: { label: "Saída", color: "var(--chart-5)" },
+  cacheRead: { label: "Leitura de cache", color: "var(--chart-2)" },
 } satisfies ChartConfig;
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -515,7 +518,9 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[10px]">
-            {(tasksByStatus.running ?? 0) > 0 && <span className="text-blue-400">Explorando {tasksByStatus.running}</span>}
+            {(tasksByStatus.running ?? 0) > 0 && (
+              <span className="text-blue-400">Explorando {tasksByStatus.running}</span>
+            )}
             {(tasksByStatus.paused ?? 0) > 0 && <span className="text-amber-400">Pausadas {tasksByStatus.paused}</span>}
             {(tasksByStatus.done ?? 0) > 0 && <span className="text-emerald-400">Concluídas {tasksByStatus.done}</span>}
             {tasks.length === 0 && <span className="text-muted-foreground">Nenhuma tarefa</span>}
