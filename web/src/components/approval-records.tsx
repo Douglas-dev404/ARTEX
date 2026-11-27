@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/lib/api";
+import { isModelReason, stripModelPrefix } from "@/lib/model-reason";
 import type {
   InterceptApprovalFilter,
   InterceptApprovalRow,
@@ -50,7 +51,7 @@ function fmtTime(value?: string) {
 function source(row: InterceptApprovalRow) {
   if (row.decision_source) return row.decision_source;
   if (row.rule_id) return "rule";
-  return row.reason?.startsWith("[模型]") ? "model" : "unknown";
+  return isModelReason(row.reason) ? "model" : "unknown";
 }
 
 function originLabel(row: InterceptApprovalRow) {
@@ -100,7 +101,12 @@ function ApprovalOrigin({ row, detail = false }: { row: InterceptApprovalRow; de
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const labels: Record<string, string> = { pending: "Aguardando aprovação", allowed: "Permitido", denied: "Negado", timeout: "Expirado" };
+  const labels: Record<string, string> = {
+    pending: "Aguardando aprovação",
+    allowed: "Permitido",
+    denied: "Negado",
+    timeout: "Expirado",
+  };
   let variant: "default" | "destructive" | "secondary" | "outline" = "outline";
   if (status === "allowed") variant = "default";
   if (status === "denied") variant = "destructive";
@@ -109,7 +115,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function MatchCell({ row, showReason = true }: { row: InterceptApprovalRow; showReason?: boolean }) {
-  const reason = row.reason?.replace(/^\[模型\]\s*/, "");
+  const reason = stripModelPrefix(row.reason);
   return (
     <div className="flex min-w-0 flex-col gap-1">
       {source(row) === "model" ? (
@@ -151,7 +157,9 @@ function CodeBlock({ label, text, truncated = false }: { label: string; text: st
       <pre className="max-h-80 min-w-0 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-muted/60 p-3 font-mono text-xs leading-6 [overflow-wrap:anywhere]">
         {text || "Não registrado"}
       </pre>
-      {truncated ? <p className="text-muted-foreground text-xs">Conteúdo truncado; o trecho acima é o que foi salvo.</p> : null}
+      {truncated ? (
+        <p className="text-muted-foreground text-xs">Conteúdo truncado; o trecho acima é o que foi salvo.</p>
+      ) : null}
     </section>
   );
 }
@@ -164,7 +172,11 @@ const contextLabels: Record<string, string> = {
   tool_result: "Saída da ferramenta",
 };
 
-const actionLabels: Record<string, string> = { allow: "Permitir", ask: "Encaminhar para aprovação manual", deny: "Negar" };
+const actionLabels: Record<string, string> = {
+  allow: "Permitir",
+  ask: "Encaminhar para aprovação manual",
+  deny: "Negar",
+};
 const executionLabels: Record<InterceptAudit["execution_status"], string> = {
   not_started: "Ainda não executado",
   not_executed: "Não executado",
@@ -180,8 +192,11 @@ function ModelReviewContext({ input }: { input: InterceptReviewInput }) {
       <div className="flex flex-col gap-2">
         <h3 className="font-medium text-sm">Contexto da revisão do modelo</h3>
         <p className="text-muted-foreground text-xs">
-          A seguir está o snapshot da entrada efetivamente enviada ao modelo revisor nesta análise. O contexto serve apenas para entender a ação atual; a decisão se baseia na política de revisão.
-          {input.version < 4 ? "Este registro usa a entrada da versão antiga e preserva o conteúdo efetivamente enviado na época." : null}
+          A seguir está o snapshot da entrada efetivamente enviada ao modelo revisor nesta análise. O contexto serve
+          apenas para entender a ação atual; a decisão se baseia na política de revisão.
+          {input.version < 4
+            ? "Este registro usa a entrada da versão antiga e preserva o conteúdo efetivamente enviado na época."
+            : null}
         </p>
       </div>
       <CodeBlock
@@ -192,7 +207,11 @@ function ModelReviewContext({ input }: { input: InterceptReviewInput }) {
         input.background ? (
           <div className="flex min-w-0 flex-col gap-2">
             <CodeBlock
-              label={input.background.source === "user_message" ? "Contexto · Mensagem do usuário" : "Contexto · Resumo de intenção do Worker (versão antiga)"}
+              label={
+                input.background.source === "user_message"
+                  ? "Contexto · Mensagem do usuário"
+                  : "Contexto · Resumo de intenção do Worker (versão antiga)"
+              }
               text={input.background.text}
               truncated={input.background.truncated}
             />
@@ -208,41 +227,73 @@ function ModelReviewContext({ input }: { input: InterceptReviewInput }) {
       ) : (
         <>
           {input.turn_input ? (
-            <CodeBlock label="Entrada do turno atual (versão antiga)" text={input.turn_input} truncated={input.background_truncated} />
+            <CodeBlock
+              label="Entrada do turno atual (versão antiga)"
+              text={input.turn_input}
+              truncated={input.background_truncated}
+            />
           ) : null}
           {input.task ? (
             <>
-              <CodeBlock label="Descrição da tarefa (versão antiga)" text={input.task.description} truncated={input.task.truncated} />
-              <CodeBlock label="Objetivo da tarefa (versão antiga)" text={input.task.goal} truncated={input.task.truncated} />
-              <CodeBlock label="Restrições de operação da tarefa (versão antiga)" text={JSON.stringify(input.task.constraints, null, 2)} />
+              <CodeBlock
+                label="Descrição da tarefa (versão antiga)"
+                text={input.task.description}
+                truncated={input.task.truncated}
+              />
+              <CodeBlock
+                label="Objetivo da tarefa (versão antiga)"
+                text={input.task.goal}
+                truncated={input.task.truncated}
+              />
+              <CodeBlock
+                label="Restrições de operação da tarefa (versão antiga)"
+                text={JSON.stringify(input.task.constraints, null, 2)}
+              />
             </>
           ) : null}
           {input.worker_intent ? (
-            <CodeBlock label="Intenção do Worker (versão antiga)" text={input.worker_intent} truncated={input.background_truncated} />
+            <CodeBlock
+              label="Intenção do Worker (versão antiga)"
+              text={input.worker_intent}
+              truncated={input.background_truncated}
+            />
           ) : null}
         </>
       )}
       {input.working_directory ? <CodeBlock label="Diretório de trabalho" text={input.working_directory} /> : null}
       {input.version >= 3 ? (
-        <p className="text-muted-foreground text-xs">Esta revisão não enviou chamadas anteriores nem resultados de execução.</p>
+        <p className="text-muted-foreground text-xs">
+          Esta revisão não enviou chamadas anteriores nem resultados de execução.
+        </p>
       ) : (
         <div className="flex min-w-0 flex-col gap-3">
-          <h4 className="font-medium text-muted-foreground text-xs">Chamadas anteriores fornecidas ao modelo na época (versão antiga)</h4>
+          <h4 className="font-medium text-muted-foreground text-xs">
+            Chamadas anteriores fornecidas ao modelo na época (versão antiga)
+          </h4>
           {input.history?.length ? (
             input.history.map((entry) => (
               <div key={entry.tool_use_id} className="flex min-w-0 flex-col gap-2 rounded-lg border p-3">
                 <p className="break-words font-medium text-xs">
-                  {entry.tool} · {entry.status === "succeeded" ? "sucesso" : "falha (pode haver efeitos colaterais parciais)"}
+                  {entry.tool} ·{" "}
+                  {entry.status === "succeeded" ? "sucesso" : "falha (pode haver efeitos colaterais parciais)"}
                 </p>
-                <CodeBlock label="Parâmetros da chamada anterior" text={entry.arguments_preview} truncated={entry.truncated} />
+                <CodeBlock
+                  label="Parâmetros da chamada anterior"
+                  text={entry.arguments_preview}
+                  truncated={entry.truncated}
+                />
                 <CodeBlock label="Resultado da execução anterior" text={entry.result} truncated={entry.truncated} />
               </div>
             ))
           ) : (
-            <p className="text-muted-foreground text-xs">Nenhum registro anterior de execução de ferramenta pareável foi fornecido desta vez.</p>
+            <p className="text-muted-foreground text-xs">
+              Nenhum registro anterior de execução de ferramenta pareável foi fornecido desta vez.
+            </p>
           )}
           {input.history_truncated ? (
-            <p className="text-muted-foreground text-xs">O histórico é uma janela limitada; parte do conteúdo foi truncada.</p>
+            <p className="text-muted-foreground text-xs">
+              O histórico é uma janela limitada; parte do conteúdo foi truncada.
+            </p>
           ) : null}
         </div>
       )}
@@ -331,7 +382,8 @@ export function ApprovalDetail({
   const audit = detail?.audit;
   let execution = audit ? executionLabels[audit.execution_status] : "Não registrado";
   if (row.status === "pending") execution = "Ainda não executado";
-  if (audit && audit.correlation !== "exact" && audit.effective_action === "allow") execution = "Resultado da execução não associado";
+  if (audit && audit.correlation !== "exact" && audit.effective_action === "allow")
+    execution = "Resultado da execução não associado";
   const command = typeof row.tool_input?.command === "string" ? row.tool_input.command : undefined;
   let initialLabel = source(row) === "model" ? "Avaliação inicial do modelo" : "Avaliação inicial da regra";
   if (audit?.model_fallback) initialLabel = "Fallback por falha do modelo";
@@ -370,10 +422,12 @@ export function ApprovalDetail({
             <MatchCell row={current} showReason={false} />
           </div>
           <p className="whitespace-pre-wrap break-words text-sm leading-7 [overflow-wrap:anywhere]">
-            {current.reason?.replace(/^\[模型\]\s*/, "") || "Motivo da aprovação não registrado"}
+            {stripModelPrefix(current.reason) || "Motivo da aprovação não registrado"}
           </p>
           {audit?.decision_reason ? <p className="text-sm">{audit.decision_reason}</p> : null}
-          {audit?.effective_action ? <p className="text-sm">Ação final: {actionLabels[audit.effective_action]}</p> : null}
+          {audit?.effective_action ? (
+            <p className="text-sm">Ação final: {actionLabels[audit.effective_action]}</p>
+          ) : null}
           <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-xs">
             <dt className="text-muted-foreground">Origem</dt>
             <dd className="break-words">
@@ -414,7 +468,10 @@ export function ApprovalDetail({
       {!detail && !error ? <Skeleton className="h-8 w-60" /> : null}
       {detail && !audit ? (
         <Alert>
-          <AlertDescription>Este registro não salvou o snapshot dos detalhes da aprovação, então não é possível restaurar o contexto da época, a avaliação inicial do modelo nem a saída da execução.</AlertDescription>
+          <AlertDescription>
+            Este registro não salvou o snapshot dos detalhes da aprovação, então não é possível restaurar o contexto da
+            época, a avaliação inicial do modelo nem a saída da execução.
+          </AlertDescription>
         </Alert>
       ) : null}
       {audit ? (
@@ -460,10 +517,13 @@ export function ApprovalDetail({
                       <section className="flex min-w-0 flex-col gap-3">
                         <h3 className="font-medium text-muted-foreground text-xs">Contexto visível da sessão</h3>
                         <p className="text-muted-foreground text-xs">
-                          Trecho do registro da sessão salvo em {fmtTime(audit.captured_at)}. O conteúdo efetivamente usado pelo modelo é o da &quot;Entrada de revisão do modelo&quot;.
+                          Trecho do registro da sessão salvo em {fmtTime(audit.captured_at)}. O conteúdo efetivamente
+                          usado pelo modelo é o da &quot;Entrada de revisão do modelo&quot;.
                         </p>
                         {audit.context_truncated ? (
-                          <p className="text-muted-foreground text-xs">Apenas o contexto mais recente é salvo; parte do conteúdo foi truncada.</p>
+                          <p className="text-muted-foreground text-xs">
+                            Apenas o contexto mais recente é salvo; parte do conteúdo foi truncada.
+                          </p>
                         ) : null}
                         {audit.context?.length ? (
                           audit.context.map((entry, index) => (
@@ -484,11 +544,16 @@ export function ApprovalDetail({
               ) : null}
               <CodeBlock
                 label={`${initialLabel}: ${actionLabels[audit.initial_action] ?? audit.initial_action}`}
-                text={audit.initial_reason.replace(/^\[模型\]\s*/, "")}
+                text={stripModelPrefix(audit.initial_reason)}
               />
               <CodeBlock
                 label="Saída da execução"
-                text={audit.output ?? (audit.execution_status === "not_executed" ? "A ferramenta não foi executada." : "Ainda sem saída de execução")}
+                text={
+                  audit.output ??
+                  (audit.execution_status === "not_executed"
+                    ? "A ferramenta não foi executada."
+                    : "Ainda sem saída de execução")
+                }
                 truncated={audit.output_truncated}
               />
               {audit.correlation !== "exact" ? (
@@ -504,8 +569,12 @@ export function ApprovalDetail({
                 <div>ID da chamada de ferramenta: {audit.tool_use_id || "Não registrado"}</div>
                 <div>SHA-256 do resumo dos parâmetros: {audit.input_digest}</div>
                 <div>SHA-256 do fingerprint da configuração de revisão: {audit.config_digest || "Não registrado"}</div>
-                {audit.model_input_digest ? <div>SHA-256 da entrada de revisão do modelo: {audit.model_input_digest}</div> : null}
-                {audit.execution_ended_at ? <div>Horário do registro do resultado: {fmtTime(audit.execution_ended_at)}</div> : null}
+                {audit.model_input_digest ? (
+                  <div>SHA-256 da entrada de revisão do modelo: {audit.model_input_digest}</div>
+                ) : null}
+                {audit.execution_ended_at ? (
+                  <div>Horário do registro do resultado: {fmtTime(audit.execution_ended_at)}</div>
+                ) : null}
               </dl>
             </div>
           </CollapsibleContent>
@@ -681,7 +750,9 @@ export function ApprovalRecords({ taskId }: { taskId?: string }) {
         // filter. Older requests must remain actionable even when newer decisions
         // fill the page or a filter would hide them.
         const [history, pending] = await Promise.allSettled([
-          taskId ? api.interceptTaskPage(taskId, page, pageSize, filter) : api.interceptHistoryPage(page, pageSize, filter),
+          taskId
+            ? api.interceptTaskPage(taskId, page, pageSize, filter)
+            : api.interceptHistoryPage(page, pageSize, filter),
           api.interceptPending(),
         ]);
         if (id !== request.current) return;
@@ -789,7 +860,10 @@ export function ApprovalRecords({ taskId }: { taskId?: string }) {
           Atualizar
         </Button>
       </div>
-      <p className="text-muted-foreground text-sm">Expanda um registro para ver a requisição de ferramenta, a decisão da aprovação, o contexto da época e o resultado da execução.</p>
+      <p className="text-muted-foreground text-sm">
+        Expanda um registro para ver a requisição de ferramenta, a decisão da aprovação, o contexto da época e o
+        resultado da execução.
+      </p>
       <FieldGroup className="flex-row flex-wrap items-end gap-3" aria-label="Filtros dos registros de aprovação">
         <Field className="w-full sm:w-40">
           <FieldLabel htmlFor={`${filterID}-status`}>Status da aprovação</FieldLabel>
@@ -848,21 +922,32 @@ export function ApprovalRecords({ taskId }: { taskId?: string }) {
       </FieldGroup>
       {error ? (
         <Alert variant="destructive">
-          <AlertDescription>Falha ao carregar os registros: {error}. Clique em Atualizar para tentar novamente.</AlertDescription>
+          <AlertDescription>
+            Falha ao carregar os registros: {error}. Clique em Atualizar para tentar novamente.
+          </AlertDescription>
         </Alert>
       ) : null}
       {pendingError ? (
         <Alert variant="destructive">
-          <AlertDescription>Falha ao carregar as aprovações pendentes: {pendingError}. Clique em Atualizar para tentar novamente.</AlertDescription>
+          <AlertDescription>
+            Falha ao carregar as aprovações pendentes: {pendingError}. Clique em Atualizar para tentar novamente.
+          </AlertDescription>
         </Alert>
       ) : null}
       {pending.length ? (
         <section className="overflow-hidden rounded-xl border">
           <div className="flex items-center gap-2 border-b bg-muted/40 px-4 py-3 font-medium text-sm">
             <ShieldAlertIcon className="size-4" />
-            Pendentes ({pending.length})<span className="text-muted-foreground text-xs">expanda para permitir ou negar</span>
+            Pendentes ({pending.length})
+            <span className="text-muted-foreground text-xs">expanda para permitir ou negar</span>
           </div>
-          <ApprovalTable rows={pending} busy={deciding} decide={decide} revision={revision} label="Aprovações pendentes" />
+          <ApprovalTable
+            rows={pending}
+            busy={deciding}
+            decide={decide}
+            revision={revision}
+            label="Aprovações pendentes"
+          />
         </section>
       ) : null}
       <section className="overflow-hidden rounded-xl border">
@@ -882,7 +967,9 @@ export function ApprovalRecords({ taskId }: { taskId?: string }) {
               <EmptyMedia variant="icon">
                 <ClipboardListIcon />
               </EmptyMedia>
-              <EmptyTitle>{filtered ? "Nenhum registro de aprovação corresponde aos filtros" : "Nenhum registro de aprovação"}</EmptyTitle>
+              <EmptyTitle>
+                {filtered ? "Nenhum registro de aprovação corresponde aos filtros" : "Nenhum registro de aprovação"}
+              </EmptyTitle>
               <EmptyDescription>
                 {filtered
                   ? "Ajuste o status da aprovação ou a origem da decisão, ou limpe os filtros para ver todos os registros."
@@ -892,7 +979,13 @@ export function ApprovalRecords({ taskId }: { taskId?: string }) {
           </Empty>
         ) : null}
         {rows.length ? (
-          <ApprovalTable rows={rows} busy={deciding} decide={decide} revision={revision} label="Lista de registros de aprovação" />
+          <ApprovalTable
+            rows={rows}
+            busy={deciding}
+            decide={decide}
+            revision={revision}
+            label="Lista de registros de aprovação"
+          />
         ) : null}
         {!loading && !error ? (
           <TablePagination

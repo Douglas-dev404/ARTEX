@@ -1316,7 +1316,7 @@ export interface InterceptPending {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tool_input: Record<string, any>;
   status: "pending" | "allowed" | "denied" | "timeout";
-  reason: string; // message da regra ou motivo da decisão do modelo (a decisão do modelo leva o prefixo [模型])
+  reason: string; // message da regra ou motivo da decisão do modelo (a decisão do modelo leva o prefixo "[Modelo]"; registros antigos usam "[模型]")
   decided_at?: string;
   created_at: string;
 }
